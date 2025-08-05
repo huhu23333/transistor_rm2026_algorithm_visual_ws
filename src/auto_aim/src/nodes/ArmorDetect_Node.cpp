@@ -12,7 +12,7 @@
 #include <string>
 #include <thread>
 #include <armor_detector/BallisticSolver.h>
-#include <sys/time.h>
+#include "test_codes/FrameRateCounter.h"
 
 // 全局变量定义
 cv::Mat g_image;
@@ -65,6 +65,8 @@ public:
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(33),
             std::bind(&ArmorDetectNode::processImage, this));
+
+        fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
         RCLCPP_INFO(this->get_logger(), "ArmorDetectNode initialized");
     }
@@ -187,12 +189,6 @@ private:
     }
 
     void processImage() {
-        if (processed_frame_count == 0)
-        {
-            // 获取开始时间
-            gettimeofday(&start, NULL);
-        }
-
         cv::Mat frame;
 
         pthread_mutex_lock(&g_mutex);
@@ -202,7 +198,6 @@ private:
         pthread_mutex_unlock(&g_mutex);
 
         if (!frame.empty()) {
-            processed_frame_count += 1;
 
         //    cv::flip(frame, frame, -1);  // 翻转图像（上下翻转）
 
@@ -309,6 +304,9 @@ private:
             }
 
             drawResults(frame, lights, armors, classifyResults);
+
+            //计算帧率
+            fps_counter->tick();
             
             // // 显示当前参数状态
             // cv::putText(frame, 
@@ -319,11 +317,8 @@ private:
             //     cv::Scalar(0, 255, 0), 1);
         }        
 
-        // 获取结束时间
-        gettimeofday(&end, NULL);
-        // 计算耗时（毫秒）
-        elapsed = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000;
-        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , ((float)processed_frame_count)*1000.0/((float)elapsed));
+        // 获取处理帧率
+        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
     }
     // 处理目标丢失情况
     // void handleTargetLost() {
@@ -364,12 +359,9 @@ private:
     bool has_valid_target_;
     std::string enemy_color_;
     Params params_;
-    
-    // 记录开始及当前时间
-    struct timeval start, end;
-    long elapsed;
-    // 统计总处理帧数
-    long long processed_frame_count = 0;
+
+    // 帧率计算器
+    std::shared_ptr<FrameRateCounter> fps_counter;
 };
 
 int main(int argc, char * argv[]) {
