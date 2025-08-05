@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>auto_aim</name>
+  <version>0.0.1</version>
+  <description>Armor detection node using ROS 2</description>
+
+  <maintainer email="your_email@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <!-- 构建工具依赖 -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- 构建时依赖 -->
+  <build_depend>rclcpp</build_depend>
+  <build_depend>opencv</build_depend>
+  <build_depend>eigen3</build_depend>
+  <build_depend>Threads</build_depend>
+  <build_depend>torch</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>rosidl_default_generators</build_depend>
+
+  <!-- 运行时依赖 -->
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>opencv</exec_depend>
+  <exec_depend>eigen3</exec_depend>
+  <exec_depend>torch</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <!-- 消息接口包组 -->
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <!-- 导出依赖 -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
