@@ -13,6 +13,7 @@
 #include <thread>
 #include <armor_detector/BallisticSolver.h>
 #include "test_codes/FrameRateCounter.h"
+#include <yaml-cpp/yaml.h>
 
 // 全局变量定义
 cv::Mat g_image;
@@ -22,6 +23,9 @@ bool g_bExit = false;
 class ArmorDetectNode : public rclcpp::Node {
 public:
     ArmorDetectNode() : Node("armor_detect_node") {
+
+        config_file_ptr = std::make_shared<YAML::Node>(YAML::LoadFile("/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/config.yaml"));
+
         // 初始化发布者和订阅者
         gimbal_command_pub_ = this->create_publisher<auto_aim::msg::GimbalCommand>(
             "gimbal_command", 10);
@@ -31,34 +35,66 @@ public:
             std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
 
         // 初始化参数
-        bullet_velocity_ = 15.0f;
-        current_pitch_ = 0.0f;
-        current_yaw_ = 0.0f;
+        bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
+        current_pitch_ = (*config_file_ptr)["current_pitch_"].as<float>();
+        current_yaw_ = (*config_file_ptr)["current_yaw_"].as<float>();
 
-        // delta_x_ = 0.0f;
-        // delta_y_ = 78.31f;
-        // delta_z_ = 181.30f;
+        delta_x_ = (*config_file_ptr)["delta_x_"].as<float>();
+        delta_y_ = (*config_file_ptr)["delta_y_"].as<float>();
+        delta_z_ = (*config_file_ptr)["delta_z_"].as<float>();
 
-        // delta_x_ = 48.72f;
-        // delta_y_ = -29.14f;
-        // delta_z_ = 114.34f;
-
-        delta_x_ = 0.0f;
-        delta_y_ = 42.8f;
-        delta_z_ = 142.5f;
+        RESET_DISTANCE_THRESHOLD = (*config_file_ptr)["RESET_DISTANCE_THRESHOLD"].as<float>(); 
+        MAX_LOST_TIME = (*config_file_ptr)["MAX_LOST_TIME"].as<float>(); 
 
         has_valid_target_ = false;
-        enemy_color_ = "BLUE";
+        enemy_color_ = (*config_file_ptr)["enemy_color"].as<std::string>();
+        
+        params_.min_light_height = (*config_file_ptr)["min_light_height"].as<int>();
+        params_.light_slope_offset = (*config_file_ptr)["light_slope_offset"].as<int>();
+        params_.light_min_area = (*config_file_ptr)["light_min_area"].as<int>();
+        params_.max_light_wh_ratio = (*config_file_ptr)["max_light_wh_ratio"].as<float>();
+        params_.min_light_wh_ratio = (*config_file_ptr)["min_light_wh_ratio"].as<float>();
+        params_.light_max_tilt_angle = (*config_file_ptr)["light_max_tilt_angle"].as<float>();
+        params_.min_light_delta_x = (*config_file_ptr)["min_light_delta_x"].as<int>();
+        params_.min_light_dx_ratio = (*config_file_ptr)["min_light_dx_ratio"].as<float>();
+        params_.max_light_dy_ratio = (*config_file_ptr)["max_light_dy_ratio"].as<float>();
+        params_.max_light_delta_angle = (*config_file_ptr)["max_light_delta_angle"].as<float>();
+        params_.near_face_v = (*config_file_ptr)["near_face_v"].as<int>();
+        params_.max_lr_rate = (*config_file_ptr)["max_lr_rate"].as<float>();
+        params_.max_wh_ratio = (*config_file_ptr)["max_wh_ratio"].as<float>();
+        params_.min_wh_ratio = (*config_file_ptr)["min_wh_ratio"].as<float>();
+        params_.small_armor_wh_threshold = (*config_file_ptr)["small_armor_wh_threshold"].as<float>();
+        params_.bin_cls_thres = (*config_file_ptr)["bin_cls_thres"].as<int>();
+        params_.target_max_angle = (*config_file_ptr)["target_max_angle"].as<int>();
+        params_.goodToTotalRatio = (*config_file_ptr)["goodToTotalRatio"].as<float>();
+        params_.matchDistThre = (*config_file_ptr)["matchDistThre"].as<int>();
+        params_.wh_ratio_threshold = (*config_file_ptr)["wh_ratio_threshold"].as<float>();
+        params_.wh_ratio_max = (*config_file_ptr)["wh_ratio_max"].as<float>();
+        params_.M_YAW_THRES = (*config_file_ptr)["M_YAW_THRES"].as<int>();
+        params_.K_YAW_THRES = (*config_file_ptr)["K_YAW_THRES"].as<float>();
+        params_.MAX_DETECT_CNT = (*config_file_ptr)["MAX_DETECT_CNT"].as<int>();
+        params_.MAX_LOST_CNT = (*config_file_ptr)["MAX_LOST_CNT"].as<int>();
 
         // 初始化相机和检测器
         camera_ = std::make_shared<Camera>("192.168.10.10", "192.168.10.25");
-        camera_->setExposureTime(5000.0f);
-        camera_->setGain(16.0f);
+        camera_->setExposureTime((*config_file_ptr)["camera_ExposureTime"].as<float>());
+        camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
 
-        params_.enemy_color = Params::BLUE;
-        light_detector_ = std::make_shared<LightBarDetector>(params_, this);
+        if (enemy_color_ == "RED") {
+            params_.enemy_color = Params::RED;
+        } else if (enemy_color_ == "BLUE") {
+            params_.enemy_color = Params::BLUE;
+        } else if (enemy_color_ == "GREEN") {
+            params_.enemy_color = Params::GREEN;
+        } else {
+            // 处理错误情况，设置默认值
+            enemy_color_ = "RED";
+            params_.enemy_color = Params::RED;
+        }
+
+        light_detector_ = std::make_shared<LightBarDetector>(params_, this, config_file_ptr);
         armor_detector_ = std::make_shared<ArmorDetector>();
-        classifier_ = std::make_shared<ArmorClassifier>("/home/rm1/rm2025_ws/src/auto_aim/models/best_model.pt", false);
+        classifier_ = std::make_shared<ArmorClassifier>((*config_file_ptr)["model_path"].as<std::string>(), false);
         angle_kalman_ = std::make_shared<ArmorAngleKalman>();
 
         // 创建定时器
@@ -318,8 +354,12 @@ private:
         }        
 
         // 获取处理帧率
-        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
+        RCLCPP_DEBUG(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
     }
+
+    // 参数文件
+    std::shared_ptr<YAML::Node> config_file_ptr; 
+
     // 处理目标丢失情况
     // void handleTargetLost() {
     //     if (!is_target_lost_) {
@@ -335,8 +375,10 @@ private:
     rclcpp::Time last_track_time_;    // 最后有效跟踪时间
 
     // 配置参数
-    static constexpr float RESET_DISTANCE_THRESHOLD = 400.0f; // 单位：mm
-    static constexpr float MAX_LOST_TIME = 0.5f;              // 单位：秒
+    // static constexpr float RESET_DISTANCE_THRESHOLD = 400.0f; // 单位：mm
+    // static constexpr float MAX_LOST_TIME = 0.5f;              // 单位：秒
+    float RESET_DISTANCE_THRESHOLD; // 单位：mm
+    float MAX_LOST_TIME;              // 单位：秒
     // 成员变量
     rclcpp::Publisher<auto_aim::msg::GimbalCommand>::SharedPtr gimbal_command_pub_;
     rclcpp::Subscription<auto_aim::msg::SerialData>::SharedPtr serial_data_sub_;

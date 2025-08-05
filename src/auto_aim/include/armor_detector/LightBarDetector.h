@@ -113,6 +113,7 @@
 #include <vector>
 #include "Params.h"
 #include <rclcpp/rclcpp.hpp>
+#include <yaml-cpp/yaml.h>
 
 /**
  * @brief 灯条类，存储和处理单个灯条的信息
@@ -154,7 +155,7 @@ public:
      * @brief 构造函数
      * @param params 检测参数结构体，包含各种阈值和配置
      */
-    explicit LightBarDetector(const Params& params, rclcpp::Node* node);
+    explicit LightBarDetector(const Params& params, rclcpp::Node* node, std::shared_ptr<YAML::Node> config_file_ptr);
     
     /**
      * @brief 设置敌方装甲板的颜色
@@ -184,6 +185,14 @@ private:
     Params params;                       // 检测参数
     Params::EnemyColor enemy_color;      // 敌方颜色
     rclcpp::Node* node;                  // 用于打印的节点
+    std::shared_ptr<YAML::Node> config_file_ptr; // 配置文件
+    // 灯条检测参数
+    float mean_color_diff_THRESHOLD;
+    float color_rect_expand_FACTOR;
+    uint8_t binary_img_THRESHOLD;
+    // 颜色通道差值的阈值常量
+    int THRES_MAX_COLOR_RED;   // 红色通道差值阈值
+    int THRES_MAX_COLOR_BLUE;  // 蓝色通道差值阈值
 
     /**
      * @brief 根据敌方颜色提取颜色通道差值图像
@@ -205,7 +214,7 @@ private:
      * @param rect 输入矩形
      * @return 均值结果
      */
-    double calculateMeanInRotatedRect(const cv::Mat& grayImage, const cv::RotatedRect& rect);
+    float calculateMeanInRotatedRect(const cv::Mat& grayImage, const cv::RotatedRect& rect);
 
     /**
      * @brief 按比例扩张矩形

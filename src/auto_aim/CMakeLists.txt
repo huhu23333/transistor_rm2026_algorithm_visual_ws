@@ -21,6 +21,7 @@ find_package(Threads REQUIRED)
 find_package(Torch REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SerialData.msg"
@@ -71,6 +72,7 @@ target_link_libraries(armor_detector
     ${OpenCV_LIBS}
     Eigen3::Eigen
     rclcpp::rclcpp   # 添加这一行
+    yaml-cpp
 )
 
 # 为装甲板检测节点添加依赖
@@ -84,6 +86,8 @@ target_link_libraries(armor_detect_node
     rclcpp::rclcpp
     ${sensor_msgs_LIBRARIES}
     ${cv_bridge_LIBRARIES}
+    "${cpp_typesupport_target}"
+    yaml-cpp
 )
 
 # 为通信节点添加依赖
@@ -91,14 +95,12 @@ target_link_libraries(com_node
     crc_lib
     pthread
     rclcpp::rclcpp
+    "${cpp_typesupport_target}"
 )
 
-# 添加ROS2消息依赖
-rosidl_target_interfaces(armor_detect_node
-    ${PROJECT_NAME} "rosidl_typesupport_cpp")
+ament_target_dependencies(armor_detector yaml-cpp)
 
-rosidl_target_interfaces(com_node
-    ${PROJECT_NAME} "rosidl_typesupport_cpp")
+ament_target_dependencies(armor_detect_node yaml-cpp)
 
 # 编译选项
 if(NOT CMAKE_BUILD_TYPE)

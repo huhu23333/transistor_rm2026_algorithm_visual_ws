@@ -6,10 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <cmath>
 #include <rclcpp/rclcpp.hpp>
-
-// 颜色通道差值的阈值常量
-static const int THRES_MAX_COLOR_RED = 100;   // 红色通道差值阈值
-static const int THRES_MAX_COLOR_BLUE = 100;  // 蓝色通道差值阈值
+#include <yaml-cpp/yaml.h>
 
 /************************* Light类实现 *************************/
 
@@ -49,8 +46,14 @@ void Light::calculateDimensions() {
 
 /************************* LightBarDetector类实现 *************************/
 
-LightBarDetector::LightBarDetector(const Params& params, rclcpp::Node* node) // 新增传入节点，用于debug打印
-    : params(params), enemy_color(params.enemy_color), node(node) {}
+LightBarDetector::LightBarDetector(const Params& params, rclcpp::Node* node, std::shared_ptr<YAML::Node> config_file_ptr) // 新增传入节点，用于debug打印
+    : params(params), enemy_color(params.enemy_color), node(node), config_file_ptr(config_file_ptr) {
+        mean_color_diff_THRESHOLD = (*config_file_ptr)["mean_color_diff_THRESHOLD"].as<float>(); 
+        color_rect_expand_FACTOR = (*config_file_ptr)["color_rect_expand_FACTOR"].as<float>(); 
+        binary_img_THRESHOLD = (*config_file_ptr)["binary_img_THRESHOLD"].as<uint8_t>(); 
+        THRES_MAX_COLOR_RED = (*config_file_ptr)["THRES_MAX_COLOR_RED"].as<int>(); 
+        THRES_MAX_COLOR_BLUE = (*config_file_ptr)["THRES_MAX_COLOR_BLUE"].as<int>(); 
+    }
 
 void LightBarDetector::setEnemyColor(int color) {
     enemy_color = static_cast<Params::EnemyColor>(color);
@@ -61,11 +64,6 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
     
     // 处理每一帧图像
     for (const auto& img : images) {
-/*         // 1. 提取颜色通道差值图像
-        cv::Mat color_diff = extractColorChannelDiff(img);
-
-        // 2. 检测可能的灯条
-        std::vector<cv::RotatedRect> detectedRects = detectLightRects(color_diff); */
 
         // 1. 提取二值化图片
         cv::Mat binary_img = binaryImg(img);
@@ -73,22 +71,21 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
         // 2. 检测可能的灯条
         std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);
 
-/*         for (auto& rect : detectedRects) {
-            rect.size.width += 60;
-            rect.size.height += 60;
-        } */
-        
         // 3. 移除颜色错误的灯条，只保留目标颜色的灯条
         for (size_t i = 0; i < detectedRects.size(); ++i) {
+            
             // 1. 提取颜色通道差值图像
             cv::Mat color_diff = extractColorChannelDiff(img);
+
             // 2. 获取扩张后的旋转矩形
-            cv::RotatedRect expandedRect = rectExpand(detectedRects[i], 1.5);
+            cv::RotatedRect expandedRect = rectExpand(detectedRects[i], color_rect_expand_FACTOR);
+
             // 3. 获取矩形范围内通道差值图像的均值
-            double mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
+            float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
+
             // 4. 删除均值小于阈值的图像
-            // RCLCPP_INFO(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
-            if (mean_color_diff < 10) {
+            RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
+            if (mean_color_diff < mean_color_diff_THRESHOLD) {
                 detectedRects.erase(detectedRects.begin() + i);
                 --i;
             }
@@ -108,7 +105,7 @@ cv::Mat LightBarDetector::binaryImg(const cv::Mat& img) {
     
     // 1. 获取二值图
     cv::Mat binary_img;
-    cv::threshold(gray_img, binary_img, 128, 255, cv::THRESH_BINARY);
+    cv::threshold(gray_img, binary_img, binary_img_THRESHOLD, 255, cv::THRESH_BINARY);
 
     return binary_img;
 }
@@ -122,7 +119,7 @@ cv::RotatedRect LightBarDetector::rectExpand(const cv::RotatedRect& rect, float 
     );
 }
 
-double LightBarDetector::calculateMeanInRotatedRect(const cv::Mat& grayImage, const cv::RotatedRect& rect) {
+float LightBarDetector::calculateMeanInRotatedRect(const cv::Mat& grayImage, const cv::RotatedRect& rect) {
     // 1. 创建与图像同尺寸的掩码（全黑）
     cv::Mat mask = cv::Mat::zeros(grayImage.size(), CV_8UC1);
     

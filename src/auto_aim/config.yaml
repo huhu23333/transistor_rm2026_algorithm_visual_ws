@@ -1,0 +1,49 @@
+model_path : "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/models/best_model.pt"
+enemy_color : "BLUE"
+
+RESET_DISTANCE_THRESHOLD : 400.0 # 单位：mm
+MAX_LOST_TIME : 0.5              # 单位：秒
+
+camera_ExposureTime : 5000.0
+camera_Gain : 16.0
+
+bullet_velocity_ : 15.0
+current_pitch_ : 0.0
+current_yaw_ : 0.0
+
+delta_x_ : 0.0 #    0.0f     48.72f
+delta_y_ : 42.8 #   78.31f   -29.14f
+delta_z_ : 142.5 #  181.30f  114.34f
+
+binary_img_THRESHOLD : 128
+color_rect_expand_FACTOR : 1.5
+mean_color_diff_THRESHOLD : 20.0
+THRES_MAX_COLOR_RED : 100
+THRES_MAX_COLOR_BLUE : 100
+
+# Params.h 参数设置
+min_light_height : 8
+light_slope_offset : 30
+light_min_area : 10
+max_light_wh_ratio : 10.0
+min_light_wh_ratio : 0.1
+light_max_tilt_angle : 60.0
+min_light_delta_x : 28
+min_light_dx_ratio : 0.8
+max_light_dy_ratio : 1.0
+max_light_delta_angle : 30.0
+near_face_v : 600
+max_lr_rate : 0.7
+max_wh_ratio : 6.0
+min_wh_ratio : 0.5
+small_armor_wh_threshold : 3.6
+bin_cls_thres : 166
+target_max_angle : 20
+goodToTotalRatio : 1.0
+matchDistThre : 50
+wh_ratio_threshold : 3.2
+wh_ratio_max : 4.5
+M_YAW_THRES : 31416     # 5 degrees in radians (approx)
+K_YAW_THRES : 0.7
+MAX_DETECT_CNT : 2
+MAX_LOST_CNT : 3
