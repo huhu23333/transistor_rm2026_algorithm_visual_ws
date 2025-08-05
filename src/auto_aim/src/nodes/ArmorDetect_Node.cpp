@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 #include <armor_detector/BallisticSolver.h>
+#include <sys/time.h>
 
 // 全局变量定义
 cv::Mat g_image;
@@ -47,15 +48,15 @@ public:
         delta_z_ = 142.5f;
 
         has_valid_target_ = false;
-        enemy_color_ = "RED";
+        enemy_color_ = "BLUE";
 
         // 初始化相机和检测器
         camera_ = std::make_shared<Camera>("192.168.10.10", "192.168.10.25");
         camera_->setExposureTime(5000.0f);
         camera_->setGain(16.0f);
 
-        params_.enemy_color = Params::RED;
-        light_detector_ = std::make_shared<LightBarDetector>(params_);
+        params_.enemy_color = Params::BLUE;
+        light_detector_ = std::make_shared<LightBarDetector>(params_, this);
         armor_detector_ = std::make_shared<ArmorDetector>();
         classifier_ = std::make_shared<ArmorClassifier>("/home/rm1/rm2025_ws/src/auto_aim/models/best_model.pt", false);
         angle_kalman_ = std::make_shared<ArmorAngleKalman>();
@@ -116,33 +117,33 @@ private:
                      const std::vector<ArmorResult>& classifyResults) {
         cv::Mat result = image.clone();
 
-        // // 1. 绘制灯条（绿色）
-        // for (const auto& light : lights) {
-        //     cv::Point2f vertices[4];
-        //     light.el.points(vertices);
-        //     for (int i = 0; i < 4; i++) {
-        //         cv::line(result, vertices[i], vertices[(i + 1) % 4], 
-        //                 cv::Scalar(0, 255, 0), 2);
-        //     }
-        // }
+        // 1. 绘制灯条（绿色）
+        for (const auto& light : lights) {
+            cv::Point2f vertices[4];
+            light.el.points(vertices);
+            for (int i = 0; i < 4; i++) {
+                cv::line(result, vertices[i], vertices[(i + 1) % 4], 
+                        cv::Scalar(0, 255, 0), 2);
+            }
+        }
 
-        // // 2. 绘制装甲板候选区域（黄色）
-        // for (const auto& armor : armors) {
-        //     for (size_t i = 0; i < armor.corners.size() && i < 4; i++) {
-        //         cv::line(result, armor.corners[i], 
-        //                 armor.corners[(i+1)%4], 
-        //                 cv::Scalar(0, 255, 255), 2);
-        //     }
+        // 2. 绘制装甲板候选区域（黄色）
+        for (const auto& armor : armors) {
+            for (size_t i = 0; i < armor.corners.size() && i < 4; i++) {
+                cv::line(result, armor.corners[i], 
+                        armor.corners[(i+1)%4], 
+                        cv::Scalar(0, 255, 255), 2);
+            }
 
-        //     // 显示装甲板置信度
-        //     if (!armor.corners.empty()) {
-        //         std::string conf_str = cv::format("conf: %.2f", armor.confidence);
-        //         cv::Point text_pos(armor.corners[0].x, armor.corners[0].y - 10);
-        //         cv::putText(result, conf_str, text_pos,
-        //                 cv::FONT_HERSHEY_SIMPLEX, 0.5, 
-        //                 cv::Scalar(0, 255, 255), 1);
-        //     }
-        // }
+            // 显示装甲板置信度
+            if (!armor.corners.empty()) {
+                std::string conf_str = cv::format("conf: %.2f", armor.confidence);
+                cv::Point text_pos(armor.corners[0].x, armor.corners[0].y - 10);
+                cv::putText(result, conf_str, text_pos,
+                        cv::FONT_HERSHEY_SIMPLEX, 0.5, 
+                        cv::Scalar(0, 255, 255), 1);
+            }
+        }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
         for (const auto& res : classifyResults) {
@@ -186,6 +187,12 @@ private:
     }
 
     void processImage() {
+        if (processed_frame_count == 0)
+        {
+            // 获取开始时间
+            gettimeofday(&start, NULL);
+        }
+
         cv::Mat frame;
 
         pthread_mutex_lock(&g_mutex);
@@ -195,6 +202,8 @@ private:
         pthread_mutex_unlock(&g_mutex);
 
         if (!frame.empty()) {
+            processed_frame_count += 1;
+
         //    cv::flip(frame, frame, -1);  // 翻转图像（上下翻转）
 
             std::vector<Light> lights;
@@ -219,7 +228,7 @@ private:
                         return a.confidence < b.confidence;
                     }
                 );
-                if (it != classifyResults.end() ) {
+                if (it != classifyResults.end()) {
                     auto best_result = *it;
                     AimResult aim = armor_detector_->solveArmor(best_result.armor, best_result.number);                    
                     if (aim.valid) {
@@ -298,6 +307,7 @@ private:
                     
                 }
             }
+
             drawResults(frame, lights, armors, classifyResults);
             
             // // 显示当前参数状态
@@ -307,7 +317,13 @@ private:
             //     cv::Point(10, 60),
             //     cv::FONT_HERSHEY_SIMPLEX, 0.5,
             //     cv::Scalar(0, 255, 0), 1);
-        }
+        }        
+
+        // 获取结束时间
+        gettimeofday(&end, NULL);
+        // 计算耗时（毫秒）
+        elapsed = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000;
+        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , ((float)processed_frame_count)*1000.0/((float)elapsed));
     }
     // 处理目标丢失情况
     // void handleTargetLost() {
@@ -348,6 +364,12 @@ private:
     bool has_valid_target_;
     std::string enemy_color_;
     Params params_;
+    
+    // 记录开始及当前时间
+    struct timeval start, end;
+    long elapsed;
+    // 统计总处理帧数
+    long long processed_frame_count = 0;
 };
 
 int main(int argc, char * argv[]) {

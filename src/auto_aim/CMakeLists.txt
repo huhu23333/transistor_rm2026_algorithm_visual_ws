@@ -69,6 +69,7 @@ add_executable(com_node src/nodes/Com_Node.cpp)
 target_link_libraries(armor_detector
     ${OpenCV_LIBS}
     Eigen3::Eigen
+    rclcpp::rclcpp   # 添加这一行
 )
 
 # 为装甲板检测节点添加依赖

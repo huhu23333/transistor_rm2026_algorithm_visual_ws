@@ -5,6 +5,7 @@
 #include "armor_detector/LightBarDetector.h"
 #include <opencv2/opencv.hpp>
 #include <cmath>
+#include <rclcpp/rclcpp.hpp>
 
 // 颜色通道差值的阈值常量
 static const int THRES_MAX_COLOR_RED = 100;   // 红色通道差值阈值
@@ -48,8 +49,8 @@ void Light::calculateDimensions() {
 
 /************************* LightBarDetector类实现 *************************/
 
-LightBarDetector::LightBarDetector(const Params& params) 
-    : params(params), enemy_color(params.enemy_color) {}
+LightBarDetector::LightBarDetector(const Params& params, rclcpp::Node* node) // 新增传入节点，用于debug打印
+    : params(params), enemy_color(params.enemy_color), node(node) {}
 
 void LightBarDetector::setEnemyColor(int color) {
     enemy_color = static_cast<Params::EnemyColor>(color);
@@ -60,17 +61,89 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
     
     // 处理每一帧图像
     for (const auto& img : images) {
-        // 1. 提取颜色通道差值图像
+/*         // 1. 提取颜色通道差值图像
         cv::Mat color_diff = extractColorChannelDiff(img);
-        
+
         // 2. 检测可能的灯条
-        std::vector<cv::RotatedRect> detectedRects = detectLightRects(color_diff);
+        std::vector<cv::RotatedRect> detectedRects = detectLightRects(color_diff); */
+
+        // 1. 提取二值化图片
+        cv::Mat binary_img = binaryImg(img);
+
+        // 2. 检测可能的灯条
+        std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);
+
+/*         for (auto& rect : detectedRects) {
+            rect.size.width += 60;
+            rect.size.height += 60;
+        } */
         
-        // 3. 将检测到的旋转矩形转换为Light对象
+        // 3. 移除颜色错误的灯条，只保留目标颜色的灯条
+        for (size_t i = 0; i < detectedRects.size(); ++i) {
+            // 1. 提取颜色通道差值图像
+            cv::Mat color_diff = extractColorChannelDiff(img);
+            // 2. 获取扩张后的旋转矩形
+            cv::RotatedRect expandedRect = rectExpand(detectedRects[i], 1.5);
+            // 3. 获取矩形范围内通道差值图像的均值
+            double mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
+            // 4. 删除均值小于阈值的图像
+            // RCLCPP_INFO(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
+            if (mean_color_diff < 10) {
+                detectedRects.erase(detectedRects.begin() + i);
+                --i;
+            }
+        }
+        
+        // 4. 将检测到的旋转矩形转换为Light对象
         for (const auto& rect : detectedRects) {
             lights.emplace_back(rect);
         }
     }
+}
+
+cv::Mat LightBarDetector::binaryImg(const cv::Mat& img) {
+    // 1. 获取灰度图
+    cv::Mat gray_img;
+    cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
+    
+    // 1. 获取二值图
+    cv::Mat binary_img;
+    cv::threshold(gray_img, binary_img, 128, 255, cv::THRESH_BINARY);
+
+    return binary_img;
+}
+
+cv::RotatedRect LightBarDetector::rectExpand(const cv::RotatedRect& rect, float factor) {
+    return cv::RotatedRect(
+        rect.center, 
+        cv::Size2f(rect.size.width * factor, 
+                  rect.size.height * factor),
+        rect.angle
+    );
+}
+
+double LightBarDetector::calculateMeanInRotatedRect(const cv::Mat& grayImage, const cv::RotatedRect& rect) {
+    // 1. 创建与图像同尺寸的掩码（全黑）
+    cv::Mat mask = cv::Mat::zeros(grayImage.size(), CV_8UC1);
+    
+    // 2. 获取旋转矩形的四个顶点（浮点坐标）
+    cv::Point2f vertices2f[4];
+    rect.points(vertices2f);
+    
+    // 3. 将浮点顶点转换为整数顶点
+    std::vector<cv::Point> vertices;
+    for (int i = 0; i < 4; i++) {
+        vertices.push_back(cv::Point(static_cast<int>(vertices2f[i].x), 
+                                   static_cast<int>(vertices2f[i].y)));
+    }
+    
+    // 4. 将旋转矩形区域填充为白色（255）
+    cv::fillConvexPoly(mask, vertices, cv::Scalar(255));
+    
+    // 5. 计算掩码区域的均值
+    cv::Scalar meanValue = cv::mean(grayImage, mask);
+    
+    return meanValue[0];  // 灰度图像只有一个通道
 }
 
 cv::Mat LightBarDetector::extractColorChannelDiff(const cv::Mat& img) {

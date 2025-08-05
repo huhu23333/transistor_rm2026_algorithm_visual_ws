@@ -112,6 +112,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include "Params.h"
+#include <rclcpp/rclcpp.hpp>
 
 /**
  * @brief 灯条类，存储和处理单个灯条的信息
@@ -153,7 +154,7 @@ public:
      * @brief 构造函数
      * @param params 检测参数结构体，包含各种阈值和配置
      */
-    explicit LightBarDetector(const Params& params);
+    explicit LightBarDetector(const Params& params, rclcpp::Node* node);
     
     /**
      * @brief 设置敌方装甲板的颜色
@@ -182,6 +183,7 @@ private:
     std::vector<Light> lights;           // 存储检测到的所有灯条
     Params params;                       // 检测参数
     Params::EnemyColor enemy_color;      // 敌方颜色
+    rclcpp::Node* node;                  // 用于打印的节点
 
     /**
      * @brief 根据敌方颜色提取颜色通道差值图像
@@ -189,6 +191,29 @@ private:
      * @return 处理后的二值图像
      */
     cv::Mat extractColorChannelDiff(const cv::Mat& img);
+
+    /**
+     * @brief 转换为灰度图后二值化图像
+     * @param img 输入图像
+     * @return 处理后的二值图像
+     */
+    cv::Mat binaryImg(const cv::Mat& img);
+
+    /**
+     * @brief 计算灰度图在矩形范围内的均值
+     * @param grayImage 输入图像
+     * @param rect 输入矩形
+     * @return 均值结果
+     */
+    double calculateMeanInRotatedRect(const cv::Mat& grayImage, const cv::RotatedRect& rect);
+
+    /**
+     * @brief 按比例扩张矩形
+     * @param rect 输入矩形
+     * @param factor 比例系数
+     * @return 扩张后矩形
+     */
+    cv::RotatedRect rectExpand(const cv::RotatedRect& rect, float factor);
 
     /**
      * @brief 在二值图像中检测可能的灯条
