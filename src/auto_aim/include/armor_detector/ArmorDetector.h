@@ -7,6 +7,8 @@
 #include <vector>
 #include <yaml-cpp/yaml.h>
 #include <rclcpp/rclcpp.hpp>
+#define _USE_MATH_DEFINES // 启用数学常量
+#include <cmath>
 
 // 物理尺寸常量
 namespace ArmorConstants {
@@ -36,18 +38,37 @@ struct Armor {
     cv::Rect roi;                 // ROI区域
     float confidence;             // 置信度
     std::vector<cv::Point2f> corners;  // 四个角点坐标
+    rclcpp::Node* node;
 
     // 默认构造函数
     Armor() : confidence(0.0f) {}
     
     // 带参数的构造函数
-    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right) 
-        : leftLight(left), rightLight(right), confidence(0.0f) {
+    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, rclcpp::Node* node) 
+        : leftLight(left), rightLight(right), confidence(0.0f), node(node) {
         calculateROI();
     }
     
     // ROI计算函数
     void calculateROI() {
+        // 更新corners向量
+        corners.clear();
+        calculateCorners();
+        RCLCPP_DEBUG(node->get_logger(), "----------Armor Debug Flag----------");
+
+        // 计算ROI
+        roi = cv::boundingRect(corners);
+    }
+
+    cv::Point2f vecToPoint(const cv::Vec2f& vec) {
+        return cv::Point2f(vec[0], vec[1]);
+    }
+
+    cv::Vec2f pointToVec(const cv::Point2f& point) {
+        return cv::Vec2f(point.x, point.y);
+    }
+    
+    void calculateCorners() {
         // 获取左右灯条的顶点
         cv::Point2f left_vertices[4], right_vertices[4];
         leftLight.points(left_vertices);
@@ -56,52 +77,92 @@ struct Armor {
         // 找到左右灯条的中心点
         cv::Point2f left_center = leftLight.center;
         cv::Point2f right_center = rightLight.center;
-        
-        // 计算灯条的平均高度
-        float avg_light_height = (leftLight.size.height + rightLight.size.height) / 2.0f;
-        
-        // 计算装甲板高度（使用小装甲板的高度比例作为默认值）
-        // 在ROI阶段我们还不知道具体是大装甲板还是小装甲板，使用小装甲板比例可以确保ROI不会太大
-        float armor_height = avg_light_height * ArmorConstants::SMALL_HEIGHT_RATIO;
-        
-        // 计算装甲板中心点
-        cv::Point2f armor_center = (left_center + right_center) / 2.0f;
-        
-        // 找到两个灯条的内侧边界
-        float left_right_x = -1280, right_left_x = 1280;
-        for (int i = 0; i < 4; i++) {
-            left_right_x = std::max(left_right_x, left_vertices[i].x);
-            right_left_x = std::min(right_left_x, right_vertices[i].x);
+
+        // 获取左右灯条的顶点转换为相对中心点的坐标
+        cv::Vec2f relative_left_vertices[4], relative_right_vertices[4];
+        for (int i = 0; i < 4; i+=1) {
+            relative_left_vertices[i] = pointToVec(left_vertices[i] - left_center);
+            relative_right_vertices[i] = pointToVec(right_vertices[i] - right_center);
         }
-        
-        // 计算装甲板的四个角点
-        float half_height = armor_height / 2.0f;
-        float y_top = armor_center.y - half_height;
-        float y_bottom = armor_center.y + half_height;
-        
-        // 更新corners向量
-        corners.clear();
-        corners = {
-            cv::Point2f(left_right_x, y_top),      // 左上
-            cv::Point2f(right_left_x, y_top),      // 右上
-            cv::Point2f(right_left_x, y_bottom),   // 右下
-            cv::Point2f(left_right_x, y_bottom)    // 左下
-        };
-        
-        // 计算ROI
-        roi = cv::Rect(
-            cv::Point(std::max(0, int(left_right_x)),
-                     std::max(0, int(y_top))),
-            cv::Size(
-                std::min(1280 - int(left_right_x), int(right_left_x - left_right_x)),
-                std::min(1024 - int(y_top), int(y_bottom - y_top)))
-        );
+
+        // 获取左灯条中心点指向右灯条中心点的向量及垂直其向上的向量，并单位化
+        cv::Vec2f d_center_vector = right_center - left_center;
+        cv::Vec2f vertical_d_center_vector = cv::Vec2f(-d_center_vector[1], d_center_vector[0]);
+        d_center_vector = cv::normalize(d_center_vector);
+        vertical_d_center_vector = cv::normalize(vertical_d_center_vector);
+
+        // 获取左右灯条长边及短边的单位方向向量，并调整方向为向右或向上
+        float rad_left = -leftLight.angle * M_PI / 180.0;
+        float rad_right = -rightLight.angle * M_PI / 180.0;
+        cv::Vec2f left_length_direction = cv::Vec2f(std::sin(rad_left), std::cos(rad_left));
+        cv::Vec2f left_width_direction = cv::Vec2f(-left_length_direction[1], left_length_direction[0]);
+        cv::Vec2f right_length_direction = cv::Vec2f(std::sin(rad_right), std::cos(rad_right));
+        cv::Vec2f right_width_direction = cv::Vec2f(-right_length_direction[1], right_length_direction[0]);
+        if (left_length_direction.dot(vertical_d_center_vector) < 0) left_length_direction = -left_length_direction;
+        if (left_width_direction.dot(d_center_vector) < 0) left_width_direction = -left_width_direction;
+        if (right_length_direction.dot(vertical_d_center_vector) < 0) right_length_direction = -right_length_direction;
+        if (right_width_direction.dot(d_center_vector) < 0) right_width_direction = -right_width_direction;
+
+        // 将顶点相对坐标拆分为沿长边和短边两部分
+        cv::Vec2f horizontal_relative_left_vertices[4], horizontal_relative_right_vertices[4],
+                  vertical_relative_left_vertices[4], vertical_relative_right_vertices[4];
+        for (int i = 0; i < 4; i+=1) {
+            horizontal_relative_left_vertices[i] = left_width_direction * relative_left_vertices[i].dot(left_width_direction);
+            horizontal_relative_right_vertices[i] = right_width_direction * relative_right_vertices[i].dot(right_width_direction);
+            vertical_relative_left_vertices[i] = left_length_direction * relative_left_vertices[i].dot(left_length_direction);
+            vertical_relative_right_vertices[i] = right_length_direction * relative_right_vertices[i].dot(right_length_direction);
+        }
+
+        // 获取灯条顶点坐标中靠近装甲板中心的四个点的相对中心点坐标的沿长边和短边两部分
+        cv::Vec2f left_up_horizontal, left_up_vertical, left_down_horizontal, left_down_vertical, 
+                  right_up_horizontal, right_up_vertical, right_down_horizontal, right_down_vertical; 
+        for (int i = 0; i < 4; i+=1) {
+            if (horizontal_relative_left_vertices[i].dot(left_width_direction) >= 0)
+            {
+                if (vertical_relative_left_vertices[i].dot(left_length_direction) >= 0)
+                {
+                    left_up_horizontal = horizontal_relative_left_vertices[i];
+                    left_up_vertical = vertical_relative_left_vertices[i];
+                }
+                else
+                {
+                    left_down_horizontal = horizontal_relative_left_vertices[i];
+                    left_down_vertical = vertical_relative_left_vertices[i];
+                }
+            }
+            if (horizontal_relative_right_vertices[i].dot(right_width_direction) <= 0)
+            {
+                if (vertical_relative_right_vertices[i].dot(right_length_direction) >= 0)
+                {
+                    right_up_horizontal = horizontal_relative_right_vertices[i];
+                    right_up_vertical = vertical_relative_right_vertices[i];
+                }
+                else
+                {
+                    right_down_horizontal = horizontal_relative_right_vertices[i];
+                    right_down_vertical = vertical_relative_right_vertices[i];
+                }
+            }
+        }
+
+        // 沿长边部分使用小装甲板比例获得装甲板高度相对坐标
+        left_up_vertical *= ArmorConstants::SMALL_HEIGHT_RATIO;
+        left_down_vertical *= ArmorConstants::SMALL_HEIGHT_RATIO;
+        right_up_vertical *= ArmorConstants::SMALL_HEIGHT_RATIO;
+        right_down_vertical *= ArmorConstants::SMALL_HEIGHT_RATIO;
+
+        // 按从左上角开始逆时针排序输出
+        corners.push_back(left_center + vecToPoint(left_up_horizontal + left_up_vertical));
+        corners.push_back(left_center + vecToPoint(left_down_horizontal + left_down_vertical));
+        corners.push_back(right_center + vecToPoint(right_down_horizontal + right_down_vertical));
+        corners.push_back(right_center + vecToPoint(right_up_horizontal + right_up_vertical));
     }
 };
 
 class ArmorDetector {
 public:
-    ArmorDetector(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) {
+    ArmorDetector(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node)
+    : node(node) {
         max_angle_diff = (*config_file_ptr)["max_angle_diff"].as<float>();
         max_height_diff_ratio = (*config_file_ptr)["max_height_diff_ratio"].as<float>();
         min_light_distance = (*config_file_ptr)["min_light_distance"].as<float>();
@@ -136,6 +197,7 @@ private:
     
     void initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
     void initArmorPoints();
+    rclcpp::Node* node;
 };
 
 #endif // ARMOR_DETECTOR_H

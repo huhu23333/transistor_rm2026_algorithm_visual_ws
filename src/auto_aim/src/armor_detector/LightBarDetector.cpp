@@ -16,18 +16,21 @@ Light::Light(const cv::RotatedRect& rect)
 }
 
 void Light::calculateDimensions() {
-    // 1. 计算长宽（确保length始终为较长边）
-    length = std::max(el.size.width, el.size.height);
-    width = std::min(el.size.width, el.size.height);
-    
-    // 2. 计算角度并标准化到[-90, 90]
+    // 1. 计算角度并标准化到[-90, 90]
     angle = el.angle;
     if (el.size.width > el.size.height) {
         angle += 90;  // 确保角度始终表示长边的方向
     }
     while (angle > 90) angle -= 180;
     while (angle < -90) angle += 180;
+    el.angle = angle;
 
+    // 2. 计算长宽（确保length始终为较长边）
+    length = std::max(el.size.width, el.size.height);
+    width = std::min(el.size.width, el.size.height);
+    el.size.height = length;
+    el.size.width = width;
+    
     // 3. 计算顶部和底部点
     cv::Point2f vertices[4];
     el.points(vertices);

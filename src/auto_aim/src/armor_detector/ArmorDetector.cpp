@@ -125,7 +125,7 @@ std::vector<Armor> ArmorDetector::detectArmors(const std::vector<Light>& lights)
             const Light& rightLight = (l1.el.center.x < l2.el.center.x) ? l2 : l1;
             
             if (isArmorPair(leftLight, rightLight)) {
-                Armor armor(leftLight.el, rightLight.el);
+                Armor armor(leftLight.el, rightLight.el, node);
                 armor.confidence = getArmorConfidence(leftLight, rightLight);
                 
                 // 只添加置信度足够高的装甲板
