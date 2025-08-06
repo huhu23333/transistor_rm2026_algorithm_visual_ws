@@ -87,7 +87,7 @@ struct Armor {
 
         // 获取左灯条中心点指向右灯条中心点的向量及垂直其向上的向量，并单位化
         cv::Vec2f d_center_vector = right_center - left_center;
-        cv::Vec2f vertical_d_center_vector = cv::Vec2f(-d_center_vector[1], d_center_vector[0]);
+        cv::Vec2f vertical_d_center_vector = cv::Vec2f(d_center_vector[1], -d_center_vector[0]);
         d_center_vector = cv::normalize(d_center_vector);
         vertical_d_center_vector = cv::normalize(vertical_d_center_vector);
 

@@ -16,8 +16,8 @@ delta_z_ : 142.5 #  181.30f  114.34f
 min_light_height : 8
 light_slope_offset : 30
 light_min_area : 10
-max_light_wh_ratio : 10.0
-min_light_wh_ratio : 0.1
+max_light_wh_ratio : 100.0 # 10.0
+min_light_wh_ratio : 0.1 # 0.1
 light_max_tilt_angle : 60.0
 min_light_delta_x : 28
 min_light_dx_ratio : 0.8
@@ -40,16 +40,17 @@ MAX_DETECT_CNT : 2
 MAX_LOST_CNT : 3
 
 # LightBarDetector 参数
-binary_img_THRESHOLD : 128
+binary_img_THRESHOLD : 128 # 128
 color_rect_expand_FACTOR : 1.5
-mean_color_diff_THRESHOLD : 20.0
+mean_color_diff_THRESHOLD_BLUE : 20.0
+mean_color_diff_THRESHOLD_RED : 5.0
 THRES_MAX_COLOR_RED : 100
 THRES_MAX_COLOR_BLUE : 100
 
 # ArmorDetector 参数
-max_angle_diff : 22.5        # 最大角度差
-max_height_diff_ratio : 0.65  # 最大高度差比例
-min_light_distance : 5.0     # 最小灯条距离
+max_angle_diff : 30        # 最大角度差 # 22.5
+max_height_diff_ratio : 1.2  # 最大高度差比例 # 0.65
+min_light_distance : 5.0     # 最小灯条距离 
 max_light_distance : 50.0    # 最大灯条距离
 min_armor_confidence : 0.3   # 最小置信度阈值
 camera_matrix: # 相机内参矩阵
