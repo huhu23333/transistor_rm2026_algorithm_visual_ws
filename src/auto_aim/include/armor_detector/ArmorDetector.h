@@ -5,6 +5,8 @@
 #include <opencv2/opencv.hpp>
 #include "LightBarDetector.h"
 #include <vector>
+#include <yaml-cpp/yaml.h>
+#include <rclcpp/rclcpp.hpp>
 
 // 物理尺寸常量
 namespace ArmorConstants {
@@ -99,16 +101,17 @@ struct Armor {
 
 class ArmorDetector {
 public:
-    ArmorDetector() {
-        max_angle_diff = 15.0f;        // 最大角度差
-        max_height_diff_ratio = 0.5f;  // 最大高度差比例
-        min_light_distance = 5.0f;     // 最小灯条距离
-        max_light_distance = 50.0f;    // 最大灯条距离
-        min_armor_confidence = 0.3f;   // 最小置信度阈值
-
+    ArmorDetector(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) {
+        max_angle_diff = (*config_file_ptr)["max_angle_diff"].as<float>();
+        max_height_diff_ratio = (*config_file_ptr)["max_height_diff_ratio"].as<float>();
+        min_light_distance = (*config_file_ptr)["min_light_distance"].as<float>();
+        max_light_distance = (*config_file_ptr)["max_light_distance"].as<float>();
+        min_armor_confidence = (*config_file_ptr)["min_armor_confidence"].as<float>();
+        max_expected_small_distance_mismatch_ratio = (*config_file_ptr)["max_expected_small_distance_mismatch_ratio"].as<float>();
+        max_expected_large_distance_mismatch_ratio = (*config_file_ptr)["max_expected_large_distance_mismatch_ratio"].as<float>();
         
         // 初始化相机参数
-        initCameraMatrix();
+        initCameraMatrix(config_file_ptr, node);
         initArmorPoints();
     }
     // 新增3D到像素坐标投影函数
@@ -121,6 +124,8 @@ private:
     float min_light_distance;
     float max_light_distance;
     float min_armor_confidence;
+    float max_expected_small_distance_mismatch_ratio;
+    float max_expected_large_distance_mismatch_ratio;
     // 相机参数
     cv::Mat camera_matrix;
     cv::Mat dist_coeffs;
@@ -129,7 +134,7 @@ private:
     bool isArmorPair(const Light& l1, const Light& l2);
     float getArmorConfidence(const Light& l1, const Light& l2);
     
-    void initCameraMatrix();
+    void initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
     void initArmorPoints();
 };
 

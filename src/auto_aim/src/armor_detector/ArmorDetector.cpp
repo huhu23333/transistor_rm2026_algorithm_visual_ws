@@ -1,16 +1,28 @@
 // ArmorDetector.cpp
 #include "armor_detector/ArmorDetector.h"
+#include <yaml-cpp/yaml.h>
+#include <rclcpp/rclcpp.hpp>
 
-void ArmorDetector::initCameraMatrix() {
+void ArmorDetector::initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) {
+    const YAML::Node& camera_matrix_Node = (*config_file_ptr)["camera_matrix"];
+    RCLCPP_DEBUG(node->get_logger(), "camera_matrix_config: \n[%f, %f, %f,\n %f, %f, %f,\n %f, %f, %f]\n", 
+        camera_matrix_Node[0][0].as<double>(), camera_matrix_Node[0][1].as<double>(), camera_matrix_Node[0][2].as<double>(), 
+        camera_matrix_Node[1][0].as<double>(), camera_matrix_Node[1][1].as<double>(), camera_matrix_Node[1][2].as<double>(), 
+        camera_matrix_Node[2][0].as<double>(), camera_matrix_Node[2][1].as<double>(), camera_matrix_Node[2][2].as<double>());
     // 相机内参矩阵
     camera_matrix = (cv::Mat_<double>(3, 3) << 
-        810.40948926, 0.00000000e+00, 611.41991188,
-        0.00000000e+00, 813.22312056, 385.16020552,
-        0.00000000e+00, 0.00000000e+00, 1.00000000e+00);
+        camera_matrix_Node[0][0].as<double>(), camera_matrix_Node[0][1].as<double>(), camera_matrix_Node[0][2].as<double>(), 
+        camera_matrix_Node[1][0].as<double>(), camera_matrix_Node[1][1].as<double>(), camera_matrix_Node[1][2].as<double>(), 
+        camera_matrix_Node[2][0].as<double>(), camera_matrix_Node[2][1].as<double>(), camera_matrix_Node[2][2].as<double>());
     
+    const YAML::Node& dist_coeffs_Node = (*config_file_ptr)["dist_coeffs"];
+    RCLCPP_DEBUG(node->get_logger(), "dist_coeffs_config: %f, %f, %f, %f, %f\n", 
+        dist_coeffs_Node[0].as<double>(), dist_coeffs_Node[1].as<double>(), dist_coeffs_Node[2].as<double>(), 
+        dist_coeffs_Node[3].as<double>(), dist_coeffs_Node[4].as<double>());
     // 畸变系数
     dist_coeffs = (cv::Mat_<double>(1, 5) << 
-        -0.08153923,  0.49331671,  0.0017929,  -0.00437156, -1.28439103);
+        dist_coeffs_Node[0].as<double>(), dist_coeffs_Node[1].as<double>(), dist_coeffs_Node[2].as<double>(), 
+        dist_coeffs_Node[3].as<double>(), dist_coeffs_Node[4].as<double>());
 }
 
 void ArmorDetector::initArmorPoints() {
@@ -144,8 +156,8 @@ bool ArmorDetector::isArmorPair(const Light& l1, const Light& l2) {
     float expected_large_distance = (ArmorConstants::LARGE_ARMOR_WIDTH / ArmorConstants::LIGHT_HEIGHT) * avg_light_height;
     
     bool distance_match = false;
-    if (std::abs(distance - expected_small_distance) / expected_small_distance <= 0.35f ||
-        std::abs(distance - expected_large_distance) / expected_large_distance <= 0.35f) {
+    if (std::abs(distance - expected_small_distance) / expected_small_distance <= max_expected_small_distance_mismatch_ratio ||
+        std::abs(distance - expected_large_distance) / expected_large_distance <= max_expected_large_distance_mismatch_ratio) {
         distance_match = true;
     }
     
@@ -153,13 +165,13 @@ bool ArmorDetector::isArmorPair(const Light& l1, const Light& l2) {
     
     // 2. 检查灯条平行度
     float angleDiff = std::abs(l1.angle - l2.angle);
-    if (angleDiff > max_angle_diff * 1.5f) {
+    if (angleDiff > max_angle_diff) {
         return false;
     }
     
     // 3. 检查灯条高度比例
     float heightDiff = std::abs(l1.length - l2.length);
-    if (heightDiff / std::min(l1.length, l2.length) > max_height_diff_ratio * 1.3f) {
+    if (heightDiff / std::min(l1.length, l2.length) > max_height_diff_ratio) {
         return false;
     }
     
@@ -169,7 +181,7 @@ bool ArmorDetector::isArmorPair(const Light& l1, const Light& l2) {
 float ArmorDetector::getArmorConfidence(const Light& l1, const Light& l2) {
     // 1. 角度差得分
     float angleDiff = std::abs(l1.angle - l2.angle);
-    float angleScore = 1.0f - (angleDiff / max_angle_diff);
+    float angleScore = 1.0f - (angleDiff / max_angle_diff * 1.5f);
     
     // 2. 高度差得分
     float heightDiff = std::abs(l1.length - l2.length);

@@ -112,8 +112,8 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include "Params.h"
-#include <rclcpp/rclcpp.hpp>
 #include <yaml-cpp/yaml.h>
+#include <rclcpp/rclcpp.hpp>
 
 /**
  * @brief 灯条类，存储和处理单个灯条的信息
@@ -155,7 +155,7 @@ public:
      * @brief 构造函数
      * @param params 检测参数结构体，包含各种阈值和配置
      */
-    explicit LightBarDetector(const Params& params, rclcpp::Node* node, std::shared_ptr<YAML::Node> config_file_ptr);
+    explicit LightBarDetector(const Params& params, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
     
     /**
      * @brief 设置敌方装甲板的颜色

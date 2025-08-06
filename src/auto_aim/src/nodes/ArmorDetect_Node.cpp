@@ -92,8 +92,8 @@ public:
             params_.enemy_color = Params::RED;
         }
 
-        light_detector_ = std::make_shared<LightBarDetector>(params_, this, config_file_ptr);
-        armor_detector_ = std::make_shared<ArmorDetector>();
+        light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
+        armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
         classifier_ = std::make_shared<ArmorClassifier>((*config_file_ptr)["model_path"].as<std::string>(), false);
         angle_kalman_ = std::make_shared<ArmorAngleKalman>();
 

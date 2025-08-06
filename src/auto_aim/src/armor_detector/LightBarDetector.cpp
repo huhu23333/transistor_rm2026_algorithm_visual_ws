@@ -5,8 +5,8 @@
 #include "armor_detector/LightBarDetector.h"
 #include <opencv2/opencv.hpp>
 #include <cmath>
-#include <rclcpp/rclcpp.hpp>
 #include <yaml-cpp/yaml.h>
+#include <rclcpp/rclcpp.hpp>
 
 /************************* Light类实现 *************************/
 
@@ -46,7 +46,7 @@ void Light::calculateDimensions() {
 
 /************************* LightBarDetector类实现 *************************/
 
-LightBarDetector::LightBarDetector(const Params& params, rclcpp::Node* node, std::shared_ptr<YAML::Node> config_file_ptr) // 新增传入节点，用于debug打印
+LightBarDetector::LightBarDetector(const Params& params, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) // 新增传入节点，用于debug打印
     : params(params), enemy_color(params.enemy_color), node(node), config_file_ptr(config_file_ptr) {
         mean_color_diff_THRESHOLD = (*config_file_ptr)["mean_color_diff_THRESHOLD"].as<float>(); 
         color_rect_expand_FACTOR = (*config_file_ptr)["color_rect_expand_FACTOR"].as<float>(); 
