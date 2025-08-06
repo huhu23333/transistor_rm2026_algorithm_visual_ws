@@ -12,6 +12,9 @@ delta_x_ : 0.0 #    0.0f     48.72f
 delta_y_ : 42.8 #   78.31f   -29.14f
 delta_z_ : 142.5 #  181.30f  114.34f
 
+pc_ip : "192.168.10.25"
+cam_ip : "192.168.10.10"
+
 # Params.h 参数设置
 min_light_height : 8
 light_slope_offset : 30

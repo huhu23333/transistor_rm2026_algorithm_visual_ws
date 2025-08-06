@@ -76,7 +76,7 @@ public:
         params_.MAX_LOST_CNT = (*config_file_ptr)["MAX_LOST_CNT"].as<int>();
 
         // 初始化相机和检测器
-        camera_ = std::make_shared<Camera>("192.168.10.10", "192.168.10.25");
+        camera_ = std::make_shared<Camera>((*config_file_ptr)["cam_ip"].as<std::string>(), (*config_file_ptr)["pc_ip"].as<std::string>());
         camera_->setExposureTime((*config_file_ptr)["camera_ExposureTime"].as<float>());
         camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
 
