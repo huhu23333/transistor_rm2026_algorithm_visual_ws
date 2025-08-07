@@ -3,8 +3,8 @@ model_path : "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_ai
 enemy_color : "BLUE"
 RESET_DISTANCE_THRESHOLD : 400.0 # 单位：mm
 MAX_LOST_TIME : 0.5              # 单位：秒
-camera_ExposureTime : 5000.0
-camera_Gain : 16.0
+camera_ExposureTime : 1000.0  # 5000.0
+camera_Gain : 23.0            # 16.0
 bullet_velocity_ : 15.0
 current_pitch_ : 0.0
 current_yaw_ : 0.0

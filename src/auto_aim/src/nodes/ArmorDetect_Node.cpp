@@ -16,6 +16,7 @@
 #include "test_codes/FrameRateCounter.h"
 #include "test_codes/UnwarpUtils.h"
 
+
 // 全局变量定义
 cv::Mat g_image;
 pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -93,6 +94,8 @@ public:
             params_.enemy_color = Params::RED;
         }
 
+        RCLCPP_DEBUG(this->get_logger(), "LibTorch version: %s \n", TORCH_VERSION);
+
         light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
         classifier_ = std::make_shared<ArmorClassifier>((*config_file_ptr)["model_path"].as<std::string>(), false);
@@ -100,7 +103,7 @@ public:
 
         // 创建定时器
         timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(33),
+            std::chrono::milliseconds(11), // 33
             std::bind(&ArmorDetectNode::processImage, this));
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
@@ -255,6 +258,7 @@ private:
 
                 // 装甲板展平测试 
                 cv::Mat unwarpedArmorImg = UnwarpUtils::unwarpQuadrilateral(frame, armors[0].corners_expanded);
+                cv::resize(unwarpedArmorImg, unwarpedArmorImg, cv::Size(256, 192));
                 cv::imshow("unwarpedArmorImg", unwarpedArmorImg);
 
                 classifyResults = classifier_->classify(frame, armors);

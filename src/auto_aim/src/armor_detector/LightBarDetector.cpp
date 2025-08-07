@@ -91,7 +91,7 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
             float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
 
             // 4. 删除均值小于阈值的图像
-            RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
+            // RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
             if (mean_color_diff < mean_color_diff_THRESHOLD) {
                 detectedRects.erase(detectedRects.begin() + i);
                 --i;

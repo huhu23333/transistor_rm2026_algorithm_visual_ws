@@ -9,6 +9,8 @@
 #include "model.h"
 #include "ArmorDetector.h"
 
+#include "test_codes/model_rm2026.h" //debug_newModel
+
 struct ArmorResult {
     Armor armor;              
     int number;              
@@ -35,7 +37,8 @@ private:
         TrackedArmor() : number(0), confidence(0), tracking_count(0) {}
     };
 
-    std::shared_ptr<NumberNet> model;
+    // std::shared_ptr<NumberNet> model;
+    std::shared_ptr<TransistorRM2026Net> model; //debug_newModel
     torch::Device device;
     std::map<int, TrackedArmor> tracked_armors;
     

@@ -3,13 +3,17 @@
 #include <filesystem>
 #include <iomanip>
 
+#include "test_codes/model_rm2026.h" //debug_newModel
+
 namespace fs = std::filesystem;
 
 ArmorClassifier::ArmorClassifier(const std::string& model_path, bool use_cuda) 
     : device(use_cuda && torch::cuda::is_available() ? torch::kCUDA : torch::kCPU) {
     try {
-        model = std::make_shared<NumberNet>();
-        torch::load(model, model_path);
+        // model = std::make_shared<NumberNet>();
+        model = std::make_shared<TransistorRM2026Net>(); //debug_newModel
+        // torch::load(model, model_path);
+        torch::load(model, "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/models/model_rm2026.pt"); //debug_newModel
         model->to(device);
         model->eval();
         
@@ -47,7 +51,7 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const cv::Rect& roi) 
     
     // 图像预处理
     cv::Mat gray;
-    cv::cvtColor(roi_img, gray, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(roi_img, gray, cv::COLOR_BGR2GRAY); 
     
     cv::Mat enhanced;
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(1.5, cv::Size(3, 3));
@@ -62,7 +66,8 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const cv::Rect& roi) 
                       cv::BORDER_REPLICATE);
     
     cv::Mat resized;
-    cv::resize(padded, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
+    // cv::resize(padded, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
+    cv::resize(roi_img, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT)); //debug_newModel
     
     resized.convertTo(normalized, CV_32F, 1.0/255.0);
     normalized = (normalized - 0.5f) / 0.5f;
@@ -131,7 +136,8 @@ std::vector<ArmorResult> ArmorClassifier::classify(
         try {
             torch::Tensor tensor_image = torch::from_blob(
                 roi.data, 
-                {1, 1, INPUT_HEIGHT, INPUT_WIDTH},
+                // {1, 1, INPUT_HEIGHT, INPUT_WIDTH},
+                {1, 3, INPUT_HEIGHT, INPUT_WIDTH}, //debug_newModel
                 torch::kFloat32
             ).clone();
             

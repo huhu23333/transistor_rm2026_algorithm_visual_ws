@@ -5,8 +5,8 @@ cv::Mat UnwarpUtils::unwarpQuadrilateral(
     const std::vector<cv::Point2f>& corners
 ) {
     // 输出尺寸256*256
-    int outputWidth = 256;
-    int outputHeight = 256;
+    int outputWidth = 64;
+    int outputHeight = 48;
     // 验证输入
 
     if (corners.size() != 4) {
