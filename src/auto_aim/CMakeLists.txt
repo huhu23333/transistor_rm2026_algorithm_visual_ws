@@ -59,6 +59,7 @@ add_library(armor_detector SHARED
     src/armor_detector/ArmorAngleKalman.cpp
     src/camera/cameraConnect.cpp  # 添加这一行
     src/test_codes/FrameRateCounter.cpp
+    src/test_codes/UnwarpUtils.cpp
 )
 add_library(crc_lib SHARED
     src/nodes/CRC.cpp

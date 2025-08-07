@@ -38,14 +38,17 @@ struct Armor {
     cv::Rect roi;                 // ROI区域
     float confidence;             // 置信度
     std::vector<cv::Point2f> corners;  // 四个角点坐标
+    cv::Point2f center;                 // 角点对角线连线焦点确定中心
+    std::vector<cv::Point2f> corners_expanded;  // 扩大后的四个角点坐标，用于展平后识别
+    float corners_expand_ratio;  // 角点坐标扩大比例
     rclcpp::Node* node;
 
     // 默认构造函数
     Armor() : confidence(0.0f) {}
     
     // 带参数的构造函数
-    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, rclcpp::Node* node) 
-        : leftLight(left), rightLight(right), confidence(0.0f), node(node) {
+    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, float corners_expand_ratio, rclcpp::Node* node) 
+        : leftLight(left), rightLight(right), confidence(0.0f), corners_expand_ratio(corners_expand_ratio), node(node) {
         calculateROI();
     }
     
@@ -58,14 +61,6 @@ struct Armor {
 
         // 计算ROI
         roi = cv::boundingRect(corners);
-    }
-
-    cv::Point2f vecToPoint(const cv::Vec2f& vec) {
-        return cv::Point2f(vec[0], vec[1]);
-    }
-
-    cv::Vec2f pointToVec(const cv::Point2f& point) {
-        return cv::Vec2f(point.x, point.y);
     }
     
     void calculateCorners() {
@@ -156,6 +151,52 @@ struct Armor {
         corners.push_back(left_center + vecToPoint(left_down_horizontal + left_down_vertical));
         corners.push_back(right_center + vecToPoint(right_down_horizontal + right_down_vertical));
         corners.push_back(right_center + vecToPoint(right_up_horizontal + right_up_vertical));
+
+        // 计算中心
+        center = computeIntersection(corners);
+
+        // 计算扩大后角点坐标
+        for (int i = 0; i < 4; i+=1) {
+            corners_expanded.push_back(center + corners_expand_ratio * (corners[i] - center));
+        }
+    }
+
+    cv::Point2f vecToPoint(const cv::Vec2f& vec) {
+        return cv::Point2f(vec[0], vec[1]);
+    }
+
+    cv::Vec2f pointToVec(const cv::Point2f& point) {
+        return cv::Vec2f(point.x, point.y);
+    }
+
+    cv::Point2f computeIntersection(const std::vector<cv::Point2f>& corners) {
+        // 提取对角线端点
+        cv::Point2f A1 = corners[0]; // 左上角
+        cv::Point2f A2 = corners[2]; // 右下角
+        cv::Point2f B1 = corners[1]; // 左下角
+        cv::Point2f B2 = corners[3]; // 右上角
+
+        // 计算向量
+        cv::Point2f a = A2 - A1; // 对角线1的向量
+        cv::Point2f b = B2 - B1; // 对角线2的向量
+        cv::Point2f c = B1 - A1; // 从A1指向B1的向量
+
+        // 计算叉积
+        float cross_ab = a.cross(b); // a × b
+        float cross_cb = c.cross(b); // c × b
+
+        // 检查对角线是否平行
+        if (std::fabs(cross_ab) < 1e-6) {
+            throw std::runtime_error("Diagonals are parallel, no intersection.");
+        }
+
+        // 计算参数t
+        float t = cross_cb / cross_ab;
+
+        // 计算交点坐标
+        cv::Point2f P = A1 + t * a;
+
+        return P;
     }
 };
 
@@ -170,6 +211,7 @@ public:
         min_armor_confidence = (*config_file_ptr)["min_armor_confidence"].as<float>();
         max_expected_small_distance_mismatch_ratio = (*config_file_ptr)["max_expected_small_distance_mismatch_ratio"].as<float>();
         max_expected_large_distance_mismatch_ratio = (*config_file_ptr)["max_expected_large_distance_mismatch_ratio"].as<float>();
+        corners_expand_ratio = (*config_file_ptr)["corners_expand_ratio"].as<float>();
         
         // 初始化相机参数
         initCameraMatrix(config_file_ptr, node);
@@ -197,6 +239,7 @@ private:
     
     void initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
     void initArmorPoints();
+    float corners_expand_ratio;
     rclcpp::Node* node;
 };
 

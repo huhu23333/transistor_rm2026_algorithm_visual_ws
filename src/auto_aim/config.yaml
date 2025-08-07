@@ -51,6 +51,7 @@ THRES_MAX_COLOR_RED : 100
 THRES_MAX_COLOR_BLUE : 100
 
 # ArmorDetector 参数
+corners_expand_ratio : 1.5 # 装甲板角点坐标扩大比例
 max_angle_diff : 30        # 最大角度差 # 22.5
 max_height_diff_ratio : 1.2  # 最大高度差比例 # 0.65
 min_light_distance : 5.0     # 最小灯条距离 

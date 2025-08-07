@@ -11,15 +11,11 @@ public:
      * 
      * @param input 输入图像
      * @param corners 四边形区域的四个顶点坐标，按左上->左下->右下->右上的顺序排列
-     * @param outputWidth 可选参数，指定输出矩形的宽度（默认自动计算）
-     * @param outputHeight 可选参数，指定输出矩形的高度（默认自动计算）
-     * @return cv::Mat 展平后的矩形图像（错误时返回100x100黑色图像）
+     * @return cv::Mat 展平后的矩形图像（错误时返回空cv::Mat）
      */
     static cv::Mat unwarpQuadrilateral(
         const cv::Mat& input,
-        const std::vector<cv::Point2f>& corners,
-        int outputWidth = -1,
-        int outputHeight = -1
+        const std::vector<cv::Point2f>& corners
     );
 };
 

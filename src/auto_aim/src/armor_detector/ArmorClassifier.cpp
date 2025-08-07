@@ -27,51 +27,6 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const cv::Rect& roi) 
     const int MAX_SAVE_COUNT = 2000;  // 最大保存数量
     cv::Mat normalized;  // 将声明移到函数开始
     
-    // 如果已经保存了1000张图片，直接返回处理后的图像而不保存
-    if (save_count >= MAX_SAVE_COUNT) {
-        cv::Rect safe_roi = roi & cv::Rect(0, 0, img.cols, img.rows);
-        if (safe_roi.area() == 0) {
-            return cv::Mat();
-        }
-        
-        // 扩大ROI区域
-        const float MARGIN_RATIO = 0.1f;
-        int margin_w = static_cast<int>(safe_roi.width * MARGIN_RATIO);
-        int margin_h = static_cast<int>(safe_roi.height * MARGIN_RATIO);
-        
-        safe_roi.x = std::max(0, safe_roi.x - margin_w);
-        safe_roi.y = std::max(0, safe_roi.y - margin_h);
-        safe_roi.width = std::min(img.cols - safe_roi.x, safe_roi.width + 2 * margin_w);
-        safe_roi.height = std::min(img.rows - safe_roi.y, safe_roi.height + 2 * margin_h);
-        
-        // 提取ROI
-        cv::Mat roi_img = img(safe_roi);
-        
-        // 图像预处理
-        cv::Mat gray;
-        cv::cvtColor(roi_img, gray, cv::COLOR_BGR2GRAY);
-        
-        cv::Mat enhanced;
-        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(1.5, cv::Size(3, 3));
-        clahe->apply(gray, enhanced);
-        
-        cv::Mat blurred;
-        cv::GaussianBlur(enhanced, blurred, cv::Size(3, 3), 0);
-        
-        cv::Mat padded;
-        int padding = 2;
-        cv::copyMakeBorder(blurred, padded, padding, padding, padding, padding, 
-                          cv::BORDER_REPLICATE);
-        
-        cv::Mat resized;
-        cv::resize(padded, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
-        
-        resized.convertTo(normalized, CV_32F, 1.0/255.0);
-        normalized = (normalized - 0.5f) / 0.5f;
-        
-        return normalized;
-    }
-    
     cv::Rect safe_roi = roi & cv::Rect(0, 0, img.cols, img.rows);
     if (safe_roi.area() == 0) {
         return cv::Mat();
@@ -111,6 +66,11 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const cv::Rect& roi) 
     
     resized.convertTo(normalized, CV_32F, 1.0/255.0);
     normalized = (normalized - 0.5f) / 0.5f;
+    
+    // 如果已经保存了1000张图片，直接返回处理后的图像而不保存
+    if (save_count >= MAX_SAVE_COUNT) {
+        return normalized;
+    }
     
     // 保存处理后的图像（用于神经网络输入的标准化图像）
     if (save_count < MAX_SAVE_COUNT) {

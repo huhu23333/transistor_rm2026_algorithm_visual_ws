@@ -12,8 +12,9 @@
 #include <string>
 #include <thread>
 #include <armor_detector/BallisticSolver.h>
-#include "test_codes/FrameRateCounter.h"
 #include <yaml-cpp/yaml.h>
+#include "test_codes/FrameRateCounter.h"
+#include "test_codes/UnwarpUtils.h"
 
 // 全局变量定义
 cv::Mat g_image;
@@ -251,6 +252,11 @@ private:
             has_valid_target_ = false;
 
             if (!armors.empty()) {
+
+                // 装甲板展平测试 
+                cv::Mat unwarpedArmorImg = UnwarpUtils::unwarpQuadrilateral(frame, armors[0].corners_expanded);
+                cv::imshow("unwarpedArmorImg", unwarpedArmorImg);
+
                 classifyResults = classifier_->classify(frame, armors);
                 // 选择最佳目标（置信度最高）
                 auto it = std::max_element(
