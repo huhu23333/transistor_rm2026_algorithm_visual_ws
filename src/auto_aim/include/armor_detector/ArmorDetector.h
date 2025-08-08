@@ -6,9 +6,9 @@
 #include "LightBarDetector.h"
 #include <vector>
 #include <yaml-cpp/yaml.h>
-#include <rclcpp/rclcpp.hpp>
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
+#include <rclcpp/rclcpp.hpp>
 
 // 物理尺寸常量
 namespace ArmorConstants {

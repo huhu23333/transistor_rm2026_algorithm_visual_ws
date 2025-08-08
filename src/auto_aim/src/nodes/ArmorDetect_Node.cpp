@@ -256,11 +256,6 @@ private:
 
             if (!armors.empty()) {
 
-                // 装甲板展平测试 
-                cv::Mat unwarpedArmorImg = UnwarpUtils::unwarpQuadrilateral(frame, armors[0].corners_expanded);
-                cv::resize(unwarpedArmorImg, unwarpedArmorImg, cv::Size(256, 192));
-                cv::imshow("unwarpedArmorImg", unwarpedArmorImg);
-
                 classifyResults = classifier_->classify(frame, armors);
                 // 选择最佳目标（置信度最高）
                 auto it = std::max_element(

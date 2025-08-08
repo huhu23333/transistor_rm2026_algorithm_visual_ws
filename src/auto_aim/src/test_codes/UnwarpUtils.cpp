@@ -5,8 +5,8 @@ cv::Mat UnwarpUtils::unwarpQuadrilateral(
     const std::vector<cv::Point2f>& corners
 ) {
     // 输出尺寸256*256
-    int outputWidth = 64;
-    int outputHeight = 48;
+    int outputWidth = 256;
+    int outputHeight = 256;
     // 验证输入
 
     if (corners.size() != 4) {
@@ -39,7 +39,7 @@ cv::Mat UnwarpUtils::unwarpQuadrilateral(
             transform, 
             cv::Size(outputWidth, outputHeight),
             cv::INTER_LINEAR,    // 线性插值
-            cv::BORDER_CONSTANT   // 边界填充为常数（黑色）
+            cv::BORDER_REPLICATE   // 复制图像最边缘的像素来填充边界
         );
 
         return output;

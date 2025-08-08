@@ -3,10 +3,6 @@
 // 实现灯条检测的具体功能
 
 #include "armor_detector/LightBarDetector.h"
-#include <opencv2/opencv.hpp>
-#include <cmath>
-#include <yaml-cpp/yaml.h>
-#include <rclcpp/rclcpp.hpp>
 
 /************************* Light类实现 *************************/
 

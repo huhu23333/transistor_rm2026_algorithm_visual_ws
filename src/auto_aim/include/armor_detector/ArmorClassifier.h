@@ -8,6 +8,9 @@
 #include <map>
 #include "model.h"
 #include "ArmorDetector.h"
+#include <filesystem>
+#include <iomanip>
+#include "test_codes/UnwarpUtils.h"
 
 #include "test_codes/model_rm2026.h" //debug_newModel
 
@@ -48,7 +51,7 @@ private:
     static constexpr int MAX_TRACKING_AGE_MS = 100;  // 最大跟踪时间100ms
     static constexpr int MIN_TRACKING_COUNT = 2;     // 最小连续跟踪次数
     
-    cv::Mat preprocessROI(const cv::Mat& img, const cv::Rect& roi);
+    cv::Mat preprocessROI(const cv::Mat& img, const Armor& roi);
     bool isNearPreviousCenter(const cv::Point2f& current, const cv::Point2f& previous, float max_dist = 50.0f);
 };
 

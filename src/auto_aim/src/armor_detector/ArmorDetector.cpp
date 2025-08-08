@@ -1,7 +1,5 @@
 // ArmorDetector.cpp
 #include "armor_detector/ArmorDetector.h"
-#include <yaml-cpp/yaml.h>
-#include <rclcpp/rclcpp.hpp>
 
 void ArmorDetector::initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) {
     const YAML::Node& camera_matrix_Node = (*config_file_ptr)["camera_matrix"];

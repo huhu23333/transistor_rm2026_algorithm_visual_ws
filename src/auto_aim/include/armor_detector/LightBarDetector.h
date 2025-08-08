@@ -112,6 +112,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include "Params.h"
+#include <cmath>
 #include <yaml-cpp/yaml.h>
 #include <rclcpp/rclcpp.hpp>
 

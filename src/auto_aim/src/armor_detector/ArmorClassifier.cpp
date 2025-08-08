@@ -1,9 +1,5 @@
 //ArmorCLassifier.cpp
 #include "armor_detector/ArmorClassifier.h"
-#include <filesystem>
-#include <iomanip>
-
-#include "test_codes/model_rm2026.h" //debug_newModel
 
 namespace fs = std::filesystem;
 
@@ -11,7 +7,7 @@ ArmorClassifier::ArmorClassifier(const std::string& model_path, bool use_cuda)
     : device(use_cuda && torch::cuda::is_available() ? torch::kCUDA : torch::kCPU) {
     try {
         // model = std::make_shared<NumberNet>();
-        model = std::make_shared<TransistorRM2026Net>(); //debug_newModel
+        model = std::make_shared<TransistorRM2026Net>(8); //debug_newModel
         // torch::load(model, model_path);
         torch::load(model, "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/models/model_rm2026.pt"); //debug_newModel
         model->to(device);
@@ -26,28 +22,21 @@ ArmorClassifier::ArmorClassifier(const std::string& model_path, bool use_cuda)
     }
 }
 
-cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const cv::Rect& roi) {
+cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     static int save_count = 0;
     const int MAX_SAVE_COUNT = 2000;  // 最大保存数量
     cv::Mat normalized;  // 将声明移到函数开始
-    
+
+    /* 
     cv::Rect safe_roi = roi & cv::Rect(0, 0, img.cols, img.rows);
     if (safe_roi.area() == 0) {
         return cv::Mat();
-    }
-    
-    // 扩大ROI区域
-    const float MARGIN_RATIO = 0.1f;
-    int margin_w = static_cast<int>(safe_roi.width * MARGIN_RATIO);
-    int margin_h = static_cast<int>(safe_roi.height * MARGIN_RATIO);
-    
-    safe_roi.x = std::max(0, safe_roi.x - margin_w);
-    safe_roi.y = std::max(0, safe_roi.y - margin_h);
-    safe_roi.width = std::min(img.cols - safe_roi.x, safe_roi.width + 2 * margin_w);
-    safe_roi.height = std::min(img.rows - safe_roi.y, safe_roi.height + 2 * margin_h);
+    } */
     
     // 提取ROI
-    cv::Mat roi_img = img(safe_roi);
+    //cv::Mat roi_img = img(safe_roi);
+    cv::Mat roi_img = UnwarpUtils::unwarpQuadrilateral(img, armor.corners_expanded);
+    
     
     // 图像预处理
     cv::Mat gray;
@@ -130,7 +119,7 @@ std::vector<ArmorResult> ArmorClassifier::classify(
     }
     
     for (const auto& armor : armors) {
-        cv::Mat roi = preprocessROI(img, armor.roi);
+        cv::Mat roi = preprocessROI(img, armor);
         if (roi.empty()) continue;
         
         try {
@@ -143,7 +132,7 @@ std::vector<ArmorResult> ArmorClassifier::classify(
             
             tensor_image = tensor_image.to(device);
             
-            auto output = model->forward(tensor_image);
+            auto output = model->forward(tensor_image)[3];
             auto probabilities = torch::exp(output);
             
             auto max_result = probabilities.max(1);
