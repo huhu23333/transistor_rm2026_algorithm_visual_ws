@@ -7,22 +7,12 @@
 #include <chrono>
 #include <map>
 #include "model.h"
-#include "ArmorDetector.h"
+#include "Armor.h"
 #include <filesystem>
 #include <iomanip>
 #include "test_codes/UnwarpUtils.h"
+#include "test_codes/model_rm2026.h"
 
-#include "test_codes/model_rm2026.h" //debug_newModel
-
-struct ArmorResult {
-    Armor armor;              
-    int number;              
-    float confidence;        
-    std::vector<cv::Point2f> corners;  
-
-    ArmorResult(const Armor& a, int n, float conf) 
-        : armor(a), number(n), confidence(conf), corners(a.corners) {}
-};
 
 class ArmorClassifier {
 public:
@@ -32,24 +22,35 @@ public:
 private:
     struct TrackedArmor {
         int number;
-        float confidence;
-        std::chrono::steady_clock::time_point last_seen;
         int tracking_count;
-        cv::Point2f center;
+        std::chrono::steady_clock::time_point last_seen;
+        cv::Point2f center_last_seen;
+        bool is_steady_tracked;
+        bool is_tracked_now;
+        Armor armor_last_seen;
+        float confidence;
+        bool is_large;
+        bool not_slant;
 
-        TrackedArmor() : number(0), confidence(0), tracking_count(0) {}
+        TrackedArmor(int number, std::chrono::steady_clock::time_point seen_time, cv::Point2f center, 
+            Armor armor, float confidence, bool is_large, bool not_slant) : 
+        number(number), tracking_count(1), last_seen(seen_time), center_last_seen(center), is_steady_tracked(false),
+        is_tracked_now(false), armor_last_seen(armor), confidence(confidence), is_large(is_large), not_slant(not_slant) {}
     };
 
-    // std::shared_ptr<NumberNet> model;
-    std::shared_ptr<TransistorRM2026Net> model; //debug_newModel
+    std::shared_ptr<TransistorRM2026Net> model;
     torch::Device device;
-    std::map<int, TrackedArmor> tracked_armors;
+    std::vector<TrackedArmor> tracked_armors;
     
-    static constexpr float CONFIDENCE_THRESHOLD = 0.5f;
+    static constexpr float IS_ARMOR_THRESHOLD = 0.5f;
+    static constexpr float IS_LARGE_THRESHOLD = 0.5f;
+    static constexpr float NOT_SCREEN_THRESHOLD = 0.5f;
+    static constexpr float NOT_SLANT_THRESHOLD = 0.5f;
+    static constexpr float CLASSIFY_THRESHOLD = 0.5f;
     static constexpr int INPUT_HEIGHT = 48;
     static constexpr int INPUT_WIDTH = 64;
-    static constexpr int MAX_TRACKING_AGE_MS = 100;  // 最大跟踪时间100ms
-    static constexpr int MIN_TRACKING_COUNT = 2;     // 最小连续跟踪次数
+    static constexpr int MAX_TRACKING_AGE_MS = 5000;  // 最大跟踪时间100ms // DEBUG // 100
+    static constexpr int MIN_TRACKING_COUNT = 50;     // 最小连续跟踪次数           // 2
     
     cv::Mat preprocessROI(const cv::Mat& img, const Armor& roi);
     bool isNearPreviousCenter(const cv::Point2f& current, const cv::Point2f& previous, float max_dist = 50.0f);

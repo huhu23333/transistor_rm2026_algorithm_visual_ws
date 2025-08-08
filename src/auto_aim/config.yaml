@@ -1,5 +1,5 @@
 # ArmorDetect_Node 参数
-model_path : "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/models/best_model.pt"
+model_path : "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/models/model_rm2026.pt"
 enemy_color : "BLUE"
 RESET_DISTANCE_THRESHOLD : 400.0 # 单位：mm
 MAX_LOST_TIME : 0.5              # 单位：秒
@@ -16,7 +16,7 @@ pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 
 # Params.h 参数设置
-min_light_height : 8
+min_light_height : 8 # 8
 light_slope_offset : 30
 light_min_area : 10
 max_light_wh_ratio : 100.0 # 10.0

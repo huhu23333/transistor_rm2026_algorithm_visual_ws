@@ -59,12 +59,13 @@ cv::Point2f ArmorDetector::project3DToPixel(const cv::Point3f& world_point) cons
 }
 
 // 修改solveArmor函数实现
-AimResult ArmorDetector::solveArmor(const Armor& armor, int number) const {
+AimResult ArmorDetector::solveArmor(const ArmorResult& armor_result) const {
     AimResult result;
     result.valid = false;
-    
+    const Armor armor = armor_result.armor;
+    int number = armor_result.number;
     try {
-        bool is_large_armor = (number == 1 || number == 5);
+        bool is_large_armor = armor_result.is_large;
         
         float half_width = is_large_armor ? 
             ArmorConstants::LARGE_ARMOR_WIDTH / 2.0f :

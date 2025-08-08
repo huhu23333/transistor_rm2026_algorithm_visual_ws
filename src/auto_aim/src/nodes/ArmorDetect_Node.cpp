@@ -190,11 +190,20 @@ private:
         // 3. 绘制最终识别结果（红色）和跟踪信息
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
-            for (size_t i = 0; i < res.corners.size() && i < 4; i++) {
-                cv::line(result, res.corners[i], 
-                        res.corners[(i+1)%4], 
-                        cv::Scalar(0, 0, 255), 2);
+            if (res.is_tracked_now) {
+                for (size_t i = 0; i < res.corners.size() && i < 4; i++) {
+                    cv::line(result, res.corners[i], 
+                            res.corners[(i+1)%4], 
+                            cv::Scalar(0, 0, 255), 2);
+                }    
+            } else {
+                for (size_t i = 0; i < res.corners.size() && i < 4; i++) {
+                    cv::line(result, res.corners[i], 
+                            res.corners[(i+1)%4], 
+                            cv::Scalar(255, 0, 255), 2);
+                }    
             }
+
 
             // 绘制中心点和编号
             if (!res.corners.empty()) {
@@ -254,9 +263,10 @@ private:
             armors = armor_detector_->detectArmors(lights);
             has_valid_target_ = false;
 
+            classifyResults = classifier_->classify(frame, armors);
+
             if (!armors.empty()) {
 
-                classifyResults = classifier_->classify(frame, armors);
                 // 选择最佳目标（置信度最高）
                 auto it = std::max_element(
                     classifyResults.begin(), classifyResults.end(),
@@ -266,7 +276,7 @@ private:
                 );
                 if (it != classifyResults.end()) {
                     auto best_result = *it;
-                    AimResult aim = armor_detector_->solveArmor(best_result.armor, best_result.number);                    
+                    AimResult aim = armor_detector_->solveArmor(best_result);                    
                     if (aim.valid) {
                         if (!angle_kalman_->isInitialized()) {
                             angle_kalman_->reset(aim.position); // 使用当前观测位置初始化

@@ -6,10 +6,8 @@ namespace fs = std::filesystem;
 ArmorClassifier::ArmorClassifier(const std::string& model_path, bool use_cuda) 
     : device(use_cuda && torch::cuda::is_available() ? torch::kCUDA : torch::kCPU) {
     try {
-        // model = std::make_shared<NumberNet>();
-        model = std::make_shared<TransistorRM2026Net>(8); //debug_newModel
-        // torch::load(model, model_path);
-        torch::load(model, "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/models/model_rm2026.pt"); //debug_newModel
+        model = std::make_shared<TransistorRM2026Net>(8);
+        torch::load(model, model_path);
         model->to(device);
         model->eval();
         
@@ -39,24 +37,26 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     
     
     // 图像预处理
+    /* 
     cv::Mat gray;
     cv::cvtColor(roi_img, gray, cv::COLOR_BGR2GRAY); 
     
     cv::Mat enhanced;
     cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(1.5, cv::Size(3, 3));
-    clahe->apply(gray, enhanced);
+    clahe->apply(gray, enhanced); */
     
     cv::Mat blurred;
-    cv::GaussianBlur(enhanced, blurred, cv::Size(3, 3), 0);
+    cv::GaussianBlur(roi_img, blurred, cv::Size(3, 3), 0);
     
     cv::Mat padded;
     int padding = 2;
     cv::copyMakeBorder(blurred, padded, padding, padding, padding, padding, 
                       cv::BORDER_REPLICATE);
+
+    cv::imshow("Classifier DEBUG", padded);
     
     cv::Mat resized;
-    // cv::resize(padded, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
-    cv::resize(roi_img, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT)); //debug_newModel
+    cv::resize(padded, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
     
     resized.convertTo(normalized, CV_32F, 1.0/255.0);
     normalized = (normalized - 0.5f) / 0.5f;
@@ -107,58 +107,93 @@ std::vector<ArmorResult> ArmorClassifier::classify(
     torch::NoGradGuard no_grad;
     auto current_time = std::chrono::steady_clock::now();
     
-    // 清理过期的跟踪目标
-    for (auto it = tracked_armors.begin(); it != tracked_armors.end();) {
+    
+    // 更新所有目标并清理过期的跟踪目标
+    for (size_t i = 0; i < tracked_armors.size(); ++i) {
+        tracked_armors[i].is_tracked_now = false;
         auto age = std::chrono::duration_cast<std::chrono::milliseconds>(
-            current_time - it->second.last_seen).count();
+            current_time - tracked_armors[i].last_seen).count();
         if (age > MAX_TRACKING_AGE_MS) {
-            it = tracked_armors.erase(it);
-        } else {
-            ++it;
+            tracked_armors.erase(tracked_armors.begin() + i);
+            --i;
         }
     }
     
-    for (const auto& armor : armors) {
-        cv::Mat roi = preprocessROI(img, armor);
+    for (const auto& current_armor : armors) {
+        cv::Mat roi = preprocessROI(img, current_armor);
         if (roi.empty()) continue;
         
         try {
             torch::Tensor tensor_image = torch::from_blob(
                 roi.data, 
-                // {1, 1, INPUT_HEIGHT, INPUT_WIDTH},
-                {1, 3, INPUT_HEIGHT, INPUT_WIDTH}, //debug_newModel
+                {1, 3, INPUT_HEIGHT, INPUT_WIDTH},
                 torch::kFloat32
             ).clone();
             
             tensor_image = tensor_image.to(device);
             
-            auto output = model->forward(tensor_image)[3];
-            auto probabilities = torch::exp(output);
+            auto output = model->forward(tensor_image);
+            // 获取多输出头结果
+            float is_armor_probability = torch::sigmoid(output[0]).cpu().item<float>();
+            float is_large_probability = torch::sigmoid(output[1]).cpu().item<float>();
+            float not_screen_probability = torch::sigmoid(output[2]).cpu().item<float>();
+            float not_slant_probability = torch::sigmoid(output[3]).cpu().item<float>();
+            auto classify_probabilities = torch::softmax(output[4], 1).cpu();
             
-            auto max_result = probabilities.max(1);
-            int number = std::get<1>(max_result).item<int>();
-            float confidence = std::get<0>(max_result).item<float>();
+            auto max_result = classify_probabilities.max(1);
+            int current_number = std::get<1>(max_result).item<int>();
+            float classify_confidence = std::get<0>(max_result).item<float>();
             
             // 计算当前装甲板中心点
-            cv::Point2f current_center = (armor.corners[0] + armor.corners[2]) * 0.5f;
+            cv::Point2f current_center = current_armor.center;
+
+            is_armor_probability = 1.0; // DEBUG
+            is_large_probability = 0.0;
+            not_screen_probability = 1.0;
+            not_slant_probability = 1.0;
+            current_number = 1;
+            classify_confidence = 1.0;
+
+            bool is_ture_armor = (is_armor_probability >= IS_ARMOR_THRESHOLD) &&
+                                 (not_screen_probability >= NOT_SCREEN_THRESHOLD) &&
+                                 (classify_confidence >= CLASSIFY_THRESHOLD);
             
-            if (number != 0 && confidence >= CONFIDENCE_THRESHOLD) {
-                auto& tracked = tracked_armors[number];
-                
-                // 检查是否与上一次检测位置接近
-                if (tracked.tracking_count > 0 && 
-                    !isNearPreviousCenter(current_center, tracked.center)) {
-                    continue;  // 如果位置跳变太大，忽略此次检测
+            if (is_ture_armor) {
+                bool is_large = is_large_probability > IS_LARGE_THRESHOLD;
+                float armor_type_confidence = 1.0 - is_large_probability;
+                if (is_large)
+                {
+                    armor_type_confidence = is_large_probability;
                 }
-                
-                tracked.number = number;
-                tracked.confidence = confidence;
-                tracked.last_seen = current_time;
-                tracked.tracking_count++;
-                tracked.center = current_center;
-                
-                if (tracked.tracking_count >= MIN_TRACKING_COUNT) {
-                    results.emplace_back(armor, number, confidence);
+                float confidence = std::pow(
+                    is_armor_probability * armor_type_confidence * not_screen_probability * classify_confidence, 
+                    1.0 / 4.0
+                );
+                bool not_slant = not_slant_probability > NOT_SLANT_THRESHOLD; // TODO：倾斜目标纠正网络
+
+                // 检测是否正在跟踪当前装甲板
+                bool is_tracked = false;
+                for (size_t i = 0; i < tracked_armors.size(); ++i) {
+                    if (current_number == tracked_armors[i].number && 
+                        is_large == tracked_armors[i].is_large &&
+                        isNearPreviousCenter(current_center, tracked_armors[i].center_last_seen)) {
+                        // 若正在跟踪则更新
+                        tracked_armors[i].tracking_count += 1;
+                        tracked_armors[i].last_seen = current_time;
+                        tracked_armors[i].center_last_seen = current_center;
+                        tracked_armors[i].is_tracked_now = true;
+                        tracked_armors[i].armor_last_seen = current_armor;
+                        tracked_armors[i].confidence = confidence;
+                        tracked_armors[i].not_slant = not_slant;
+                        is_tracked = true;
+                        break;
+                    }
+                }
+                // 若未在跟踪则添加至跟踪列表
+                if(!is_tracked) {
+                    TrackedArmor new_tracked_armor(current_number, current_time, current_center, 
+                        current_armor, confidence, is_large, not_slant);
+                    tracked_armors.push_back(new_tracked_armor);
                 }
             }
         }
@@ -167,11 +202,22 @@ std::vector<ArmorResult> ArmorClassifier::classify(
             continue;
         }
     }
-    
-    // 更新未检测到的目标
-    for (auto& pair : tracked_armors) {
-        if (pair.second.last_seen != current_time && pair.second.tracking_count > 0) {
-            pair.second.tracking_count = std::max(0, pair.second.tracking_count - 1);
+    // 更新所有目标
+    for (size_t i = 0; i < tracked_armors.size(); ++i) {
+        if (tracked_armors[i].last_seen != current_time && tracked_armors[i].tracking_count > 0) {
+            tracked_armors[i].tracking_count -= 1;
+        }        
+        if (tracked_armors[i].tracking_count >= MIN_TRACKING_COUNT) {
+            tracked_armors[i].is_steady_tracked = true;
+        } else {
+            tracked_armors[i].is_steady_tracked = false;
+        }
+    }
+    // 输出
+    for (size_t i = 0; i < tracked_armors.size(); ++i) {        
+        if (tracked_armors[i].is_steady_tracked) {
+            results.emplace_back(tracked_armors[i].armor_last_seen, tracked_armors[i].number, tracked_armors[i].confidence, 
+            tracked_armors[i].is_tracked_now, tracked_armors[i].is_large, tracked_armors[i].not_slant);
         }
     }
     

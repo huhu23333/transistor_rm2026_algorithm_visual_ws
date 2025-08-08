@@ -36,7 +36,8 @@ public:
         head1 = register_module("head1", torch::nn::Linear(512, 1));
         head2 = register_module("head2", torch::nn::Linear(512, 1));
         head3 = register_module("head3", torch::nn::Linear(512, 1));
-        head4 = register_module("head4", torch::nn::Linear(512, num_classes));
+        head4 = register_module("head4", torch::nn::Linear(512, 1));
+        head5 = register_module("head5", torch::nn::Linear(512, num_classes));
     }
 
     std::vector<torch::Tensor> forward(torch::Tensor x) {
@@ -62,7 +63,8 @@ public:
             head1(x),
             head2(x),
             head3(x),
-            head4(x)
+            head4(x),
+            head5(x)
         };
     }
 
@@ -75,5 +77,5 @@ public:
     torch::nn::AdaptiveAvgPool2d gap{nullptr};
     torch::nn::Dropout dropout{nullptr};
     torch::nn::Dropout2d dropout2d_1{nullptr}, dropout2d_2{nullptr};
-    torch::nn::Linear fc{nullptr}, head1{nullptr}, head2{nullptr}, head3{nullptr}, head4{nullptr};
+    torch::nn::Linear fc{nullptr}, head1{nullptr}, head2{nullptr}, head3{nullptr}, head4{nullptr}, head5{nullptr};
 };
