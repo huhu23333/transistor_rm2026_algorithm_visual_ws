@@ -98,7 +98,7 @@ public:
 
         light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
-        classifier_ = std::make_shared<ArmorClassifier>((*config_file_ptr)["model_path"].as<std::string>(), false);
+        classifier_ = std::make_shared<ArmorClassifier>((*config_file_ptr)["model_path"].as<std::string>(), false, this);
         angle_kalman_ = std::make_shared<ArmorAngleKalman>();
 
         // 创建定时器

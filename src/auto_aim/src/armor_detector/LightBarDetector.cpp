@@ -1,4 +1,3 @@
-
 // LightBarDetector.cpp
 // 实现灯条检测的具体功能
 

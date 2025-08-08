@@ -7,17 +7,6 @@ cv::Mat UnwarpUtils::unwarpQuadrilateral(
     // 输出尺寸256*256
     int outputWidth = 256;
     int outputHeight = 256;
-    // 验证输入
-
-    if (corners.size() != 4) {
-        // 返回空cv::Mat
-        return cv::Mat();
-    }
-    
-    // 验证输入图像有效性
-    if (input.empty()) {
-        return cv::Mat();
-    }
 
     // 定义目标矩形的四个角点（按相同顺序）
     std::vector<cv::Point2f> dstCorners = {
@@ -45,6 +34,6 @@ cv::Mat UnwarpUtils::unwarpQuadrilateral(
         return output;
     } catch (...) {
         // 发生任何异常时返回cv::Mat
-        return cv::Mat();
+        return cv::Mat(outputWidth, outputHeight, CV_8UC3);	// outputWidth x outputHeight 的彩色图像矩阵
     }
 }

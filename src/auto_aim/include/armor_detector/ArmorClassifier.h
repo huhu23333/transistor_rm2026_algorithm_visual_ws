@@ -16,7 +16,7 @@
 
 class ArmorClassifier {
 public:
-    ArmorClassifier(const std::string& model_path, bool use_cuda = false);
+    ArmorClassifier(const std::string& model_path, bool use_cuda, rclcpp::Node* node);
     std::vector<ArmorResult> classify(const cv::Mat& img, const std::vector<Armor>& armors);
 
 private:
@@ -41,6 +41,7 @@ private:
     std::shared_ptr<TransistorRM2026Net> model;
     torch::Device device;
     std::vector<TrackedArmor> tracked_armors;
+    rclcpp::Node* node;                  // 用于打印的节点
     
     static constexpr float IS_ARMOR_THRESHOLD = 0.5f;
     static constexpr float IS_LARGE_THRESHOLD = 0.5f;

@@ -1,10 +1,15 @@
-//ArmorCLassifier.cpp
+// ArmorCLassifier.cpp
 #include "armor_detector/ArmorClassifier.h"
+
+/* #include <iostream>
+#include <sstream>
+#include <string>
+// DEBUG */
 
 namespace fs = std::filesystem;
 
-ArmorClassifier::ArmorClassifier(const std::string& model_path, bool use_cuda) 
-    : device(use_cuda && torch::cuda::is_available() ? torch::kCUDA : torch::kCPU) {
+ArmorClassifier::ArmorClassifier(const std::string& model_path, bool use_cuda, rclcpp::Node* node) 
+    : device(use_cuda && torch::cuda::is_available() ? torch::kCUDA : torch::kCPU), node(node) {
     try {
         model = std::make_shared<TransistorRM2026Net>(8);
         torch::load(model, model_path);
@@ -25,26 +30,11 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     const int MAX_SAVE_COUNT = 2000;  // 最大保存数量
     cv::Mat normalized;  // 将声明移到函数开始
 
-    /* 
-    cv::Rect safe_roi = roi & cv::Rect(0, 0, img.cols, img.rows);
-    if (safe_roi.area() == 0) {
-        return cv::Mat();
-    } */
-    
     // 提取ROI
-    //cv::Mat roi_img = img(safe_roi);
     cv::Mat roi_img = UnwarpUtils::unwarpQuadrilateral(img, armor.corners_expanded);
     
     
     // 图像预处理
-    /* 
-    cv::Mat gray;
-    cv::cvtColor(roi_img, gray, cv::COLOR_BGR2GRAY); 
-    
-    cv::Mat enhanced;
-    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(1.5, cv::Size(3, 3));
-    clahe->apply(gray, enhanced); */
-    
     cv::Mat blurred;
     cv::GaussianBlur(roi_img, blurred, cv::Size(3, 3), 0);
     
@@ -119,87 +109,96 @@ std::vector<ArmorResult> ArmorClassifier::classify(
         }
     }
     
-    for (const auto& current_armor : armors) {
-        cv::Mat roi = preprocessROI(img, current_armor);
-        if (roi.empty()) continue;
+    std::vector<torch::Tensor> tensor_images;
+    std::vector<torch::Tensor> model_outputs;
+    for (size_t i = 0; i < armors.size(); ++i) {
+        auto armor = armors[i];
+        cv::Mat roi = preprocessROI(img, armor);
+        torch::Tensor tensor_image = torch::from_blob(
+            roi.data, 
+            {3, INPUT_HEIGHT, INPUT_WIDTH},
+            torch::kFloat32
+        ).clone();
+        tensor_images.push_back(tensor_image);
+    }
+    if (armors.size() > 0) {
+        torch::Tensor stacked_tensor_images = torch::stack(tensor_images, 0).to(device);
+        model_outputs = model->forward(stacked_tensor_images);
+        /* std::ostringstream toPrint;
+        toPrint << "model_outputs[i].sizes()" << model_outputs[0][0].cpu().item<float>() << model_outputs[1].sizes()
+        << model_outputs[2].sizes() << model_outputs[3].sizes() 
+        << std::get<1>(torch::softmax(model_outputs[4][0], 0).cpu().max(0)).item<int>()
+        << "\n";
+        RCLCPP_DEBUG(node->get_logger(), toPrint.str().c_str()); // DEBUG */
+    }
+    
+    for (size_t i = 0; i < armors.size(); ++i) {
+
+        auto armor = armors[i];
+        // 获取多输出头结果
+        float is_armor_probability = torch::sigmoid(model_outputs[0][i]).cpu().item<float>();
+        float is_large_probability = torch::sigmoid(model_outputs[1][i]).cpu().item<float>();
+        float not_screen_probability = torch::sigmoid(model_outputs[2][i]).cpu().item<float>();
+        float not_slant_probability = torch::sigmoid(model_outputs[3][i]).cpu().item<float>();
+        auto classify_probabilities = torch::softmax(model_outputs[4][i], 0).cpu();
         
-        try {
-            torch::Tensor tensor_image = torch::from_blob(
-                roi.data, 
-                {1, 3, INPUT_HEIGHT, INPUT_WIDTH},
-                torch::kFloat32
-            ).clone();
-            
-            tensor_image = tensor_image.to(device);
-            
-            auto output = model->forward(tensor_image);
-            // 获取多输出头结果
-            float is_armor_probability = torch::sigmoid(output[0]).cpu().item<float>();
-            float is_large_probability = torch::sigmoid(output[1]).cpu().item<float>();
-            float not_screen_probability = torch::sigmoid(output[2]).cpu().item<float>();
-            float not_slant_probability = torch::sigmoid(output[3]).cpu().item<float>();
-            auto classify_probabilities = torch::softmax(output[4], 1).cpu();
-            
-            auto max_result = classify_probabilities.max(1);
-            int current_number = std::get<1>(max_result).item<int>();
-            float classify_confidence = std::get<0>(max_result).item<float>();
-            
-            // 计算当前装甲板中心点
-            cv::Point2f current_center = current_armor.center;
+        auto max_result = classify_probabilities.max(0);
+        int current_number = std::get<1>(max_result).item<int>();
+        float classify_confidence = std::get<0>(max_result).item<float>();
+        
+        RCLCPP_DEBUG(node->get_logger(), "----------ArmorClassifier Debug Flag----------");
 
-            is_armor_probability = 1.0; // DEBUG
-            is_large_probability = 0.0;
-            not_screen_probability = 1.0;
-            not_slant_probability = 1.0;
-            current_number = 1;
-            classify_confidence = 1.0;
+        // 计算当前装甲板中心点
+        cv::Point2f current_center = armor.center;
 
-            bool is_ture_armor = (is_armor_probability >= IS_ARMOR_THRESHOLD) &&
-                                 (not_screen_probability >= NOT_SCREEN_THRESHOLD) &&
-                                 (classify_confidence >= CLASSIFY_THRESHOLD);
-            
-            if (is_ture_armor) {
-                bool is_large = is_large_probability > IS_LARGE_THRESHOLD;
-                float armor_type_confidence = 1.0 - is_large_probability;
-                if (is_large)
-                {
-                    armor_type_confidence = is_large_probability;
-                }
-                float confidence = std::pow(
-                    is_armor_probability * armor_type_confidence * not_screen_probability * classify_confidence, 
-                    1.0 / 4.0
-                );
-                bool not_slant = not_slant_probability > NOT_SLANT_THRESHOLD; // TODO：倾斜目标纠正网络
+        is_armor_probability = 1.0; // DEBUG
+        is_large_probability = 0.0;
+        not_screen_probability = 1.0;
+        not_slant_probability = 1.0;
+        current_number = 1;
+        classify_confidence = 1.0;
 
-                // 检测是否正在跟踪当前装甲板
-                bool is_tracked = false;
-                for (size_t i = 0; i < tracked_armors.size(); ++i) {
-                    if (current_number == tracked_armors[i].number && 
-                        is_large == tracked_armors[i].is_large &&
-                        isNearPreviousCenter(current_center, tracked_armors[i].center_last_seen)) {
-                        // 若正在跟踪则更新
-                        tracked_armors[i].tracking_count += 1;
-                        tracked_armors[i].last_seen = current_time;
-                        tracked_armors[i].center_last_seen = current_center;
-                        tracked_armors[i].is_tracked_now = true;
-                        tracked_armors[i].armor_last_seen = current_armor;
-                        tracked_armors[i].confidence = confidence;
-                        tracked_armors[i].not_slant = not_slant;
-                        is_tracked = true;
-                        break;
-                    }
-                }
-                // 若未在跟踪则添加至跟踪列表
-                if(!is_tracked) {
-                    TrackedArmor new_tracked_armor(current_number, current_time, current_center, 
-                        current_armor, confidence, is_large, not_slant);
-                    tracked_armors.push_back(new_tracked_armor);
+        bool is_ture_armor = (is_armor_probability >= IS_ARMOR_THRESHOLD) &&
+                                (not_screen_probability >= NOT_SCREEN_THRESHOLD) &&
+                                (classify_confidence >= CLASSIFY_THRESHOLD);
+        
+        if (is_ture_armor) {
+            bool is_large = is_large_probability > IS_LARGE_THRESHOLD;
+            float armor_type_confidence = 1.0 - is_large_probability;
+            if (is_large)
+            {
+                armor_type_confidence = is_large_probability;
+            }
+            float confidence = std::pow(
+                is_armor_probability * armor_type_confidence * not_screen_probability * classify_confidence, 
+                1.0 / 4.0
+            );
+            bool not_slant = not_slant_probability > NOT_SLANT_THRESHOLD; // TODO：倾斜目标纠正网络
+
+            // 检测是否正在跟踪当前装甲板
+            bool is_tracked = false;
+            for (size_t j = 0; j < tracked_armors.size(); ++j) {
+                if (current_number == tracked_armors[j].number && 
+                    is_large == tracked_armors[j].is_large &&
+                    isNearPreviousCenter(current_center, tracked_armors[j].center_last_seen)) {
+                    // 若正在跟踪则更新
+                    tracked_armors[j].tracking_count += 1;
+                    tracked_armors[j].last_seen = current_time;
+                    tracked_armors[j].center_last_seen = current_center;
+                    tracked_armors[j].is_tracked_now = true;
+                    tracked_armors[j].armor_last_seen = armor;
+                    tracked_armors[j].confidence = confidence;
+                    tracked_armors[j].not_slant = not_slant;
+                    is_tracked = true;
+                    break;
                 }
             }
-        }
-        catch (const std::exception& e) {
-            std::cerr << "Error in classify: " << e.what() << std::endl;
-            continue;
+            // 若未在跟踪则添加至跟踪列表
+            if(!is_tracked) {
+                TrackedArmor new_tracked_armor(current_number, current_time, current_center, 
+                    armor, confidence, is_large, not_slant);
+                tracked_armors.push_back(new_tracked_armor);
+            }
         }
     }
     // 更新所有目标
