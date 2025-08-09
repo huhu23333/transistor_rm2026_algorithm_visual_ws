@@ -61,6 +61,7 @@ add_library(armor_detector SHARED
     src/camera/cameraConnect.cpp  # 添加这一行
     src/test_codes/FrameRateCounter.cpp
     src/test_codes/UnwarpUtils.cpp
+    src/test_codes/PositionPredictor.cpp
 )
 add_library(crc_lib SHARED
     src/nodes/CRC.cpp

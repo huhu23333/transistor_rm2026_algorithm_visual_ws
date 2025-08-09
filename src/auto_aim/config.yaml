@@ -18,7 +18,7 @@ cam_ip : "192.168.10.10"
 # Params.h 参数设置
 min_light_height : 8 # 8
 light_slope_offset : 30
-light_min_area : 10
+light_min_area : 10 # 10
 max_light_wh_ratio : 100.0 # 10.0
 min_light_wh_ratio : 0.1 # 0.1
 light_max_tilt_angle : 60.0
@@ -64,3 +64,17 @@ camera_matrix: # 相机内参矩阵
 dist_coeffs: [-0.08153923,  0.49331671,  0.0017929,  -0.00437156, -1.28439103] # 畸变系数
 max_expected_small_distance_mismatch_ratio : 0.35
 max_expected_large_distance_mismatch_ratio : 0.35
+
+# ArmorClassifier 参数
+IS_ARMOR_THRESHOLD : 0.5
+IS_LARGE_THRESHOLD : 0.5
+NOT_SCREEN_THRESHOLD : 0.5
+NOT_SLANT_THRESHOLD : 0.5
+CLASSIFY_THRESHOLD : 0.5
+INPUT_HEIGHT : 48
+INPUT_WIDTH : 64
+MAX_TRACKING_AGE_MS : 5000  # 最大跟踪时间100ms // DEBUG // 100
+MIN_TRACKING_COUNT : 5     # 最小连续跟踪次数           // 2
+IS_NEAR_MAX_DIST : 50.0     # 50.0
+fit_step : 5
+predict_step : 10

@@ -16,6 +16,7 @@
 #include "test_codes/FrameRateCounter.h"
 #include "test_codes/UnwarpUtils.h"
 
+// #define USE_VIDEO
 
 // 全局变量定义
 cv::Mat g_image;
@@ -77,10 +78,15 @@ public:
         params_.MAX_DETECT_CNT = (*config_file_ptr)["MAX_DETECT_CNT"].as<int>();
         params_.MAX_LOST_CNT = (*config_file_ptr)["MAX_LOST_CNT"].as<int>();
 
+        #ifdef USE_VIDEO
+        
+        #endif
+        #ifndef USE_VIDEO
         // 初始化相机和检测器
         camera_ = std::make_shared<Camera>((*config_file_ptr)["cam_ip"].as<std::string>(), (*config_file_ptr)["pc_ip"].as<std::string>());
         camera_->setExposureTime((*config_file_ptr)["camera_ExposureTime"].as<float>());
         camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
+        #endif
 
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -98,12 +104,12 @@ public:
 
         light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
-        classifier_ = std::make_shared<ArmorClassifier>((*config_file_ptr)["model_path"].as<std::string>(), false, this);
+        classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, false, this);
         angle_kalman_ = std::make_shared<ArmorAngleKalman>();
 
         // 创建定时器
         timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(11), // 33
+            std::chrono::milliseconds(33), // 33
             std::bind(&ArmorDetectNode::processImage, this));
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
@@ -204,32 +210,35 @@ private:
                 }    
             }
 
+            // 绘制预测中心点
+            for (auto& prediction : res.predictions) {
+                cv::circle(result, prediction, 3, cv::Scalar(255, 0, 255), -1);
+            }
+            cv::circle(result, res.center_predicted, 3, cv::Scalar(0, 255, 255), -1);
 
             // 绘制中心点和编号
-            if (!res.corners.empty()) {
-                cv::Point2f center = (res.corners[0] + res.corners[2]) * 0.5f;
-                cv::circle(result, center, 3, cv::Scalar(0, 0, 255), -1);
+            cv::Point2f center = res.center;
+            cv::circle(result, center, 3, cv::Scalar(0, 0, 255), -1);
 
-                std::string text = cv::format("N%d (%.2f)", 
-                                            res.number, 
-                                            res.confidence);
-                cv::Point text_pos(res.corners[0].x, res.corners[0].y - 10);
+            std::string text = cv::format("N%d (%.2f)", 
+                                        res.number, 
+                                        res.confidence);
+            cv::Point text_pos(res.corners[0].x, res.corners[0].y - 10);
 
-                // 使用黑色描边使文字更清晰
-                cv::putText(result, text, text_pos,
-                            cv::FONT_HERSHEY_SIMPLEX, 0.6, 
-                            cv::Scalar(0, 0, 0), 3);
-                cv::putText(result, text, text_pos,
-                            cv::FONT_HERSHEY_SIMPLEX, 0.6, 
-                            cv::Scalar(0, 0, 255), 1);
+            // 使用黑色描边使文字更清晰
+            cv::putText(result, text, text_pos,
+                        cv::FONT_HERSHEY_SIMPLEX, 0.6, 
+                        cv::Scalar(0, 0, 0), 3);
+            cv::putText(result, text, text_pos,
+                        cv::FONT_HERSHEY_SIMPLEX, 0.6, 
+                        cv::Scalar(0, 0, 255), 1);
 
-                // 添加跟踪状态显示
-                std::string track_text = "TRACKING";
-                cv::Point track_pos(center.x - 30, center.y + 30);
-                cv::putText(result, track_text, track_pos,
-                            cv::FONT_HERSHEY_SIMPLEX, 0.5,
-                            cv::Scalar(0, 255, 0), 1);
-            }
+            // 添加跟踪状态显示
+            std::string track_text = "TRACKING";
+            cv::Point track_pos(center.x - 30, center.y + 30);
+            cv::putText(result, track_text, track_pos,
+                        cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                        cv::Scalar(0, 255, 0), 1);
         }
 
         // 在窗口中显示图像

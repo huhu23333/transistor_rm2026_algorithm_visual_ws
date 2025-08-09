@@ -199,14 +199,19 @@ struct ArmorResult {
     int number;              
     float confidence;        
     std::vector<cv::Point2f> corners;  
+    cv::Point2f center;
     bool is_tracked_now;
     bool is_large;
     bool not_slant;
+    std::vector<cv::Point2f> predictions;
+    cv::Point2f center_predicted;
 
     ArmorResult(const Armor& a, int n, float conf, 
-        bool is_tracked_now, bool is_large, bool not_slant) 
-        : armor(a), number(n), confidence(conf), corners(a.corners), 
-        is_tracked_now(is_tracked_now), is_large(is_large), not_slant(not_slant) {}
+        bool is_tracked_now, bool is_large, bool not_slant,
+        std::vector<cv::Point2f> predictions, cv::Point2f center_predicted) 
+        : armor(a), number(n), confidence(conf), corners(a.corners), center(a.center),
+        is_tracked_now(is_tracked_now), is_large(is_large), not_slant(not_slant),
+        predictions(predictions), center_predicted(center_predicted) {}
 };
 
 #endif // ARMOR_H

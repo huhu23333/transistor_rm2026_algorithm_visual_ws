@@ -8,11 +8,25 @@
 
 namespace fs = std::filesystem;
 
-ArmorClassifier::ArmorClassifier(const std::string& model_path, bool use_cuda, rclcpp::Node* node) 
+ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, bool use_cuda, rclcpp::Node* node) 
     : device(use_cuda && torch::cuda::is_available() ? torch::kCUDA : torch::kCPU), node(node) {
+        
+    IS_ARMOR_THRESHOLD = (*config_file_ptr)["IS_ARMOR_THRESHOLD"].as<float>();
+    IS_LARGE_THRESHOLD = (*config_file_ptr)["IS_LARGE_THRESHOLD"].as<float>();
+    NOT_SCREEN_THRESHOLD = (*config_file_ptr)["NOT_SCREEN_THRESHOLD"].as<float>();
+    NOT_SLANT_THRESHOLD = (*config_file_ptr)["NOT_SLANT_THRESHOLD"].as<float>();
+    CLASSIFY_THRESHOLD = (*config_file_ptr)["CLASSIFY_THRESHOLD"].as<float>();
+    INPUT_HEIGHT = (*config_file_ptr)["INPUT_HEIGHT"].as<int>();
+    INPUT_WIDTH = (*config_file_ptr)["INPUT_WIDTH"].as<int>();
+    MAX_TRACKING_AGE_MS = (*config_file_ptr)["MAX_TRACKING_AGE_MS"].as<int>();
+    MIN_TRACKING_COUNT = (*config_file_ptr)["MIN_TRACKING_COUNT"].as<int>();
+    IS_NEAR_MAX_DIST = (*config_file_ptr)["IS_NEAR_MAX_DIST"].as<float>();
+    fit_step = (*config_file_ptr)["fit_step"].as<int>();
+    predict_step = (*config_file_ptr)["predict_step"].as<int>();
+    
     try {
         model = std::make_shared<TransistorRM2026Net>(8);
-        torch::load(model, model_path);
+        torch::load(model, (*config_file_ptr)["model_path"].as<std::string>());
         model->to(device);
         model->eval();
         
@@ -86,6 +100,10 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
 bool ArmorClassifier::isNearPreviousCenter(const cv::Point2f& current, 
                                          const cv::Point2f& previous, 
                                          float max_dist) {
+    if (max_dist < 0)
+    {
+        max_dist = IS_NEAR_MAX_DIST;
+    }
     float dist = cv::norm(current - previous);
     return dist <= max_dist;
 }
@@ -145,8 +163,6 @@ std::vector<ArmorResult> ArmorClassifier::classify(
         auto max_result = classify_probabilities.max(0);
         int current_number = std::get<1>(max_result).item<int>();
         float classify_confidence = std::get<0>(max_result).item<float>();
-        
-        RCLCPP_DEBUG(node->get_logger(), "----------ArmorClassifier Debug Flag----------");
 
         // 计算当前装甲板中心点
         cv::Point2f current_center = armor.center;
@@ -180,7 +196,8 @@ std::vector<ArmorResult> ArmorClassifier::classify(
             for (size_t j = 0; j < tracked_armors.size(); ++j) {
                 if (current_number == tracked_armors[j].number && 
                     is_large == tracked_armors[j].is_large &&
-                    isNearPreviousCenter(current_center, tracked_armors[j].center_last_seen)) {
+                    //isNearPreviousCenter(current_center, tracked_armors[j].center_last_seen)) {
+                    isNearPreviousCenter(current_center, tracked_armors[j].center_predicted)) {
                     // 若正在跟踪则更新
                     tracked_armors[j].tracking_count += 1;
                     tracked_armors[j].last_seen = current_time;
@@ -196,7 +213,7 @@ std::vector<ArmorResult> ArmorClassifier::classify(
             // 若未在跟踪则添加至跟踪列表
             if(!is_tracked) {
                 TrackedArmor new_tracked_armor(current_number, current_time, current_center, 
-                    armor, confidence, is_large, not_slant);
+                    armor, confidence, is_large, not_slant, fit_step);
                 tracked_armors.push_back(new_tracked_armor);
             }
         }
@@ -205,18 +222,41 @@ std::vector<ArmorResult> ArmorClassifier::classify(
     for (size_t i = 0; i < tracked_armors.size(); ++i) {
         if (tracked_armors[i].last_seen != current_time && tracked_armors[i].tracking_count > 0) {
             tracked_armors[i].tracking_count -= 1;
-        }        
+        }
+
         if (tracked_armors[i].tracking_count >= MIN_TRACKING_COUNT) {
             tracked_armors[i].is_steady_tracked = true;
         } else {
             tracked_armors[i].is_steady_tracked = false;
         }
+
+        RCLCPP_DEBUG(node->get_logger(), "----------ArmorClassifier Debug Flag----------");
+
+        if (tracked_armors[i].is_tracked_now) {
+            for (int j = 0; j < tracked_armors[i].prediction_index-1; ++j)
+            {
+                tracked_armors[i].predictor.addPoint(tracked_armors[i].predictions[j]);
+            }
+            tracked_armors[i].predictor.addPoint(tracked_armors[i].center_last_seen);
+            tracked_armors[i].predictor.fitLinear(fit_step);
+            tracked_armors[i].predictions = tracked_armors[i].predictor.predictLinear(predict_step);
+            tracked_armors[i].prediction_index = 0;
+        } else if (tracked_armors[i].prediction_index < predict_step-1) {
+            tracked_armors[i].prediction_index += 1;
+        }
+        if (tracked_armors[i].is_steady_tracked) {
+            tracked_armors[i].center_predicted = tracked_armors[i].predictions[tracked_armors[i].prediction_index];
+        } else {
+            tracked_armors[i].center_predicted = tracked_armors[i].center_last_seen;
+        }
+        
     }
     // 输出
     for (size_t i = 0; i < tracked_armors.size(); ++i) {        
         if (tracked_armors[i].is_steady_tracked) {
             results.emplace_back(tracked_armors[i].armor_last_seen, tracked_armors[i].number, tracked_armors[i].confidence, 
-            tracked_armors[i].is_tracked_now, tracked_armors[i].is_large, tracked_armors[i].not_slant);
+            tracked_armors[i].is_tracked_now, tracked_armors[i].is_large, tracked_armors[i].not_slant, 
+            tracked_armors[i].predictions, tracked_armors[i].center_predicted);
         }
     }
     
