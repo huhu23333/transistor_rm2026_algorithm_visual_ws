@@ -15,8 +15,9 @@
 #include <yaml-cpp/yaml.h>
 #include "test_codes/FrameRateCounter.h"
 #include "test_codes/UnwarpUtils.h"
+#include "test_codes/VideoInput.h"
 
-// #define USE_VIDEO
+#define USE_VIDEO
 
 // 全局变量定义
 cv::Mat g_image;
@@ -78,10 +79,10 @@ public:
         params_.MAX_DETECT_CNT = (*config_file_ptr)["MAX_DETECT_CNT"].as<int>();
         params_.MAX_LOST_CNT = (*config_file_ptr)["MAX_LOST_CNT"].as<int>();
 
+        frame_rate_ = (*config_file_ptr)["frame_rate"].as<float>();
         #ifdef USE_VIDEO
-        
-        #endif
-        #ifndef USE_VIDEO
+        video_input_ = std::make_shared<VideoInput>((*config_file_ptr)["video_path"].as<std::string>(), frame_rate_);
+        #else
         // 初始化相机和检测器
         camera_ = std::make_shared<Camera>((*config_file_ptr)["cam_ip"].as<std::string>(), (*config_file_ptr)["pc_ip"].as<std::string>());
         camera_->setExposureTime((*config_file_ptr)["camera_ExposureTime"].as<float>());
@@ -109,7 +110,7 @@ public:
 
         // 创建定时器
         timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(33), // 33
+            std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
             std::bind(&ArmorDetectNode::processImage, this));
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
@@ -223,7 +224,7 @@ private:
             std::string text = cv::format("N%d (%.2f)", 
                                         res.number, 
                                         res.confidence);
-            cv::Point text_pos(res.corners[0].x, res.corners[0].y - 10);
+            cv::Point text_pos(res.corners[1].x, res.corners[1].y - 10);
 
             // 使用黑色描边使文字更清晰
             cv::putText(result, text, text_pos,
@@ -413,6 +414,9 @@ private:
     std::shared_ptr<ArmorDetector> armor_detector_;
     std::shared_ptr<ArmorClassifier> classifier_;
     std::shared_ptr<ArmorAngleKalman> angle_kalman_;
+
+    std::shared_ptr<VideoInput> video_input_;
+    float frame_rate_;
     
     float bullet_velocity_;
     float current_pitch_;

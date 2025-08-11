@@ -62,6 +62,7 @@ add_library(armor_detector SHARED
     src/test_codes/FrameRateCounter.cpp
     src/test_codes/UnwarpUtils.cpp
     src/test_codes/PositionPredictor.cpp
+    src/test_codes/VideoInput.cpp
 )
 add_library(crc_lib SHARED
     src/nodes/CRC.cpp

@@ -147,12 +147,26 @@ std::vector<Armor> ArmorDetector::detectArmors(const std::vector<Light>& lights)
 
 // 修改装甲板配对条件
 bool ArmorDetector::isArmorPair(const Light& l1, const Light& l2) {
+
+    // 获取灯条平均长方向向量
+    float rad_l1 = -l1.el.angle * M_PI / 180.0;
+    float rad_l2 = -l2.el.angle * M_PI / 180.0;
+    cv::Vec2f l1_length_direction = cv::Vec2f(std::sin(rad_l1), std::cos(rad_l1));
+    cv::Vec2f l2_length_direction = cv::Vec2f(std::sin(rad_l2), std::cos(rad_l2));
+    if (std::abs(rad_l1 - rad_l2) > M_PI/2)
+    {
+        l2_length_direction = -l2_length_direction;
+    }
+    cv::Vec2f average_length_direction = l1_length_direction + l2_length_direction;
+    average_length_direction /= cv::norm(average_length_direction);
+
     // 1. 检查灯条间距
-    float distance = cv::norm(l1.el.center - l2.el.center);
+    cv::Vec2f d_center_vector = cv::Vec2f(l1.el.center - l2.el.center);
+    float distance = cv::norm(d_center_vector);
     float avg_light_height = (l1.length + l2.length) / 2.0f;
     
-    float expected_small_distance = (ArmorConstants::SMALL_ARMOR_WIDTH / ArmorConstants::LIGHT_HEIGHT) * avg_light_height;
-    float expected_large_distance = (ArmorConstants::LARGE_ARMOR_WIDTH / ArmorConstants::LIGHT_HEIGHT) * avg_light_height;
+    float expected_small_distance = ArmorConstants::SMALL_DISTANCE_RATIO * avg_light_height;
+    float expected_large_distance = ArmorConstants::LARGE_DISTANCE_RATIO * avg_light_height;
     
     bool distance_match = false;
     if (std::abs(distance - expected_small_distance) / expected_small_distance <= max_expected_small_distance_mismatch_ratio ||
@@ -161,14 +175,22 @@ bool ArmorDetector::isArmorPair(const Light& l1, const Light& l2) {
     }
     
     if (!distance_match) return false;
-    
-    // 2. 检查灯条平行度
+
+    // 2. 检查灯条在长度方向上的错位
+    float length_direction_mismatch = std::abs(d_center_vector.dot(average_length_direction));
+    float max_length_direction_mismatch = max_length_direction_mismatch_ratio * avg_light_height;
+    if (length_direction_mismatch > max_length_direction_mismatch)
+    {
+        return false;
+    }
+
+    // 3. 检查灯条平行度
     float angleDiff = std::abs(l1.angle - l2.angle);
     if (angleDiff > max_angle_diff) {
         return false;
     }
     
-    // 3. 检查灯条高度比例
+    // 4. 检查灯条高度比例
     float heightDiff = std::abs(l1.length - l2.length);
     if (heightDiff / std::min(l1.length, l2.length) > max_height_diff_ratio) {
         return false;
@@ -189,8 +211,12 @@ float ArmorDetector::getArmorConfidence(const Light& l1, const Light& l2) {
     
     // 3. 距离得分
     float distance = cv::norm(l1.el.center - l2.el.center);
-    float expectedDistance = averageHeight * 1.5f; // 理想的灯条间距
-    float distanceScore = 1.0f - std::abs(distance - expectedDistance) / expectedDistance;
+    float expectedDistance_small = averageHeight * ArmorConstants::SMALL_DISTANCE_RATIO; // 理想的灯条间距
+    float expectedDistance_large = averageHeight * ArmorConstants::LARGE_DISTANCE_RATIO;
+    float distanceScore = 1.0f - std::min(
+        std::abs(distance - expectedDistance_small) / expectedDistance_small,
+        std::abs(distance - expectedDistance_large) / expectedDistance_large
+    );
     
     // 综合评分
     return (angleScore + heightScore + distanceScore) / 3.0f;

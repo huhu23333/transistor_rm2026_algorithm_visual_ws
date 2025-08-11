@@ -18,6 +18,9 @@ namespace ArmorConstants {
     // 高度比例约为2.27和2.31
     constexpr float SMALL_HEIGHT_RATIO = SMALL_ARMOR_HEIGHT / LIGHT_HEIGHT;
     constexpr float LARGE_HEIGHT_RATIO = LARGE_ARMOR_HEIGHT / LIGHT_HEIGHT;
+    // 灯条距离和高度的比值
+    constexpr float LARGE_DISTANCE_RATIO = LARGE_ARMOR_WIDTH / LIGHT_HEIGHT;
+    constexpr float SMALL_DISTANCE_RATIO = SMALL_ARMOR_WIDTH / LIGHT_HEIGHT;
 }
 
 struct AimResult {

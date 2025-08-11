@@ -15,6 +15,10 @@ delta_z_ : 142.5 #  181.30f  114.34f
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 
+video_path : "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/InputVideo/vis.mp4"
+
+frame_rate : 3.0
+
 # Params.h 参数设置
 min_light_height : 8 # 8
 light_slope_offset : 30
@@ -43,7 +47,7 @@ MAX_DETECT_CNT : 2
 MAX_LOST_CNT : 3
 
 # LightBarDetector 参数
-binary_img_THRESHOLD : 128 # 128
+binary_img_THRESHOLD : 180 # 128
 color_rect_expand_FACTOR : 1.5
 mean_color_diff_THRESHOLD_BLUE : 20.0
 mean_color_diff_THRESHOLD_RED : 5.0
@@ -52,11 +56,12 @@ THRES_MAX_COLOR_BLUE : 100
 
 # ArmorDetector 参数
 corners_expand_ratio : 1.5 # 装甲板角点坐标扩大比例
-max_angle_diff : 30        # 最大角度差 # 22.5
-max_height_diff_ratio : 1.2  # 最大高度差比例 # 0.65
+max_angle_diff : 7.0        # 最大角度差 # 22.5 # 30
+max_height_diff_ratio : 0.65  # 最大高度差比例 # 0.65 # 1.2
+max_length_direction_mismatch_ratio : 1.0 # 最大长度方向错位比例 # 2.0
 min_light_distance : 5.0     # 最小灯条距离 
 max_light_distance : 50.0    # 最大灯条距离
-min_armor_confidence : 0.3   # 最小置信度阈值
+min_armor_confidence : 0.3   # 最小置信度阈值 # 0.3
 camera_matrix: # 相机内参矩阵
   - [810.40948926, 0.00000000e+00, 611.41991188]
   - [0.00000000e+00, 813.22312056, 385.16020552]
@@ -73,7 +78,7 @@ NOT_SLANT_THRESHOLD : 0.5
 CLASSIFY_THRESHOLD : 0.5
 INPUT_HEIGHT : 48
 INPUT_WIDTH : 64
-MAX_TRACKING_AGE_MS : 5000  # 最大跟踪时间100ms // DEBUG // 100
+MAX_TRACKING_AGE_MS : 1000  # 最大跟踪时间100ms // DEBUG // 100
 MIN_TRACKING_COUNT : 5     # 最小连续跟踪次数           // 2
 IS_NEAR_MAX_DIST : 50.0     # 50.0
 fit_step : 5

@@ -7,6 +7,8 @@
 #include "Armor.h"
 #include <vector>
 #include <yaml-cpp/yaml.h>
+#define _USE_MATH_DEFINES // 启用数学常量
+#include <cmath>
 
 class ArmorDetector {
 public:
@@ -20,6 +22,7 @@ public:
         max_expected_small_distance_mismatch_ratio = (*config_file_ptr)["max_expected_small_distance_mismatch_ratio"].as<float>();
         max_expected_large_distance_mismatch_ratio = (*config_file_ptr)["max_expected_large_distance_mismatch_ratio"].as<float>();
         corners_expand_ratio = (*config_file_ptr)["corners_expand_ratio"].as<float>();
+        max_length_direction_mismatch_ratio = (*config_file_ptr)["max_length_direction_mismatch_ratio"].as<float>();
         
         // 初始化相机参数
         initCameraMatrix(config_file_ptr, node);
@@ -37,6 +40,7 @@ private:
     float min_armor_confidence;
     float max_expected_small_distance_mismatch_ratio;
     float max_expected_large_distance_mismatch_ratio;
+    float max_length_direction_mismatch_ratio;
     // 相机参数
     cv::Mat camera_matrix;
     cv::Mat dist_coeffs;
