@@ -4,8 +4,9 @@
 extern bool g_bExit;
 extern cv::Mat g_image;
 extern pthread_mutex_t g_mutex;
+extern bool image_used;
 
-VideoInput::VideoInput(const std::string& filename, float frame_rate) : filename(filename), frame_rate(frame_rate) {
+VideoInput::VideoInput(const std::string& filename) : filename(filename) {
     // 打开视频文件
     cap.open(filename);
     if (!cap.isOpened()) {
@@ -50,15 +51,28 @@ void* VideoInput::workThread(void* pThis) {
         // cv::Mat rgbFrame;
         // cv::cvtColor(frame, rgbFrame, cv::COLOR_BGR2RGB);
 
+        // 截取区域
+        if (frame.size[1]>1280 && frame.size[0]>1024) {
+            cv::Rect roi_rect((frame.size[1]-1280)/2, 0, 1280, 1024);
+            frame = frame(roi_rect);
+        }
+        //cv::Mat resized_frame;
+        //cv::resize(frame, resized_frame, cv::Size(1280, 1024));
+
         // 线程锁定，更新全局图像
+        while (!image_used)
+        {
+            usleep(1000);
+        }
         pthread_mutex_lock(&g_mutex);
         g_image = frame.clone();
+        image_used = false;
         pthread_mutex_unlock(&g_mutex);
         
         // 按视频原始帧率播放
         // int delay = static_cast<int>(1000 / pVideo->cap.get(cv::CAP_PROP_FPS));
-        int delay = (int)(1000 / pVideo->frame_rate);
-        usleep(delay * 1000);
+        // int delay = (int)(1000 / pVideo->frame_rate);
+        // usleep(delay * 1000);
     }
     
     std::cout << "Video grabbing thread exiting." << std::endl;

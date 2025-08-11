@@ -19,7 +19,7 @@
 class ArmorClassifier {
 public:
     ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, bool use_cuda, rclcpp::Node* node);
-    std::vector<ArmorResult> classify(const cv::Mat& img, const std::vector<Armor>& armors);
+    std::vector<std::vector<ArmorResult>> classify(const cv::Mat& img, const std::vector<Armor>& armors);
 
 private:
     struct TrackedArmor {
@@ -42,7 +42,7 @@ private:
             Armor armor, float confidence, bool is_large, bool not_slant, int fit_step) : 
         number(number), tracking_count(1), last_seen(seen_time), center_last_seen(center), is_steady_tracked(false),
         is_tracked_now(true), armor_last_seen(armor), confidence(confidence), is_large(is_large), not_slant(not_slant),
-        predictor(fit_step), prediction_index(0) {
+        predictor(fit_step), center_predicted(center), prediction_index(0) {
             predictor.addPoint(center);
         }
     };
@@ -50,8 +50,13 @@ private:
     std::shared_ptr<TransistorRM2026Net> model;
     torch::Device device;
     std::vector<TrackedArmor> tracked_armors;
+    std::vector<TrackedArmor> classified_latest_tracked_armors;
     rclcpp::Node* node;                  // 用于打印的节点
     
+    int MAX_SAVE_COUNT;  // 最大保存数量
+    
+    int classify_classes;
+
     float IS_ARMOR_THRESHOLD;
     float IS_LARGE_THRESHOLD;
     float NOT_SCREEN_THRESHOLD;
@@ -64,6 +69,11 @@ private:
     float IS_NEAR_MAX_DIST;
     int fit_step;
     int predict_step;
+
+    int fourier_fit_step;
+    int fourier_fit_order;
+    int fourier_predict_step;
+    int MAX_FOURIER_TRACKING_AGE_MS;
     
     cv::Mat preprocessROI(const cv::Mat& img, const Armor& roi);
     bool isNearPreviousCenter(const cv::Point2f& current, const cv::Point2f& previous, float max_dist = -1.0);

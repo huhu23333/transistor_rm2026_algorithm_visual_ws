@@ -74,11 +74,10 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
         std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);
 
         // 3. 移除颜色错误的灯条，只保留目标颜色的灯条
+            // 1. 提取颜色通道差值图像
+        cv::Mat color_diff = extractColorChannelDiff(img);
         for (size_t i = 0; i < detectedRects.size(); ++i) {
             
-            // 1. 提取颜色通道差值图像
-            cv::Mat color_diff = extractColorChannelDiff(img);
-
             // 2. 获取扩张后的旋转矩形
             cv::RotatedRect expandedRect = rectExpand(detectedRects[i], color_rect_expand_FACTOR);
 
@@ -102,8 +101,30 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
 
 cv::Mat LightBarDetector::binaryImg(const cv::Mat& img) {
     // 1. 获取灰度图
+    
+    // 1. 分离BGR通道
+    std::vector<cv::Mat> channels;
+    cv::split(img, channels);  // channels[0]=B, [1]=G, [2]=R
+
+    // 2. 根据敌方颜色提取对应的通道
     cv::Mat gray_img;
-    cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
+    switch (enemy_color) {
+        case Params::RED:
+            // 红色装甲板：R通道
+            gray_img = channels[2];
+            break;
+        case Params::BLUE:
+            // 蓝色装甲板：B通道
+            gray_img = channels[0];
+            break;
+        default:
+            // 默认情况：灰度图
+            cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
+            break;
+    }
+
+    // cv::Mat gray_img;
+    // cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
     
     // 1. 获取二值图
     cv::Mat binary_img;

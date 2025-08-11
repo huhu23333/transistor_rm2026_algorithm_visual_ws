@@ -4,7 +4,7 @@
 
 class TransistorRM2026Net : public torch::nn::Module {
 public:
-    TransistorRM2026Net(int64_t num_classes = 5) {
+    TransistorRM2026Net(int64_t num_classes) {
 
         conv1 = register_module("conv1", torch::nn::Conv2d(torch::nn::Conv2dOptions(3, 32, 3).padding(1)));
         conv2 = register_module("conv2", torch::nn::Conv2d(torch::nn::Conv2dOptions(32, 64, 3).padding(1)));

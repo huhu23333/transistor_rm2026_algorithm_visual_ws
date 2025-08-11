@@ -16,6 +16,7 @@
 #include "test_codes/FrameRateCounter.h"
 #include "test_codes/UnwarpUtils.h"
 #include "test_codes/VideoInput.h"
+#include "test_codes/ImagesInput.h"
 
 #define USE_VIDEO
 
@@ -23,6 +24,7 @@
 cv::Mat g_image;
 pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
 bool g_bExit = false;
+bool image_used = true;
 
 class ArmorDetectNode : public rclcpp::Node {
 public:
@@ -81,7 +83,7 @@ public:
 
         frame_rate_ = (*config_file_ptr)["frame_rate"].as<float>();
         #ifdef USE_VIDEO
-        video_input_ = std::make_shared<VideoInput>((*config_file_ptr)["video_path"].as<std::string>(), frame_rate_);
+        video_input_ = std::make_shared<VideoInput>((*config_file_ptr)["video_path"].as<std::string>());
         #else
         // 初始化相机和检测器
         camera_ = std::make_shared<Camera>((*config_file_ptr)["cam_ip"].as<std::string>(), (*config_file_ptr)["pc_ip"].as<std::string>());
@@ -163,7 +165,8 @@ private:
     void drawResults(cv::Mat& image, 
                      const std::vector<Light>& lights,
                      const std::vector<Armor>& armors,
-                     const std::vector<ArmorResult>& classifyResults) {
+                     const std::vector<ArmorResult>& classifyResults,
+                     const std::vector<ArmorResult>& classifyResults_forFourierPredict) {
         cv::Mat result = image.clone();
 
         // 1. 绘制灯条（绿色）
@@ -195,6 +198,11 @@ private:
         }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
+        for (const auto& res : classifyResults_forFourierPredict) {
+            for (auto& prediction : res.predictions) {
+                cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
+            }
+        }
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
             if (res.is_tracked_now) {
@@ -250,9 +258,14 @@ private:
     void processImage() {
         cv::Mat frame;
 
+        while (image_used)
+        {
+            usleep(1000);
+        }
         pthread_mutex_lock(&g_mutex);
         if (!g_image.empty()) {
             frame = g_image.clone();
+            image_used = true;
         }
         pthread_mutex_unlock(&g_mutex);
 
@@ -263,6 +276,8 @@ private:
             std::vector<Light> lights;
             std::vector<Armor> armors;
             std::vector<ArmorResult> classifyResults;
+            std::vector<ArmorResult> classifyResults_forFourierPredict;
+            std::vector<std::vector<ArmorResult>> classifyResults_expanded;
 
             // 检测灯条
             light_detector_->detectLights({frame});
@@ -273,7 +288,10 @@ private:
             armors = armor_detector_->detectArmors(lights);
             has_valid_target_ = false;
 
-            classifyResults = classifier_->classify(frame, armors);
+            classifyResults_expanded = classifier_->classify(frame, armors);
+            classifyResults = classifyResults_expanded[0];
+            classifyResults_forFourierPredict = classifyResults_expanded[1];
+
 
             if (!armors.empty()) {
 
@@ -364,7 +382,7 @@ private:
                 }
             }
 
-            drawResults(frame, lights, armors, classifyResults);
+            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
 
             //计算帧率
             fps_counter->tick();

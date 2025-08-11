@@ -199,10 +199,17 @@ void PositionPredictor2D::fitFourier(int steps, int fourier_order) {
 std::vector<cv::Point2f> PositionPredictor2D::predictLinear(int pred_length) const {
     std::vector<cv::Point2f> predictions;
     
-    if (history_.empty() || !linear_fitted_) {
-        // 没有历史数据或未拟合，返回固定值 (0,0)
+    if (history_.empty()) {
+        // 没有历史数据，返回固定值 (0,0)
         for (int i = 0; i < pred_length; i++) {
             predictions.push_back(cv::Point2f(0, 0));
+        }
+        return predictions;
+    }
+    if (!linear_fitted_) {
+        // 未拟合，返回最近的值
+        for (int i = 0; i < pred_length; i++) {
+            predictions.push_back(history_.back());
         }
         return predictions;
     }
@@ -222,14 +229,21 @@ std::vector<cv::Point2f> PositionPredictor2D::predictLinear(int pred_length) con
 std::vector<cv::Point2f> PositionPredictor2D::predictQuadratic(int pred_length) const {
     std::vector<cv::Point2f> predictions;
     
-    if (history_.empty() || !quadratic_fitted_) {
-        // 没有历史数据或未拟合，返回固定值 (0,0)
+    if (history_.empty()) {
+        // 没有历史数据，返回固定值 (0,0)
         for (int i = 0; i < pred_length; i++) {
             predictions.push_back(cv::Point2f(0, 0));
         }
         return predictions;
     }
-    
+    if (!quadratic_fitted_) {
+        // 未拟合，返回最近的值
+        for (int i = 0; i < pred_length; i++) {
+            predictions.push_back(history_.back());
+        }
+        return predictions;
+    }
+
     int start_t = history_.size();
     for (int i = 0; i < pred_length; i++) {
         double t = start_t + i;
@@ -244,10 +258,18 @@ std::vector<cv::Point2f> PositionPredictor2D::predictQuadratic(int pred_length) 
 std::vector<cv::Point2f> PositionPredictor2D::predictFourier(int pred_length) const {
     std::vector<cv::Point2f> predictions;
     
-    if (history_.empty() || !fourier_fitted_) {
-        // 没有历史数据或未拟合，返回固定值 (0,0)
+
+    if (history_.empty()) {
+        // 没有历史数据，返回固定值 (0,0)
         for (int i = 0; i < pred_length; i++) {
             predictions.push_back(cv::Point2f(0, 0));
+        }
+        return predictions;
+    }
+    if (!fourier_fitted_) {
+        // 未拟合，返回最近的值
+        for (int i = 0; i < pred_length; i++) {
+            predictions.push_back(history_.back());
         }
         return predictions;
     }

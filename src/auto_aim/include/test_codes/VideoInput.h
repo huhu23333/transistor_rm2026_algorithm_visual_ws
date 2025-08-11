@@ -11,11 +11,12 @@
 extern bool g_bExit;
 extern cv::Mat g_image;
 extern pthread_mutex_t g_mutex;
+extern bool image_used;
 
 class VideoInput {
 public:
     // 构造函数：初始化视频输入
-    VideoInput(const std::string& filename, float frame_rate);
+    VideoInput(const std::string& filename);
     
     // 析构函数：释放资源
     ~VideoInput();
@@ -27,7 +28,7 @@ private:
     cv::VideoCapture cap;
     std::string filename;
     pthread_t thread_id;
-    float frame_rate;
+    // float frame_rate;
 };
 
 #endif // VIDEOINPUT_H
