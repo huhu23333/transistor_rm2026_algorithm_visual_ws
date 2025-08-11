@@ -72,7 +72,7 @@ max_expected_small_distance_mismatch_ratio : 0.35
 max_expected_large_distance_mismatch_ratio : 0.35
 
 # ArmorClassifier 参数
-MAX_SAVE_COUNT : 20000  # 最大保存数量
+MAX_SAVE_COUNT : 2000  # 最大保存数量
 classify_classes : 8
 IS_ARMOR_THRESHOLD : 0.5
 IS_LARGE_THRESHOLD : 0.5

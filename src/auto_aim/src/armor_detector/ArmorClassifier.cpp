@@ -258,7 +258,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             tracked_armors[i].is_steady_tracked = false;
         }
 
-        RCLCPP_DEBUG(node->get_logger(), "----------ArmorClassifier Debug Flag----------");
+        // RCLCPP_DEBUG(node->get_logger(), "----------ArmorClassifier Debug Flag----------");
 
         if (tracked_armors[i].is_tracked_now) {
             for (int j = 0; j < tracked_armors[i].prediction_index-1; ++j)

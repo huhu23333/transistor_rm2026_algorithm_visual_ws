@@ -6,7 +6,8 @@ struct Params {
     enum EnemyColor {
         BLUE,   // 蓝色
         RED,    // 红色
-        GREEN   // 绿色 (作为默认)
+        GREEN,   // 绿色 (作为默认)
+        BOTH
     };
 
     // 默认的敌方颜色设置为蓝色

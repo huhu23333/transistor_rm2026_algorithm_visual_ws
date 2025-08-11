@@ -18,7 +18,8 @@
 #include "test_codes/VideoInput.h"
 #include "test_codes/ImagesInput.h"
 
-#define USE_VIDEO
+//#define USE_VIDEO
+//#define USE_IMAGES
 
 // 全局变量定义
 cv::Mat g_image;
@@ -85,10 +86,14 @@ public:
         #ifdef USE_VIDEO
         video_input_ = std::make_shared<VideoInput>((*config_file_ptr)["video_path"].as<std::string>());
         #else
+        #ifdef USE_IMAGES
+        images_input_ = std::make_shared<ImagesInput>((*config_file_ptr)["images_path"].as<std::string>());
+        #else
         // 初始化相机和检测器
         camera_ = std::make_shared<Camera>((*config_file_ptr)["cam_ip"].as<std::string>(), (*config_file_ptr)["pc_ip"].as<std::string>());
         camera_->setExposureTime((*config_file_ptr)["camera_ExposureTime"].as<float>());
         camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
+        #endif
         #endif
 
         if (enemy_color_ == "RED") {
@@ -97,10 +102,12 @@ public:
             params_.enemy_color = Params::BLUE;
         } else if (enemy_color_ == "GREEN") {
             params_.enemy_color = Params::GREEN;
+        } else if (enemy_color_ == "BOTH") {
+            params_.enemy_color = Params::BOTH;
         } else {
             // 处理错误情况，设置默认值
-            enemy_color_ = "RED";
-            params_.enemy_color = Params::RED;
+            enemy_color_ = "GREEN";
+            params_.enemy_color = Params::GREEN;
         }
 
         RCLCPP_DEBUG(this->get_logger(), "LibTorch version: %s \n", TORCH_VERSION);
@@ -258,10 +265,19 @@ private:
     void processImage() {
         cv::Mat frame;
 
+        
+        #ifdef USE_VIDEO
         while (image_used)
         {
             usleep(1000);
         }
+        #endif
+        #ifdef USE_IMAGES
+        while (image_used)
+        {
+            usleep(1000);
+        }
+        #endif
         pthread_mutex_lock(&g_mutex);
         if (!g_image.empty()) {
             frame = g_image.clone();
@@ -434,6 +450,7 @@ private:
     std::shared_ptr<ArmorAngleKalman> angle_kalman_;
 
     std::shared_ptr<VideoInput> video_input_;
+    std::shared_ptr<ImagesInput> images_input_;
     float frame_rate_;
     
     float bullet_velocity_;

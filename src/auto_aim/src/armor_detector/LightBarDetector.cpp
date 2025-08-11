@@ -75,20 +75,23 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
 
         // 3. 移除颜色错误的灯条，只保留目标颜色的灯条
             // 1. 提取颜色通道差值图像
-        cv::Mat color_diff = extractColorChannelDiff(img);
-        for (size_t i = 0; i < detectedRects.size(); ++i) {
-            
-            // 2. 获取扩张后的旋转矩形
-            cv::RotatedRect expandedRect = rectExpand(detectedRects[i], color_rect_expand_FACTOR);
+        
+        if (enemy_color != Params::BOTH) {
+            cv::Mat color_diff = extractColorChannelDiff(img);
+            for (size_t i = 0; i < detectedRects.size(); ++i) {
+                
+                // 2. 获取扩张后的旋转矩形
+                cv::RotatedRect expandedRect = rectExpand(detectedRects[i], color_rect_expand_FACTOR);
 
-            // 3. 获取矩形范围内通道差值图像的均值
-            float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
+                // 3. 获取矩形范围内通道差值图像的均值
+                float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
 
-            // 4. 删除均值小于阈值的图像
-            // RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
-            if (mean_color_diff < mean_color_diff_THRESHOLD) {
-                detectedRects.erase(detectedRects.begin() + i);
-                --i;
+                // 4. 删除均值小于阈值的图像
+                // RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
+                if (mean_color_diff < mean_color_diff_THRESHOLD) {
+                    detectedRects.erase(detectedRects.begin() + i);
+                    --i;
+                }
             }
         }
         
