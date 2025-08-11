@@ -52,14 +52,14 @@ def get_untagged_images(user_id):
     with open(INDEX_FILE, 'r') as f:
         index_data = json.load(f)
     
-    # 获取用户已标记的图片
-    user_tagged = set()
+    # 获取所有用户已标记的图片
+    all_user_tagged = set()
     for img, users in index_data["tagged_images"].items():
-        if user_id in users:
-            user_tagged.add(img)
+        #if user_id in users:
+        all_user_tagged.add(img)
     
     # 返回未标记图片
-    return list(all_images - user_tagged)
+    return list(all_images - all_user_tagged)
 
 def load_random_untagged_image(user_id):
     """加载随机未标记图片"""
