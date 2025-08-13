@@ -83,18 +83,18 @@ public:
         params_.MAX_LOST_CNT = (*config_file_ptr)["MAX_LOST_CNT"].as<int>();
 
         frame_rate_ = (*config_file_ptr)["frame_rate"].as<float>();
-        #ifdef USE_VIDEO
+#ifdef USE_VIDEO
         video_input_ = std::make_shared<VideoInput>((*config_file_ptr)["video_path"].as<std::string>());
-        #else
-        #ifdef USE_IMAGES
+#else
+#ifdef USE_IMAGES
         images_input_ = std::make_shared<ImagesInput>((*config_file_ptr)["images_path"].as<std::string>());
-        #else
+#else
         // 初始化相机和检测器
         camera_ = std::make_shared<Camera>((*config_file_ptr)["cam_ip"].as<std::string>(), (*config_file_ptr)["pc_ip"].as<std::string>());
         camera_->setExposureTime((*config_file_ptr)["camera_ExposureTime"].as<float>());
         camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
-        #endif
-        #endif
+#endif
+#endif
 
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -266,18 +266,18 @@ private:
         cv::Mat frame;
 
         
-        #ifdef USE_VIDEO
+#ifdef USE_VIDEO
         while (image_used)
         {
             usleep(1000);
         }
-        #endif
-        #ifdef USE_IMAGES
+#endif
+#ifdef USE_IMAGES
         while (image_used)
         {
             usleep(1000);
         }
-        #endif
+#endif
         pthread_mutex_lock(&g_mutex);
         if (!g_image.empty()) {
             frame = g_image.clone();

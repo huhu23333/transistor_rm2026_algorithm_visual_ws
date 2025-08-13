@@ -39,16 +39,29 @@ ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, bo
     }
     
     try {
+        std::ostringstream toPrint;
+        
+#ifdef USE_JIT
+        model = std::make_shared<torch::jit::script::Module>(torch::jit::load((*config_file_ptr)["model_path"].as<std::string>()));
+#else
         model = std::make_shared<TransistorRM2026Net>(classify_classes);
         torch::load(model, (*config_file_ptr)["model_path"].as<std::string>());
+#endif
+
         model->to(device);
         model->eval();
-        
-        std::cout << "Model loaded successfully to " 
+
+        // torch::save(model, "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/models/check_diff.pt");
+        // DEBUG
+
+        toPrint << "Model loaded successfully to " 
                   << (device.is_cuda() ? "CUDA" : "CPU") << std::endl;
+        RCLCPP_DEBUG(node->get_logger(), toPrint.str().c_str());
     }
     catch (const std::exception& e) {
-        std::cerr << "Error loading model: " << e.what() << std::endl;
+        std::ostringstream toPrint;
+        toPrint << "Error loading model: " << e.what() << std::endl;
+        RCLCPP_DEBUG(node->get_logger(), toPrint.str().c_str());
         throw;
     }
 }
@@ -70,7 +83,6 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     cv::copyMakeBorder(blurred, padded, padding, padding, padding, padding, 
                       cv::BORDER_REPLICATE);
 
-    cv::imshow("Classifier DEBUG", padded);
     
     cv::Mat resized;
     cv::resize(padded, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
@@ -78,6 +90,11 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     resized.convertTo(normalized, CV_32F, 1.0/255.0);
     normalized = (normalized - 0.5f) / 0.5f;
     
+
+    cv::Mat debug_output = (normalized * 0.5f + 0.5f) * 255.0f;
+    debug_output.convertTo(debug_output, CV_8U);
+    cv::resize(debug_output, debug_output, cv::Size(256, 192));
+    cv::imshow("Classifier DEBUG", debug_output);
     // 如果已经保存了1000张图片，直接返回处理后的图像而不保存
     if (save_count >= MAX_SAVE_COUNT) {
         return normalized;
@@ -91,7 +108,7 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
         // 生成文件名（0001.jpg 格式）
         std::ostringstream filename;
         filename << "network_input_images/"
-                << std::setw(4) << std::setfill('0') << (save_count + 1)
+                << std::setw(5) << std::setfill('0') << (save_count + 1)
                 << ".jpg";
                 
         // 将浮点图像转换回8位图像用于保存
@@ -157,7 +174,11 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         }
     }
     std::vector<torch::Tensor> tensor_images;
+#ifdef USE_JIT
+    c10::ivalue::TupleElements model_outputs;
+#else
     std::vector<torch::Tensor> model_outputs;
+#endif
     for (size_t i = 0; i < armors.size(); ++i) {
         auto armor = armors[i];
         cv::Mat roi = preprocessROI(img, armor);
@@ -170,31 +191,60 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
     }
     if (armors.size() > 0) {
         torch::Tensor stacked_tensor_images = torch::stack(tensor_images, 0).to(device);
+#ifdef USE_JIT
+        std::vector<torch::jit::IValue> inputs;
+        inputs.push_back(stacked_tensor_images);
+        model_outputs = model->forward(inputs).toTuple()->elements();
+#else
         model_outputs = model->forward(stacked_tensor_images);
-        /* std::ostringstream toPrint;
-        toPrint << "model_outputs[i].sizes()" << model_outputs[0][0].cpu().item<float>() << model_outputs[1].sizes()
-        << model_outputs[2].sizes() << model_outputs[3].sizes() 
-        << std::get<1>(torch::softmax(model_outputs[4][0], 0).cpu().max(0)).item<int>()
-        << "\n";
-        RCLCPP_DEBUG(node->get_logger(), toPrint.str().c_str()); // DEBUG */
+#endif
     }
     
     for (size_t i = 0; i < armors.size(); ++i) {
 
         auto armor = armors[i];
         // 获取多输出头结果
-        float is_armor_probability = torch::sigmoid(model_outputs[0][i]).cpu().item<float>();
-        float is_large_probability = torch::sigmoid(model_outputs[1][i]).cpu().item<float>();
-        float not_screen_probability = torch::sigmoid(model_outputs[2][i]).cpu().item<float>();
-        float not_slant_probability = torch::sigmoid(model_outputs[3][i]).cpu().item<float>();
-        auto classify_probabilities = torch::softmax(model_outputs[4][i], 0).cpu();
+        float is_armor_probability;
+        float is_large_probability;
+        float not_screen_probability;
+        float not_slant_probability;
+        torch::Tensor classify_probabilities;
+        int current_number;
+        float classify_confidence;
+#ifdef USE_JIT
+        /* is_armor_probability = torch::sigmoid(model_outputs.get(0)[i]).cpu().item<float>();
+        is_large_probability = torch::sigmoid(model_outputs.get(1)[i]).cpu().item<float>();
+        not_screen_probability = torch::sigmoid(model_outputs.get(2)[i]).cpu().item<float>();
+        not_slant_probability = torch::sigmoid(model_outputs.get(3)[i]).cpu().item<float>();
+        classify_probabilities = torch::softmax(model_outputs.get(4)[i], 0).cpu(); */
+        is_armor_probability = model_outputs[0].toTensor()[i].cpu().item<float>();
+        is_large_probability = model_outputs[1].toTensor()[i].cpu().item<float>();
+        not_screen_probability = model_outputs[2].toTensor()[i].cpu().item<float>();
+        not_slant_probability = model_outputs[3].toTensor()[i].cpu().item<float>();
+        classify_probabilities = model_outputs[4].toTensor()[i].cpu();
+#else
+        /* is_armor_probability = torch::sigmoid(model_outputs[0][i]).cpu().item<float>();
+        is_large_probability = torch::sigmoid(model_outputs[1][i]).cpu().item<float>();
+        not_screen_probability = torch::sigmoid(model_outputs[2][i]).cpu().item<float>();
+        not_slant_probability = torch::sigmoid(model_outputs[3][i]).cpu().item<float>();
+        classify_probabilities = torch::softmax(model_outputs[4][i], 0).cpu(); */
+        is_armor_probability = model_outputs[0][i].cpu().item<float>();
+        is_large_probability = model_outputs[1][i].cpu().item<float>();
+        not_screen_probability = model_outputs[2][i].cpu().item<float>();
+        not_slant_probability = model_outputs[3][i].cpu().item<float>();
+        classify_probabilities = model_outputs[4][i].cpu();
+#endif
         
         auto max_result = classify_probabilities.max(0);
-        int current_number = std::get<1>(max_result).item<int>();
-        float classify_confidence = std::get<0>(max_result).item<float>();
+        current_number = std::get<1>(max_result).item<int>();
+        classify_confidence = std::get<0>(max_result).item<float>();
 
         // 计算当前装甲板中心点
         cv::Point2f current_center = armor.center;
+
+        RCLCPP_DEBUG(node->get_logger(), "ArmorClassifier Debug:\n %.2f | %.2f | %.2f | %.2f | %.2f | %d", 
+            is_armor_probability, is_large_probability, not_screen_probability, not_slant_probability, classify_confidence, current_number
+        );
 
         is_armor_probability = 1.0; // DEBUG
         is_large_probability = 0.0;
@@ -202,6 +252,9 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         not_slant_probability = 1.0;
         current_number = 1;
         classify_confidence = 1.0;
+
+
+        not_screen_probability = 1.0;
 
         bool is_ture_armor = (is_armor_probability >= IS_ARMOR_THRESHOLD) &&
                                 (not_screen_probability >= NOT_SCREEN_THRESHOLD) &&

@@ -14,6 +14,12 @@
 #include "test_codes/UnwarpUtils.h"
 #include "test_codes/model_rm2026.h"
 #include "test_codes/PositionPredictor.h"
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <torch/script.h>
+
+// #define USE_JIT
 
 
 class ArmorClassifier {
@@ -47,7 +53,11 @@ private:
         }
     };
 
+#ifdef USE_JIT
+    std::shared_ptr<torch::jit::script::Module> model;
+#else
     std::shared_ptr<TransistorRM2026Net> model;
+#endif
     torch::Device device;
     std::vector<TrackedArmor> tracked_armors;
     std::vector<TrackedArmor> classified_latest_tracked_armors;
