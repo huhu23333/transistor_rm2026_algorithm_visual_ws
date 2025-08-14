@@ -77,9 +77,9 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result) const {
             
         std::vector<cv::Point3f> armor_points_3d = {
             cv::Point3f(-half_width, -half_height, 0.0f),
-            cv::Point3f(half_width, -half_height, 0.0f),
+            cv::Point3f(-half_width, half_height, 0.0f),
             cv::Point3f(half_width, half_height, 0.0f),
-            cv::Point3f(-half_width, half_height, 0.0f)
+            cv::Point3f(half_width, -half_height, 0.0f)
         };
 
         cv::Mat rvec, tvec;

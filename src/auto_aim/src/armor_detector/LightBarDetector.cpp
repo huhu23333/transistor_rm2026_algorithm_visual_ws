@@ -69,6 +69,7 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
 
         // 1. 提取二值化图片
         cv::Mat binary_img = binaryImg(img);
+        cv::imshow("Light Bar Debug", binary_img);
 
         // 2. 检测可能的灯条
         std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);

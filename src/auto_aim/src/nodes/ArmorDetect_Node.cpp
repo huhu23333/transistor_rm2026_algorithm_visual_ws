@@ -19,7 +19,7 @@
 #include "test_codes/VideoInput.h"
 #include "test_codes/ImagesInput.h"
 
-#define USE_VIDEO
+//#define USE_VIDEO
 //#define USE_IMAGES
 
 // 全局变量定义

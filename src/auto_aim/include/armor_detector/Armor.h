@@ -5,6 +5,7 @@
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
 #include <rclcpp/rclcpp.hpp>
+#include <yaml-cpp/yaml.h>
 
 // 物理尺寸常量
 namespace ArmorConstants {
@@ -38,14 +39,19 @@ struct Armor {
     cv::Point2f center;                 // 角点对角线连线焦点确定中心
     std::vector<cv::Point2f> corners_expanded;  // 扩大后的四个角点坐标，用于展平后识别
     float corners_expand_ratio;  // 角点坐标扩大比例
+    float height_correct_ratio;     // 角点坐标修正纵向比例系数
+    float width_correct_ratio;      // 角点坐标修正横向比例系数
     rclcpp::Node* node;
 
     // 默认构造函数
     Armor() : confidence(0.0f) {}
     
     // 带参数的构造函数
-    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, float corners_expand_ratio, rclcpp::Node* node) 
-        : leftLight(left), rightLight(right), confidence(0.0f), corners_expand_ratio(corners_expand_ratio), node(node) {
+    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) 
+        : leftLight(left), rightLight(right), confidence(0.0f), node(node) {
+        corners_expand_ratio = (*config_file_ptr)["corners_expand_ratio"].as<float>();
+        height_correct_ratio = (*config_file_ptr)["height_correct_ratio"].as<float>();
+        width_correct_ratio = (*config_file_ptr)["width_correct_ratio"].as<float>();
         calculateROI();
     }
     
@@ -143,14 +149,24 @@ struct Armor {
         right_up_vertical *= ArmorConstants::SMALL_HEIGHT_RATIO;
         right_down_vertical *= ArmorConstants::SMALL_HEIGHT_RATIO;
 
-        // 按从左上角开始逆时针排序输出
-        corners.push_back(left_center + vecToPoint(left_up_horizontal + left_up_vertical));
-        corners.push_back(left_center + vecToPoint(left_down_horizontal + left_down_vertical));
-        corners.push_back(right_center + vecToPoint(right_down_horizontal + right_down_vertical));
-        corners.push_back(right_center + vecToPoint(right_up_horizontal + right_up_vertical));
+        std::vector<cv::Point2f> corners_biased;
+
+        // 按从左上角开始逆时针排序
+        corners_biased.push_back(left_center + vecToPoint(left_up_horizontal + left_up_vertical));
+        corners_biased.push_back(left_center + vecToPoint(left_down_horizontal + left_down_vertical));
+        corners_biased.push_back(right_center + vecToPoint(right_down_horizontal + right_down_vertical));
+        corners_biased.push_back(right_center + vecToPoint(right_up_horizontal + right_up_vertical));
 
         // 计算中心
-        center = computeIntersection(corners);
+        center = computeIntersection(corners_biased);
+
+        // 拆分为装甲板中心坐标下纵向和横向坐标，修正坐标并输出
+        for (int i = 0; i < 4; i+=1) {
+            cv::Vec2f center_to_corner = pointToVec(corners_biased[i] - center);
+            cv::Vec2f center_to_corner_height = vertical_d_center_vector * center_to_corner.dot(vertical_d_center_vector);
+            cv::Vec2f center_to_corner_width = d_center_vector * center_to_corner.dot(d_center_vector);
+            corners.push_back(center + vecToPoint(center_to_corner_height * height_correct_ratio + center_to_corner_width * width_correct_ratio));
+        }
 
         // 计算扩大后角点坐标
         for (int i = 0; i < 4; i+=1) {
