@@ -33,6 +33,11 @@ public:
      * @return 返回灯条的旋转矩形
      */
     cv::RotatedRect getRect() const { return el; }
+
+    /**
+     * @brief 修正在拟合旋转矩形时造成的长度误差
+     */
+    void correctLength(cv::Mat& binary_img);
 };
 
 #endif // LIGHTBAR_H

@@ -42,6 +42,59 @@ void Light::calculateDimensions() {
     bottom = vertexVec[3];
 }
 
+void Light::correctLength(cv::Mat& binary_img) {
+    // 创建与图像同尺寸的掩码（全黑）
+    cv::Mat mask = cv::Mat::zeros(binary_img.size(), CV_8UC1);
+    // 获取旋转矩形的四个顶点（浮点坐标）
+    cv::Point2f vertices2f[4];
+    el.points(vertices2f);
+    // 将浮点顶点转换为整数顶点
+    std::vector<cv::Point> vertices;
+    for (int i = 0; i < 4; i++) {
+        vertices.push_back(cv::Point(static_cast<int>(vertices2f[i].x), 
+                                   static_cast<int>(vertices2f[i].y)));
+    }
+    // 将旋转矩形区域填充为白色（255）
+    cv::fillConvexPoly(mask, vertices, cv::Scalar(255));
+    // 计算掩码区域的总值
+    cv::Mat masked;
+    binary_img.copyTo(masked, mask);
+    float sum_value_target = cv::sum(masked)[0] * 0.99;
+    // 二分查找使旋转矩形内二值图像总值下降为原来0.99倍的长度
+    int binarySearchFrequency = 10; // 二分查找次数
+    float upper_ratio = 1.0;
+    float lower_ratio = 0.0;
+    float try_ratio;
+    float length_original = length;
+    for (int i = 0; i < binarySearchFrequency; i++) {
+        vertices.clear();
+        mask = cv::Mat::zeros(binary_img.size(), CV_8UC1);
+        try_ratio = (upper_ratio + lower_ratio) * 0.5;
+        el.size.height = length_original * try_ratio;
+        masked = cv::Mat::zeros(binary_img.size(), CV_8UC1);
+        // 获取旋转矩形的四个顶点（浮点坐标）
+        el.points(vertices2f);
+        // 将浮点顶点转换为整数顶点
+        for (int i = 0; i < 4; i++) {
+            vertices.push_back(cv::Point(static_cast<int>(vertices2f[i].x), 
+                                    static_cast<int>(vertices2f[i].y)));
+        }
+        // 将旋转矩形区域填充为白色（255）
+        cv::fillConvexPoly(mask, vertices, cv::Scalar(255));
+        // 计算掩码区域的总值
+        binary_img.copyTo(masked, mask);
+        float sum_value = cv::sum(masked)[0];
+        if (sum_value > sum_value_target) {
+            upper_ratio = try_ratio;
+        } else {
+            lower_ratio = try_ratio;
+        }
+    }
+    try_ratio = (upper_ratio + lower_ratio) * 0.5;
+    length = length_original * try_ratio;
+    el.size.height = length;
+}
+
 /************************* LightBarDetector类实现 *************************/
 
 LightBarDetector::LightBarDetector(const Params& params, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) // 新增传入节点，用于debug打印
@@ -69,7 +122,7 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
 
         // 1. 提取二值化图片
         cv::Mat binary_img = binaryImg(img);
-        cv::imshow("Light Bar Debug", binary_img);
+        // cv::imshow("Light Bar Debug", binary_img);
 
         // 2. 检测可能的灯条
         std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);
@@ -98,6 +151,10 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
         // 4. 将检测到的旋转矩形转换为Light对象
         for (const auto& rect : detectedRects) {
             lights.emplace_back(rect);
+        }
+        // 5. 修正在拟合旋转矩形时造成的长度误差
+        for (auto& light : lights) {
+            light.correctLength(binary_img);
         }
     }
 }
