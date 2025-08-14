@@ -2,24 +2,22 @@
 #ifndef ARMOR_CLASSIFIER_H
 #define ARMOR_CLASSIFIER_H
 
-#include <torch/torch.h>
 #include <opencv2/opencv.hpp>
 #include <chrono>
 #include <map>
-#include "model.h"
+//#include "model.h"
 #include "Armor.h"
 #include <filesystem>
 #include <iomanip>
 #include <yaml-cpp/yaml.h>
 #include "test_codes/UnwarpUtils.h"
-#include "test_codes/model_rm2026.h"
+//#include "test_codes/model_rm2026.h"
 #include "test_codes/PositionPredictor.h"
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <torch/script.h>
+#include "test_codes/SharedMemoryTorch.h"
 
-// #define USE_JIT
 
 
 class ArmorClassifier {
@@ -53,15 +51,10 @@ private:
         }
     };
 
-#ifdef USE_JIT
-    std::shared_ptr<torch::jit::script::Module> model;
-#else
-    std::shared_ptr<TransistorRM2026Net> model;
-#endif
-    torch::Device device;
     std::vector<TrackedArmor> tracked_armors;
     std::vector<TrackedArmor> classified_latest_tracked_armors;
     rclcpp::Node* node;                  // 用于打印的节点
+    std::shared_ptr<SharedMemoryTorch> shm_pytorch_processor;
     
     int MAX_SAVE_COUNT;  // 最大保存数量
     

@@ -18,5 +18,11 @@ def generate_launch_description():
             executable='armor_detect_node',
             name='armor_detect_node',
             arguments = ['--ros-args', '--log-level', 'DEBUG']
+        ),
+        Node(
+            package='shm_pytorch_processor_pkg',
+            executable='shm_pytorch_processor_node',
+            name='shm_pytorch_processor_node',
+            arguments = ['--ros-args', '--log-level', 'DEBUG']
         )
     ])

@@ -31,7 +31,7 @@ class ArmorDetectNode : public rclcpp::Node {
 public:
     ArmorDetectNode() : Node("armor_detect_node") {
 
-        config_file_ptr = std::make_shared<YAML::Node>(YAML::LoadFile("/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/config.yaml"));
+        config_file_ptr = std::make_shared<YAML::Node>(YAML::LoadFile("/home/i5/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/config.yaml"));
 
         // 初始化发布者和订阅者
         gimbal_command_pub_ = this->create_publisher<auto_aim::msg::GimbalCommand>(
@@ -109,8 +109,6 @@ public:
             enemy_color_ = "GREEN";
             params_.enemy_color = Params::GREEN;
         }
-
-        RCLCPP_DEBUG(this->get_logger(), "LibTorch version: %s \n", TORCH_VERSION);
 
         light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);

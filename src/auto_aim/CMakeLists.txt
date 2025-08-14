@@ -5,11 +5,6 @@ project(auto_aim)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
-# 设置 libtorch 路径
-set(Torch_DIR "/usr/local/libtorch/share/cmake/Torch")
-
-
 
 # 查找依赖包
 find_package(ament_cmake REQUIRED)
@@ -18,23 +13,19 @@ find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
-find_package(Torch REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(yaml-cpp REQUIRED)
-
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SerialData.msg"
   "msg/GimbalCommand.msg"
 )
 
-set(CMAKE_INSTALL_RPATH "${TORCH_INSTALL_PREFIX}/lib")
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
-
 
 # 查找 MvCameraControl 库
 find_library(MVCAMERA_LIB MvCameraControl PATHS /opt/MVS/lib/64)
@@ -42,7 +33,6 @@ find_library(MVCAMERA_LIB MvCameraControl PATHS /opt/MVS/lib/64)
 # 设置包含目录
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
-    ${TORCH_INCLUDE_DIRS}
     ${PROJECT_SOURCE_DIR}/include
     /opt/MVS/include
     /opt/ros/humble/include
@@ -64,6 +54,7 @@ add_library(armor_detector SHARED
     src/test_codes/PositionPredictor.cpp
     src/test_codes/VideoInput.cpp
     src/test_codes/ImagesInput.cpp
+    src/test_codes/SharedMemoryTorch.cpp
 )
 add_library(crc_lib SHARED
     src/nodes/CRC.cpp
@@ -85,7 +76,6 @@ target_link_libraries(armor_detect_node
     armor_detector
     ${OpenCV_LIBS}
     ${MVCAMERA_LIB}
-    ${TORCH_LIBRARIES}
     Eigen3::Eigen
     pthread
     rclcpp::rclcpp
