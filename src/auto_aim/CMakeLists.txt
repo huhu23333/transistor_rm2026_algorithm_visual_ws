@@ -43,11 +43,12 @@ include_directories(
 
 # 添加装甲板检测相关的库
 add_library(armor_detector SHARED
-    src/armor_detector/ArmorDetector.cpp
     src/armor_detector/LightBarDetector.cpp
-    src/armor_detector/BallisticSolver.cpp
+    src/armor_detector/ArmorDetector.cpp
     src/armor_detector/ArmorClassifier.cpp
+    src/armor_detector/ArmorSolver.cpp
     src/armor_detector/ArmorAngleKalman.cpp
+    src/armor_detector/BallisticSolver.cpp
     src/camera/cameraConnect.cpp  # 添加这一行
     src/test_codes/FrameRateCounter.cpp
     src/test_codes/UnwarpUtils.cpp

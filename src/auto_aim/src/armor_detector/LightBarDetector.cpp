@@ -74,9 +74,8 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
         std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);
 
         // 3. 移除颜色错误的灯条，只保留目标颜色的灯条
-            // 1. 提取颜色通道差值图像
-        
         if (enemy_color != Params::BOTH) {
+            // 1. 提取颜色通道差值图像
             cv::Mat color_diff = extractColorChannelDiff(img);
             for (size_t i = 0; i < detectedRects.size(); ++i) {
                 

@@ -4,7 +4,7 @@
   <name>shm_pytorch_processor_pkg</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="925393268@qq.com">i5</maintainer>
+  <maintainer email="925393268@qq.com">huhu23333</maintainer>
   <license>TODO: License declaration</license>
 
   <test_depend>ament_copyright</test_depend>

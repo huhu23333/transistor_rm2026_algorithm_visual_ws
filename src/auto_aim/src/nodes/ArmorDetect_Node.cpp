@@ -5,6 +5,7 @@
 #include "armor_detector/LightBarDetector.h"
 #include "armor_detector/ArmorDetector.h"
 #include "armor_detector/ArmorClassifier.h"
+#include "armor_detector/ArmorSolver.h"
 #include "armor_detector/ArmorAngleKalman.h"
 #include "auto_aim/msg/serial_data.hpp"
 #include "auto_aim/msg/gimbal_command.hpp"
@@ -18,7 +19,7 @@
 #include "test_codes/VideoInput.h"
 #include "test_codes/ImagesInput.h"
 
-//#define USE_VIDEO
+#define USE_VIDEO
 //#define USE_IMAGES
 
 // 全局变量定义
@@ -113,6 +114,7 @@ public:
         light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
         classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, false, this);
+        armor_solver_ = std::make_shared<ArmorSolver>(config_file_ptr, this);
         angle_kalman_ = std::make_shared<ArmorAngleKalman>();
 
         // 创建定时器
@@ -261,9 +263,8 @@ private:
     }
 
     void processImage() {
-        cv::Mat frame;
-
         
+        cv::Mat frame;
 #ifdef USE_VIDEO
         while (image_used)
         {
@@ -318,7 +319,7 @@ private:
                 );
                 if (it != classifyResults.end()) {
                     auto best_result = *it;
-                    AimResult aim = armor_detector_->solveArmor(best_result);                    
+                    AimResult aim = armor_solver_->solveArmor(best_result);                    
                     if (aim.valid) {
                         if (!angle_kalman_->isInitialized()) {
                             angle_kalman_->reset(aim.position); // 使用当前观测位置初始化
@@ -388,7 +389,7 @@ private:
                                 latest_pitch_angle_, latest_yaw_angle_);
                             
                                 // 绘制预测点（黄色）
-                                cv::Point2f pred_pixel = armor_detector_->project3DToPixel(predicted_pos);
+                                cv::Point2f pred_pixel = armor_solver_->project3DToPixel(predicted_pos);
                                 cv::circle(frame, pred_pixel, 8, cv::Scalar(0, 255, 255), 2);
                         }
                     } 
@@ -444,6 +445,7 @@ private:
     std::shared_ptr<Camera> camera_;
     std::shared_ptr<LightBarDetector> light_detector_;
     std::shared_ptr<ArmorDetector> armor_detector_;
+    std::shared_ptr<ArmorSolver> armor_solver_;
     std::shared_ptr<ArmorClassifier> classifier_;
     std::shared_ptr<ArmorAngleKalman> angle_kalman_;
 

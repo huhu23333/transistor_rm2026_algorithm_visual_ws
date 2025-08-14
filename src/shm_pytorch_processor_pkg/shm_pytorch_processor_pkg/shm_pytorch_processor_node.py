@@ -157,11 +157,11 @@ class ShmPytorchProcessorNode(Node):
                     # 显示图像
                     cv2.imshow("Shared Memory Image", image_list[0])
                     # 等待按键或短暂延迟
-                    key = cv2.waitKey(1)  # 每张图像显示300ms
+                    key = cv2.waitKey(1)  # 图像显示1ms
                     
                     t_1 = time.time()
 
-                    # 将所有图像叠加为一个tensor，进行并行处理
+                    # 将所有图像叠加为一个tensor，并行处理
                     images_np = np.stack(image_list, axis=0)
                     images_tensor = torch.from_numpy(images_np).float().to(self.device)
                     images_tensor = images_tensor.permute(0, 3, 1, 2) # 调整维度顺序 (N, H, W, C) → (N, C, H, W)

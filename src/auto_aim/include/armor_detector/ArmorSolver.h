@@ -1,0 +1,36 @@
+// ArmorSolver.h
+#ifndef ARMOR_SOLVER_H
+#define ARMOR_SOLVER_H
+#pragma once
+#include <opencv2/opencv.hpp>
+#include "LightBar.h"
+#include "Armor.h"
+#include <vector>
+#include <yaml-cpp/yaml.h>
+#define _USE_MATH_DEFINES // 启用数学常量
+#include <cmath>
+
+class ArmorSolver {
+public:
+    ArmorSolver(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node)
+    : node(node) {
+        // 初始化相机参数
+        initCameraMatrix(config_file_ptr, node);
+        initArmorPoints();
+    }
+    // 新增3D到像素坐标投影函数
+    cv::Point2f project3DToPixel(const cv::Point3f& world_point) const;
+    AimResult solveArmor(const ArmorResult& armor_result) const; // 增加number参数
+private:
+    // 相机参数
+    cv::Mat camera_matrix;
+    cv::Mat dist_coeffs;
+    // 装甲板3D点(单位：mm)
+    std::vector<cv::Point3f> armor_points_3d;
+    
+    void initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
+    void initArmorPoints();
+    rclcpp::Node* node;
+};
+
+#endif // ARMOR_SOLVER_H

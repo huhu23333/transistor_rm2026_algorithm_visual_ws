@@ -200,8 +200,8 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
                 armor_type_confidence = is_large_probability;
             }
             float confidence = std::pow(
-                std::abs(is_armor_probability * armor_type_confidence * not_screen_probability * classify_confidence) + 1e-6, 
-                1.0 / 4.0
+                std::abs(is_armor_probability * armor_type_confidence * not_screen_probability * classify_confidence * not_slant) + 1e-6, 
+                1.0 / 5.0
             );
             
 

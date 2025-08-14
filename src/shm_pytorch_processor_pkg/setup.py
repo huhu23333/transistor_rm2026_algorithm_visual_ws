@@ -13,7 +13,7 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='i5',
+    maintainer='huhu23333',
     maintainer_email='925393268@qq.com',
     description='TODO: Package description',
     license='TODO: License declaration',
