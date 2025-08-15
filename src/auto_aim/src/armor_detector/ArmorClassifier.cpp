@@ -198,12 +198,13 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             if (is_large)
             {
                 armor_type_confidence = is_large_probability;
+                armor.corners = armor.corners_large;
             }
             float confidence = std::pow(
                 std::abs(is_armor_probability * armor_type_confidence * not_screen_probability * classify_confidence * not_slant) + 1e-6, 
                 1.0 / 5.0
             );
-            
+
 
             // 检测是否正在跟踪当前装甲板
             bool is_tracked = false;

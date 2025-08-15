@@ -35,12 +35,15 @@ struct Armor {
     cv::RotatedRect rightLight;   // 右灯条
     cv::Rect roi;                 // ROI区域
     float confidence;             // 置信度
-    std::vector<cv::Point2f> corners;  // 四个角点坐标
+    std::vector<cv::Point2f> corners;  // 四个角点坐标（默认小装甲板）
     cv::Point2f center;                 // 角点对角线连线焦点确定中心
+    std::vector<cv::Point2f> corners_large;  // 大装甲板角点坐标（识别装甲板类型后使用）
     std::vector<cv::Point2f> corners_expanded;  // 扩大后的四个角点坐标，用于展平后识别
     float corners_expand_ratio;  // 角点坐标扩大比例
-    float height_correct_ratio;     // 角点坐标修正纵向比例系数
-    float width_correct_ratio;      // 角点坐标修正横向比例系数
+    float height_correct_ratio_small;     // 角点坐标修正比例系数
+    float width_correct_ratio_small;
+    float height_correct_ratio_large;
+    float width_correct_ratio_large;
     rclcpp::Node* node;
 
     // 默认构造函数
@@ -50,8 +53,10 @@ struct Armor {
     Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) 
         : leftLight(left), rightLight(right), confidence(0.0f), node(node) {
         corners_expand_ratio = (*config_file_ptr)["corners_expand_ratio"].as<float>();
-        height_correct_ratio = (*config_file_ptr)["height_correct_ratio"].as<float>();
-        width_correct_ratio = (*config_file_ptr)["width_correct_ratio"].as<float>();
+        height_correct_ratio_small = (*config_file_ptr)["height_correct_ratio_small"].as<float>();
+        width_correct_ratio_small = (*config_file_ptr)["width_correct_ratio_small"].as<float>();
+        height_correct_ratio_large = (*config_file_ptr)["height_correct_ratio_large"].as<float>();
+        width_correct_ratio_large = (*config_file_ptr)["width_correct_ratio_large"].as<float>();
         calculateROI();
     }
     
@@ -165,7 +170,10 @@ struct Armor {
             cv::Vec2f center_to_corner = pointToVec(corners_biased[i] - center);
             cv::Vec2f center_to_corner_height = vertical_d_center_vector * center_to_corner.dot(vertical_d_center_vector);
             cv::Vec2f center_to_corner_width = d_center_vector * center_to_corner.dot(d_center_vector);
-            corners.push_back(center + vecToPoint(center_to_corner_height * height_correct_ratio + center_to_corner_width * width_correct_ratio));
+            corners.push_back(center + 
+                vecToPoint(center_to_corner_height * height_correct_ratio_small + center_to_corner_width * width_correct_ratio_small));
+            corners_large.push_back(center + 
+                vecToPoint(center_to_corner_height * height_correct_ratio_large + center_to_corner_width * width_correct_ratio_large));
         }
 
         // 计算扩大后角点坐标
