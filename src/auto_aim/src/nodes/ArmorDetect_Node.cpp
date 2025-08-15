@@ -20,10 +20,16 @@
 #include "test_codes/ImagesInput.h"
 #include <iostream>
 #include <sstream>
+#include <filesystem>
+#include <unistd.h>
+#include <limits.h>
 
-//#define USE_VIDEO
-//#define USE_IMAGES
-#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
+namespace fs = std::filesystem;
+
+
+//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+//#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
+//#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 
 // 全局变量定义
 cv::Mat g_image;
@@ -34,8 +40,35 @@ bool image_used = true;
 class ArmorDetectNode : public rclcpp::Node {
 public:
     ArmorDetectNode() : Node("armor_detect_node") {
+        // 1. 获取可执行文件路径
+        char exec_path[PATH_MAX];
+        ssize_t len = readlink("/proc/self/exe", exec_path, sizeof(exec_path) - 1);
+        if (len == -1) {
+            perror("readlink");
+            return;
+        }
+        exec_path[len] = '\0';
+        RCLCPP_INFO(this->get_logger(), "info from C++ | Path: %s\n", exec_path);
+        // 2. 转换为文件系统路径对象
+        fs::path full_path(exec_path);
+        std::string full_path_str = full_path.string();  // 转换为字符串便于查找
+        // 3. 查找工作空间目录名
+        const std::string ws_dir_name = "transistor_rm2026_algorithm_visual_ws";
+        size_t pos = full_path_str.find(ws_dir_name);
+        if (pos == std::string::npos) {
+            std::cerr << "Error: Workspace directory not found in path" << std::endl;
+            return;
+        }
+        // 4. 截取到工作空间目录结尾
+        fs::path ws_dir_path = full_path_str.substr(0, pos + ws_dir_name.length());
+        // 5. 拼接模型路径
+        const std::string config_file_relatvie_path = "src/auto_aim/config.yaml";
+        fs::path config_file_path = ws_dir_path / config_file_relatvie_path;  // 使用文件系统的路径拼接
 
-        config_file_ptr = std::make_shared<YAML::Node>(YAML::LoadFile("/home/i5/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/config.yaml"));
+        // 加载配置文件
+        config_file_ptr = std::make_shared<YAML::Node>(YAML::LoadFile(config_file_path));
+
+
 
         // 初始化发布者和订阅者
         gimbal_command_pub_ = this->create_publisher<auto_aim::msg::GimbalCommand>(
@@ -88,10 +121,10 @@ public:
 
         frame_rate_ = (*config_file_ptr)["frame_rate"].as<float>();
 #ifdef USE_VIDEO
-        video_input_ = std::make_shared<VideoInput>((*config_file_ptr)["video_path"].as<std::string>());
+        video_input_ = std::make_shared<VideoInput>(ws_dir_path / (*config_file_ptr)["video_relative_path"].as<std::string>());
 #else
 #ifdef USE_IMAGES
-        images_input_ = std::make_shared<ImagesInput>((*config_file_ptr)["images_path"].as<std::string>());
+        images_input_ = std::make_shared<ImagesInput>(ws_dir_path / (*config_file_ptr)["images_relative_path"].as<std::string>());
 #else
         // 初始化相机和检测器
         camera_ = std::make_shared<Camera>((*config_file_ptr)["cam_ip"].as<std::string>(), (*config_file_ptr)["pc_ip"].as<std::string>());
@@ -293,7 +326,7 @@ private:
             frame_count_ += 1;
             if (frame_count_ % SAVE_IMG_FREQ == 0 && frame_count_ / SAVE_IMG_FREQ < 2000) {
                 // 创建保存目录
-                std::filesystem::create_directories("camera_images");
+                fs::create_directories("camera_images");
                 // 生成文件名（00001.jpg 格式）
                 std::ostringstream filename;
                 filename << "camera_images/"

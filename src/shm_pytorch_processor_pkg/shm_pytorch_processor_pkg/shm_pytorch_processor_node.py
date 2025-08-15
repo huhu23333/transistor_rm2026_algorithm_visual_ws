@@ -6,6 +6,8 @@ import numpy as np
 from sysv_ipc import SharedMemory, IPC_CREAT
 import time
 import cv2
+import os
+import yaml
 
 
 class TransistorRM2026Net(nn.Module):
@@ -82,10 +84,23 @@ class ShmPytorchProcessorNode(Node):
         self.MAX_IMAGES = 100
         self.attach_shared_memory()
 
+        # 获取路径及配置文件内容
+        script_file_path = os.path.abspath(__file__)
+        self.get_logger().info(f"info from Python | Path: {script_file_path}")
+        ws_dir_name = "transistor_rm2026_algorithm_visual_ws"
+        ws_dir_path = script_file_path[:script_file_path.find(ws_dir_name)+len(ws_dir_name)]
+
+        config_file_relatvie_path = "src/auto_aim/config.yaml"
+        config_file_path = os.path.join(ws_dir_path, config_file_relatvie_path)
+        with open(config_file_path, 'r', encoding='utf-8') as config_file:
+            config_data = yaml.safe_load(config_file)
+
+        model_relative_path = config_data["model_relative_path"]
+        model_path = os.path.join(ws_dir_path, model_relative_path)
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = TransistorRM2026Net()
-        model_path = "/home/i5/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/models/model_rm2026.pt"
-        self.model.load_state_dict(torch.load(model_path))
+        self.model.load_state_dict(torch.load(model_path, weights_only=True))
         self.model = self.model.to(self.device)
         self.model.eval()
         self.run()
