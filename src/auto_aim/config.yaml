@@ -67,11 +67,16 @@ max_length_direction_mismatch_ratio : 1.0 # 最大长度方向错位比例 # 2.0
 min_light_distance : 5.0     # 最小灯条距离 
 max_light_distance : 50.0    # 最大灯条距离
 min_armor_confidence : 0.3   # 最小置信度阈值 # 0.3
+#camera_matrix: # 相机内参矩阵
+#  - [810.40948926, 0.00000000e+00, 611.41991188]
+#  - [0.00000000e+00, 813.22312056, 385.16020552]
+#  - [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
+#dist_coeffs: [-0.08153923,  0.49331671,  0.0017929,  -0.00437156, -1.28439103] # 畸变系数
 camera_matrix: # 相机内参矩阵
-  - [810.40948926, 0.00000000e+00, 611.41991188]
-  - [0.00000000e+00, 813.22312056, 385.16020552]
+  - [1.31280460e+03, 0.00000000e+00, 6.38736364e+02]
+  - [0.00000000e+00, 1.31309593e+03, 5.34133502e+02]
   - [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
-dist_coeffs: [-0.08153923,  0.49331671,  0.0017929,  -0.00437156, -1.28439103] # 畸变系数
+dist_coeffs: [-0.05392145, -0.02516686, -0.00222499, -0.00149047,  0.43693918] # 畸变系数
 max_expected_small_distance_mismatch_ratio : 0.35
 max_expected_large_distance_mismatch_ratio : 0.35
 
@@ -87,7 +92,7 @@ INPUT_HEIGHT : 48
 INPUT_WIDTH : 64
 MAX_TRACKING_AGE_MS : 100  # 最大跟踪时间100ms // DEBUG // 100
 MIN_TRACKING_COUNT : 2     # 最小连续跟踪次数           // 2
-IS_NEAR_MAX_DIST_RATIO : 1.0     # 50.0
+IS_NEAR_MAX_DIST_RATIO : 2.0     # 50.0
 fit_step : 3
 predict_step : 5
 fourier_fit_step : 60

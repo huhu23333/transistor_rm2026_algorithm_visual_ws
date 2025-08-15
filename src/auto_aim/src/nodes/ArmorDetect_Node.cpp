@@ -18,9 +18,12 @@
 #include "test_codes/UnwarpUtils.h"
 #include "test_codes/VideoInput.h"
 #include "test_codes/ImagesInput.h"
+#include <iostream>
+#include <sstream>
 
 //#define USE_VIDEO
 //#define USE_IMAGES
+#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 
 // 全局变量定义
 cv::Mat g_image;
@@ -285,6 +288,20 @@ private:
         pthread_mutex_unlock(&g_mutex);
 
         if (!frame.empty()) {
+            
+#ifdef SAVE_IMG_FREQ
+            frame_count_ += 1;
+            if (frame_count_ % SAVE_IMG_FREQ == 0 && frame_count_ / SAVE_IMG_FREQ < 2000) {
+                // 创建保存目录
+                std::filesystem::create_directories("camera_images");
+                // 生成文件名（00001.jpg 格式）
+                std::ostringstream filename;
+                filename << "camera_images/"
+                        << std::setw(5) << std::setfill('0') << (frame_count_ / SAVE_IMG_FREQ)
+                        << ".jpg";
+                cv::imwrite(filename.str(), frame);
+            }
+#endif
 
         //    cv::flip(frame, frame, -1);  // 翻转图像（上下翻转）
 
@@ -467,6 +484,9 @@ private:
 
     // 帧率计算器
     std::shared_ptr<FrameRateCounter> fps_counter;
+#ifdef SAVE_IMG_FREQ
+    long long frame_count_ = 0;
+#endif
 };
 
 int main(int argc, char * argv[]) {

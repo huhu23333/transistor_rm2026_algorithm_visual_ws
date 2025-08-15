@@ -72,7 +72,7 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
         // 创建保存目录
         fs::create_directories("network_input_images");
         
-        // 生成文件名（0001.jpg 格式）
+        // 生成文件名（00001.jpg 格式）
         std::ostringstream filename;
         filename << "network_input_images/"
                 << std::setw(5) << std::setfill('0') << (save_count + 1)
