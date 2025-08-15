@@ -23,7 +23,7 @@ ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, bo
     INPUT_WIDTH = (*config_file_ptr)["INPUT_WIDTH"].as<int>();
     MAX_TRACKING_AGE_MS = (*config_file_ptr)["MAX_TRACKING_AGE_MS"].as<int>();
     MIN_TRACKING_COUNT = (*config_file_ptr)["MIN_TRACKING_COUNT"].as<int>();
-    IS_NEAR_MAX_DIST = (*config_file_ptr)["IS_NEAR_MAX_DIST"].as<float>();
+    IS_NEAR_MAX_DIST_RATIO = (*config_file_ptr)["IS_NEAR_MAX_DIST_RATIO"].as<float>();
     fit_step = (*config_file_ptr)["fit_step"].as<int>();
     predict_step = (*config_file_ptr)["predict_step"].as<int>();
     fourier_fit_step = (*config_file_ptr)["fourier_fit_step"].as<int>();
@@ -89,14 +89,26 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     return resized;
 }
 
-bool ArmorClassifier::isNearPreviousCenter(const cv::Point2f& current, 
-                                         const cv::Point2f& previous, 
-                                         float max_dist) {
-    if (max_dist < 0)
+bool ArmorClassifier::isNearPreviousCenter(const Armor& current_armor, 
+                                         const cv::Point2f& previous_center, 
+                                         float max_dist_ratio) {
+    if (max_dist_ratio < 0)
     {
-        max_dist = IS_NEAR_MAX_DIST;
+        max_dist_ratio = IS_NEAR_MAX_DIST_RATIO;
     }
-    float dist = cv::norm(current - previous);
+    // 根据装甲板最远两角点距离确定距离基础值
+    float corners_max_dist = 0.0;
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = i + 1; j < 4; ++j) {
+            float corners_dist = cv::norm(current_armor.corners[i] - current_armor.corners[j]);
+            if (corners_dist > corners_max_dist) {
+                corners_max_dist = corners_dist;
+            }
+        }
+    }
+    // 根据系数参数修正
+    float max_dist = corners_max_dist * max_dist_ratio;
+    float dist = cv::norm(current_armor.center - previous_center);
     return dist <= max_dist;
 }
 
@@ -212,7 +224,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
                 if (current_number == tracked_armors[j].number && 
                     is_large == tracked_armors[j].is_large &&
                     //isNearPreviousCenter(current_center, tracked_armors[j].center_last_seen)) {
-                    isNearPreviousCenter(current_center, tracked_armors[j].center_predicted)) {
+                    isNearPreviousCenter(armor, tracked_armors[j].center_predicted)) {
                     // 若正在跟踪则更新
                     tracked_armors[j].tracking_count += 1;
                     tracked_armors[j].last_seen = current_time;

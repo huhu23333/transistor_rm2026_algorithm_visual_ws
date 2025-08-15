@@ -69,7 +69,7 @@ private:
     int INPUT_WIDTH;
     int MAX_TRACKING_AGE_MS;
     int MIN_TRACKING_COUNT;
-    float IS_NEAR_MAX_DIST;
+    float IS_NEAR_MAX_DIST_RATIO;
     int fit_step;
     int predict_step;
 
@@ -79,7 +79,7 @@ private:
     int MAX_FOURIER_TRACKING_AGE_MS;
     
     cv::Mat preprocessROI(const cv::Mat& img, const Armor& roi);
-    bool isNearPreviousCenter(const cv::Point2f& current, const cv::Point2f& previous, float max_dist = -1.0);
+    bool isNearPreviousCenter(const Armor& current_armor, const cv::Point2f& previous, float max_dist_ratio = -1.0);
 };
 
 #endif // ARMOR_CLASSIFIER_H
