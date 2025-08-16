@@ -23,7 +23,7 @@ frame_rate : 30.0
 # Params.h 参数设置
 min_light_height : 8 # 8
 light_slope_offset : 30
-light_min_area : 10 # 10
+light_min_area : 3 # 10
 max_light_wh_ratio : 100.0 # 10.0
 min_light_wh_ratio : 0.1 # 0.1
 light_max_tilt_angle : 60.0
