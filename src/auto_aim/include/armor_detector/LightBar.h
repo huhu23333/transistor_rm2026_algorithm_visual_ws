@@ -46,7 +46,7 @@ public:
     /**
      * @brief 高效计算旋转矩形内白色像素面积的辅助函数
      */
-    float computeRotatedRectArea(const cv::RotatedRect& rect, const cv::Mat& binary_img);
+    float computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& binary_img);
 };
 
 #endif // LIGHTBAR_H

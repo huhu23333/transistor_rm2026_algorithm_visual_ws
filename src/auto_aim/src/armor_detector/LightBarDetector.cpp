@@ -38,48 +38,30 @@ void Light::calculateDimensions() {
 }
 
 void Light::correctLength(const cv::Mat& binary_img) {
-    // 计算原始矩形内的面积
-    float originalArea = computeRotatedRectArea(el, binary_img);
-    float targetArea = originalArea * 0.99;
-    
-    // 如果当前面积已小于目标面积，无需调整
-    if (originalArea <= targetArea) {
-        return;
-    }
-    
-    // 二分查找参数
-    const int binarySearchFrequency = 10;  // 最大迭代次数
-    float originalLength = length;         // 保存原始长度
-    float lowRatio = 0.0f;                 // 最小缩放比例
-    float highRatio = 1.0f;                // 最大缩放比例
-    float bestRatio = 1.0f;                // 最佳缩放比例
-    
+    float sum_value_target = computeRotatedRectSum(el, binary_img) * 0.99;
+    // 二分查找使旋转矩形内二值图像总值下降为原来0.99倍的长度
+    int binarySearchFrequency = 10; // 二分查找次数
+    float upper_ratio = 1.0;
+    float lower_ratio = 0.0;
+    float try_ratio;
+    float length_original = length;
     for (int i = 0; i < binarySearchFrequency; i++) {
-        float midRatio = (lowRatio + highRatio) * 0.5f;
-        
-        // 创建临时旋转矩形（只修改高度）
-        cv::RotatedRect testRect = el;
-        testRect.size.height = originalLength * midRatio;
-        
-        // 计算当前矩形内的面积
-        float currentArea = computeRotatedRectArea(testRect, binary_img);
-        
-        // 调整搜索边界
-        if (currentArea >= targetArea) {
-            bestRatio = midRatio;  // 当前比例满足条件
-            lowRatio = midRatio;    // 尝试更小的比例（进一步收缩）
+        try_ratio = (upper_ratio + lower_ratio) * 0.5;
+        el.size.height = length_original * try_ratio;
+        float sum_value = computeRotatedRectSum(el, binary_img);
+        if (sum_value > sum_value_target) {
+            upper_ratio = try_ratio;
         } else {
-            highRatio = midRatio;   // 当前比例过度收缩
+            lower_ratio = try_ratio;
         }
     }
-    
-    // 应用最佳比例
-    length = originalLength * bestRatio;
+    try_ratio = (upper_ratio + lower_ratio) * 0.5;
+    length = length_original * try_ratio;
     el.size.height = length;
 }
 
 // 高效计算旋转矩形内白色像素面积的辅助函数
-float Light::computeRotatedRectArea(const cv::RotatedRect& rect, const cv::Mat& binary_img) {
+float Light::computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& binary_img) {
     // 获取旋转矩形的四个顶点
     cv::Point2f vertices[4];
     rect.points(vertices);
@@ -104,14 +86,21 @@ float Light::computeRotatedRectArea(const cv::RotatedRect& rect, const cv::Mat& 
             static_cast<int>(vertices[i].y - boundRect.y)
         ));
     }
-    
+
     // 填充多边形创建掩码
     cv::fillConvexPoly(localMask, polyPoints, cv::Scalar(255));
     
     // 提取ROI区域并计算面积
     cv::Mat roi = binary_img(boundRect);
-    cv::bitwise_and(roi, localMask, localMask);
-    return cv::countNonZero(localMask);
+    
+    // 将旋转矩形区域填充为白色（255）
+    cv::fillConvexPoly(localMask, polyPoints, cv::Scalar(255));
+    // 计算掩码区域的总值
+    cv::Mat masked;
+    roi.copyTo(masked, localMask);
+    float sum_value = cv::sum(masked)[0];
+
+    return sum_value;
 }
 
 /************************* LightBarDetector类实现 *************************/
