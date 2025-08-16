@@ -84,7 +84,7 @@ private:
     QuadraticFitResult fitQuadraticComponent(const std::vector<float>& y, int point_count, int steps) const;
     
     // 计算自相关函数
-    std::vector<double> computeACF(const std::vector<double>& residuals) const;
+    std::vector<double> computeModifiedACF(const std::vector<double>& residuals) const;
     
     // 从ACF中寻找周期
     int findPeriod(const std::vector<double>& acf) const;

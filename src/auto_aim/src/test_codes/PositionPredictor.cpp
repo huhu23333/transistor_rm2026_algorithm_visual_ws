@@ -157,17 +157,17 @@ void PositionPredictor2D::fitFourier(int steps, int fourier_order) {
     std::vector<double> res_x = linear_fit_x_.residuals;
     std::vector<double> res_y = linear_fit_y_.residuals;
     
-    // 计算ACF并找到周期
-    auto acf_x = computeACF(res_x);
-    auto acf_y = computeACF(res_y);
+    // 计算Modified ACF并找到周期
+    auto modified_acf_x = computeModifiedACF(res_x);
+    auto modified_acf_y = computeModifiedACF(res_y);
     
     // 取两个方向ACF的平均值
-    std::vector<double> acf_combined(acf_x.size());
-    for (size_t i = 0; i < acf_x.size(); i++) {
-        acf_combined[i] = (acf_x[i] + acf_y[i]) / 2.0;
+    std::vector<double> modified_acf_combined(modified_acf_x.size());
+    for (size_t i = 0; i < modified_acf_x.size(); i++) {
+        modified_acf_combined[i] = (modified_acf_x[i] + modified_acf_y[i]) / 2.0;
     }
     
-    int T = findPeriod(acf_combined);
+    int T = findPeriod(modified_acf_combined);
     if (T <= 0) T = 1;  // 确保周期有效
     
     // 拟合傅里叶级数
@@ -450,7 +450,7 @@ PositionPredictor2D::QuadraticFitResult PositionPredictor2D::fitQuadraticCompone
     return result;
 }
 
-std::vector<double> PositionPredictor2D::computeACF(const std::vector<double>& residual) const {
+std::vector<double> PositionPredictor2D::computeModifiedACF(const std::vector<double>& residual) const {
     int n = residual.size();
     if (n == 0) return {};
     
@@ -459,13 +459,15 @@ std::vector<double> PositionPredictor2D::computeACF(const std::vector<double>& r
     for (double r : residual) {
         denominator += (r - residual_mean) * (r - residual_mean);
     }
+    // 修改方差为标准差
+    denominator = std::pow(denominator, 0.5);
     
     if (denominator == 0) {
         return std::vector<double>(n / 2 + 1, 0.0);
     }
     
     int max_lag = static_cast<int>(n * 0.8);
-    std::vector<double> acf(max_lag + 1);
+    std::vector<double> modified_acf(max_lag + 1);
     
     for (int k = 0; k <= max_lag; k++) {
         double numerator = 0.0;
@@ -480,42 +482,42 @@ std::vector<double> PositionPredictor2D::computeACF(const std::vector<double>& r
             }
             numerator /= (n - k);
         }
-        acf[k] = numerator / denominator;
+        modified_acf[k] = numerator / denominator;
     }
     
-    return acf;
+    return modified_acf;
 }
 
-int PositionPredictor2D::findPeriod(const std::vector<double>& acf) const {
-    if (acf.size() < 2) return 1;
+int PositionPredictor2D::findPeriod(const std::vector<double>& modified_acf) const {
+    if (modified_acf.size() < 2) return 1;
     
     int max_k = 1;
-    double max_value = acf[1];
-    double last_acf = acf[1];
+    double max_value = modified_acf[1];
+    double last_modified_acf = modified_acf[1];
     
     // 寻找第一个下降点
-    for (int k = 2; k < static_cast<int>(acf.size() / 2); k++) {
-        if (acf[k] < 0.5 * max_value) {
+    for (int k = 2; k < static_cast<int>(modified_acf.size() / 2); k++) {
+        if (modified_acf[k] < 0.5 * max_value) {
             max_k = k;
-            max_value = acf[k];
-            last_acf = acf[k];
+            max_value = modified_acf[k];
+            last_modified_acf = modified_acf[k];
             break;
         }
     }
     
-    bool acf_updating = false;
-    for (int k = max_k + 1; k < static_cast<int>(acf.size()); k++) {
-        if ((acf[k] > max_value * 1.1) || (acf_updating && acf[k] > max_value)) {
-            max_value = acf[k];
+    bool modified_acf_updating = false;
+    for (int k = max_k + 1; k < static_cast<int>(modified_acf.size()); k++) {
+        if ((modified_acf[k] > max_value * 1.1) || (modified_acf_updating && modified_acf[k] > max_value)) {
+            max_value = modified_acf[k];
             max_k = k;
-            if (acf[k] > last_acf) {
-                acf_updating = true;
+            if (modified_acf[k] > last_modified_acf) {
+                modified_acf_updating = true;
             }
         }
-        if (acf[k] < last_acf) {
-            acf_updating = false;
+        if (modified_acf[k] < last_modified_acf) {
+            modified_acf_updating = false;
         }
-        last_acf = acf[k];
+        last_modified_acf = modified_acf[k];
     }
     
     return max_k;
