@@ -223,6 +223,10 @@ cv::Mat LightBarDetector::binaryImg(const cv::Mat& img) {
             // 蓝色装甲板：B通道
             gray_img = channels[0];
             break;
+        case Params::BOTH:
+            // 识别两者：R通道和B通道最大值
+            gray_img = cv::max(channels[0], channels[2]);
+            break;
         default:
             // 默认情况：灰度图
             cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
@@ -285,13 +289,20 @@ cv::Mat LightBarDetector::extractColorChannelDiff(const cv::Mat& img) {
             cv::subtract(channels[2], channels[0], color_diff);
             cv::threshold(color_diff, color_diff, THRES_MAX_COLOR_RED, 255, cv::THRESH_BINARY);
             break;
-
         case Params::BLUE:
             // 蓝色装甲板：B通道减R通道
             cv::subtract(channels[0], channels[2], color_diff);
             cv::threshold(color_diff, color_diff, THRES_MAX_COLOR_BLUE, 255, cv::THRESH_BINARY);
             break;
-
+        case Params::BOTH:
+            // 识别两者：上述两者最大值
+            {
+            cv::Mat color_diff_1, color_diff_2;
+            cv::subtract(channels[2], channels[0], color_diff_1);
+            cv::subtract(channels[0], channels[2], color_diff_2);
+            color_diff = cv::max(color_diff_1, color_diff_2);
+            }
+            break;
         default:
             // 默认情况：G通道减R通道
             cv::subtract(channels[1], channels[0], color_diff);
