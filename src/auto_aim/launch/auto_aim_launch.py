@@ -17,12 +17,12 @@ def generate_launch_description():
             package='auto_aim',
             executable='armor_detect_node',
             name='armor_detect_node',
-            #arguments = ['--ros-args', '--log-level', 'DEBUG']
+            arguments = ['--ros-args', '--log-level', 'DEBUG']
         ),
         Node(
             package='shm_pytorch_processor_pkg',
             executable='shm_pytorch_processor_node',
             name='shm_pytorch_processor_node',
-            #arguments = ['--ros-args', '--log-level', 'DEBUG']
+            arguments = ['--ros-args', '--log-level', 'DEBUG']
         )
     ])

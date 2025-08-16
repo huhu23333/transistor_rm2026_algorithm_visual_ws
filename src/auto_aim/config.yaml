@@ -18,7 +18,7 @@ cam_ip : "192.168.10.10"
 video_relative_path : "src/auto_aim/InputVideo/robosoul.mp4" # 使用视频输入时的视频路径
 images_relative_path : "input_test_image" # 使用图片输入时的图片文件夹路径
 
-frame_rate : 30.0
+frame_rate : 300.0
 
 # Params.h 参数设置
 min_light_height : 8 # 8
@@ -81,7 +81,7 @@ max_expected_small_distance_mismatch_ratio : 0.35
 max_expected_large_distance_mismatch_ratio : 0.35
 
 # ArmorClassifier 参数
-MAX_SAVE_COUNT : 20000  # 最大保存数量
+MAX_ROI_SAVE_COUNT : 20000  # 最大保存数量
 classify_classes : 8
 IS_ARMOR_THRESHOLD : 0.5
 IS_LARGE_THRESHOLD : 0.5

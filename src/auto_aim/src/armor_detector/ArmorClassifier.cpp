@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, bool use_cuda, rclcpp::Node* node) 
     : node(node) {
     
-    MAX_SAVE_COUNT = (*config_file_ptr)["MAX_SAVE_COUNT"].as<int>();
+    MAX_ROI_SAVE_COUNT = (*config_file_ptr)["MAX_ROI_SAVE_COUNT"].as<int>();
     classify_classes = (*config_file_ptr)["classify_classes"].as<int>();
 
     IS_ARMOR_THRESHOLD = (*config_file_ptr)["IS_ARMOR_THRESHOLD"].as<float>();
@@ -42,7 +42,6 @@ ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, bo
 }
 
 cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
-    static int save_count = 0;
     cv::Mat normalized;  // 将声明移到函数开始
 
     // 提取ROI
@@ -63,25 +62,24 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     
     // cv::imshow("Classifier DEBUG", resized);
     // 如果已经保存了1000张图片，直接返回处理后的图像而不保存
-    if (save_count >= MAX_SAVE_COUNT) {
+    if (roi_save_count >= MAX_ROI_SAVE_COUNT) {
         return resized;
     }
     
     // 保存处理后的图像（用于神经网络输入的标准化图像）
-    if (save_count < MAX_SAVE_COUNT) {
+    if (roi_save_count < MAX_ROI_SAVE_COUNT) {
         // 创建保存目录
         fs::create_directories("network_input_images");
         
         // 生成文件名（00001.jpg 格式）
         std::ostringstream filename;
         filename << "network_input_images/"
-                << std::setw(5) << std::setfill('0') << (save_count + 1)
+                << std::setw(5) << std::setfill('0') << (roi_save_count.fetch_add(1) + 1)
                 << ".jpg";
         
         cv::imwrite(filename.str(), resized);
-        save_count++;
         
-        if (save_count == MAX_SAVE_COUNT) {
+        if (roi_save_count == MAX_ROI_SAVE_COUNT) {
             std::cout << "Reached maximum number of saved images (2000)" << std::endl;
         }
     }
@@ -112,6 +110,11 @@ bool ArmorClassifier::isNearPreviousCenter(const Armor& current_armor,
     return dist <= max_dist;
 }
 
+struct alignas(64) RoiImageThreadInfo { // 64字节对齐
+    const Armor* armor;
+    size_t armor_index;
+};
+
 std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
     const cv::Mat& img, const std::vector<Armor>& armors) {
     
@@ -119,10 +122,11 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
     results.push_back(std::vector<ArmorResult>());
     results.push_back(std::vector<ArmorResult>());
     auto current_time = std::chrono::steady_clock::now();
-    std::vector<cv::Mat> roi_images;
-    std::vector<std::vector<float>> pytorch_results;
     int process_armors_count = armors.size();
     process_armors_count = std::min(process_armors_count, 100);
+    std::vector<cv::Mat> roi_images(process_armors_count);
+    std::vector<RoiImageThreadInfo> roiImageThreadInfos(process_armors_count);
+    std::vector<std::vector<float>> pytorch_results;
     
     // 更新所有目标并清理过期的跟踪目标
     for (size_t i = 0; i < tracked_armors.size(); ++i) {
@@ -150,10 +154,14 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         }
     }
     for (size_t i = 0; i < process_armors_count; ++i) {
-        auto armor = armors[i];
-        cv::Mat roi_image = preprocessROI(img, armor);
-        roi_images.push_back(roi_image);
+        roiImageThreadInfos[i].armor = &armors[i];
+        roiImageThreadInfos[i].armor_index = i;
     }
+    // 进行多线程优化
+    std::for_each(std::execution::par, roiImageThreadInfos.begin(), roiImageThreadInfos.end(), 
+    [&](RoiImageThreadInfo& roiImageThreadInfo) {
+        roi_images[roiImageThreadInfo.armor_index] = preprocessROI(img, *roiImageThreadInfo.armor);
+    });
     if (process_armors_count > 0) {
         pytorch_results = shm_pytorch_processor->processImages(roi_images);
     }

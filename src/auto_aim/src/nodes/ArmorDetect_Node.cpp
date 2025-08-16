@@ -27,7 +27,7 @@
 namespace fs = std::filesystem;
 
 
-//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 

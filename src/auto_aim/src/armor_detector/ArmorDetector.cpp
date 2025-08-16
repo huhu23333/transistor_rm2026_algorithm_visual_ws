@@ -1,28 +1,52 @@
 // ArmorDetector.cpp
 #include "armor_detector/ArmorDetector.h"
 
+struct alignas(64) ArmorDetectThreadInfo { // 64字节对齐
+    const Light* leftLight;
+    const Light* rightLight;
+    bool is_true_armor = false;
+    Armor armor;
+};
+
 std::vector<Armor> ArmorDetector::detectArmors(const std::vector<Light>& lights) {
     std::vector<Armor> armors;
 
-
+    // 进行多线程优化
+    int maxArmorsNum = lights.size() * (lights.size() - 1) / 2;
+    std::vector<ArmorDetectThreadInfo> armorDetectThreadInfos(maxArmorsNum);
     // 2. 遍历所有可能的灯条对
+    size_t thread_index = 0;
     for (size_t i = 0; i < lights.size(); i++) {
         for (size_t j = i + 1; j < lights.size(); j++) {
             const Light& l1 = lights[i];
             const Light& l2 = lights[j];
             
-            const Light& leftLight = (l1.el.center.x < l2.el.center.x) ? l1 : l2;
-            const Light& rightLight = (l1.el.center.x < l2.el.center.x) ? l2 : l1;
+            armorDetectThreadInfos[thread_index].leftLight = &((l1.el.center.x < l2.el.center.x) ? l1 : l2);
+            armorDetectThreadInfos[thread_index].rightLight = &((l1.el.center.x < l2.el.center.x) ? l2 : l1);
+            thread_index += 1;
+        }
+    }
+    
+    std::for_each(std::execution::par, armorDetectThreadInfos.begin(), armorDetectThreadInfos.end(), 
+    [&](ArmorDetectThreadInfo& armorDetectThreadInfo) {
+        const Light& leftLight = *armorDetectThreadInfo.leftLight;
+        const Light& rightLight = *armorDetectThreadInfo.rightLight;
+        if (isArmorPair(leftLight, rightLight)) {
+            Armor armor(leftLight.el, rightLight.el, config_file_ptr, node);
+            armor.confidence = getArmorConfidence(leftLight, rightLight);
             
-            if (isArmorPair(leftLight, rightLight)) {
-                Armor armor(leftLight.el, rightLight.el, config_file_ptr, node);
-                armor.confidence = getArmorConfidence(leftLight, rightLight);
-                
-                // 只添加置信度足够高的装甲板
-                if (armor.confidence >= min_armor_confidence) {
-                    armors.push_back(armor);
-                }
+            // 只添加置信度足够高的装甲板
+            if (armor.confidence >= min_armor_confidence) {
+                armorDetectThreadInfo.is_true_armor = true;
+                armorDetectThreadInfo.armor = armor;
             }
+        }
+    });
+
+    // 统计结果
+    for (size_t i = 0; i < maxArmorsNum; i++) {
+        if (armorDetectThreadInfos[i].is_true_armor) {
+            armors.push_back(armorDetectThreadInfos[i].armor);
         }
     }
 

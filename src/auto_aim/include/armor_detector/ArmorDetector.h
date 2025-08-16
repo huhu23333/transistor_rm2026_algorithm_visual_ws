@@ -9,6 +9,9 @@
 #include <yaml-cpp/yaml.h>
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
+#include <algorithm>
+#include <execution>
+#include <thread>
 
 class ArmorDetector {
 public:

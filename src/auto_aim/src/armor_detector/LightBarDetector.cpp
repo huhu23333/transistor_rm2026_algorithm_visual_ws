@@ -5,6 +5,9 @@
 
 /************************* Light类实现 *************************/
 
+// 默认构造函数
+Light::Light() {};
+
 Light::Light(const cv::RotatedRect& rect) 
     : el(rect), length(0), width(0), angle(0) {
     calculateDimensions();  // 构造时计算所有几何参数
@@ -13,18 +16,10 @@ Light::Light(const cv::RotatedRect& rect)
 void Light::calculateDimensions() {
     // 1. 计算角度并标准化到[-90, 90]
     angle = el.angle;
-    if (el.size.width > el.size.height) {
-        angle += 90;  // 确保角度始终表示长边的方向
-    }
-    while (angle > 90) angle -= 180;
-    while (angle < -90) angle += 180;
-    el.angle = angle;
 
     // 2. 计算长宽（确保length始终为较长边）
-    length = std::max(el.size.width, el.size.height);
-    width = std::min(el.size.width, el.size.height);
-    el.size.height = length;
-    el.size.width = width;
+    length = el.size.height;
+    width = el.size.width;
     
     // 3. 计算顶部和底部点
     cv::Point2f vertices[4];
@@ -42,57 +37,81 @@ void Light::calculateDimensions() {
     bottom = vertexVec[3];
 }
 
-void Light::correctLength(cv::Mat& binary_img) {
-    // 创建与图像同尺寸的掩码（全黑）
-    cv::Mat mask = cv::Mat::zeros(binary_img.size(), CV_8UC1);
-    // 获取旋转矩形的四个顶点（浮点坐标）
-    cv::Point2f vertices2f[4];
-    el.points(vertices2f);
-    // 将浮点顶点转换为整数顶点
-    std::vector<cv::Point> vertices;
-    for (int i = 0; i < 4; i++) {
-        vertices.push_back(cv::Point(static_cast<int>(vertices2f[i].x), 
-                                   static_cast<int>(vertices2f[i].y)));
+void Light::correctLength(const cv::Mat& binary_img) {
+    // 计算原始矩形内的面积
+    float originalArea = computeRotatedRectArea(el, binary_img);
+    float targetArea = originalArea * 0.99;
+    
+    // 如果当前面积已小于目标面积，无需调整
+    if (originalArea <= targetArea) {
+        return;
     }
-    // 将旋转矩形区域填充为白色（255）
-    cv::fillConvexPoly(mask, vertices, cv::Scalar(255));
-    // 计算掩码区域的总值
-    cv::Mat masked;
-    binary_img.copyTo(masked, mask);
-    float sum_value_target = cv::sum(masked)[0] * 0.99;
-    // 二分查找使旋转矩形内二值图像总值下降为原来0.99倍的长度
-    int binarySearchFrequency = 10; // 二分查找次数
-    float upper_ratio = 1.0;
-    float lower_ratio = 0.0;
-    float try_ratio;
-    float length_original = length;
+    
+    // 二分查找参数
+    const int binarySearchFrequency = 10;  // 最大迭代次数
+    float originalLength = length;         // 保存原始长度
+    float lowRatio = 0.0f;                 // 最小缩放比例
+    float highRatio = 1.0f;                // 最大缩放比例
+    float bestRatio = 1.0f;                // 最佳缩放比例
+    
     for (int i = 0; i < binarySearchFrequency; i++) {
-        vertices.clear();
-        mask = cv::Mat::zeros(binary_img.size(), CV_8UC1);
-        try_ratio = (upper_ratio + lower_ratio) * 0.5;
-        el.size.height = length_original * try_ratio;
-        masked = cv::Mat::zeros(binary_img.size(), CV_8UC1);
-        // 获取旋转矩形的四个顶点（浮点坐标）
-        el.points(vertices2f);
-        // 将浮点顶点转换为整数顶点
-        for (int i = 0; i < 4; i++) {
-            vertices.push_back(cv::Point(static_cast<int>(vertices2f[i].x), 
-                                    static_cast<int>(vertices2f[i].y)));
-        }
-        // 将旋转矩形区域填充为白色（255）
-        cv::fillConvexPoly(mask, vertices, cv::Scalar(255));
-        // 计算掩码区域的总值
-        binary_img.copyTo(masked, mask);
-        float sum_value = cv::sum(masked)[0];
-        if (sum_value > sum_value_target) {
-            upper_ratio = try_ratio;
+        float midRatio = (lowRatio + highRatio) * 0.5f;
+        
+        // 创建临时旋转矩形（只修改高度）
+        cv::RotatedRect testRect = el;
+        testRect.size.height = originalLength * midRatio;
+        
+        // 计算当前矩形内的面积
+        float currentArea = computeRotatedRectArea(testRect, binary_img);
+        
+        // 调整搜索边界
+        if (currentArea >= targetArea) {
+            bestRatio = midRatio;  // 当前比例满足条件
+            lowRatio = midRatio;    // 尝试更小的比例（进一步收缩）
         } else {
-            lower_ratio = try_ratio;
+            highRatio = midRatio;   // 当前比例过度收缩
         }
     }
-    try_ratio = (upper_ratio + lower_ratio) * 0.5;
-    length = length_original * try_ratio;
+    
+    // 应用最佳比例
+    length = originalLength * bestRatio;
     el.size.height = length;
+}
+
+// 高效计算旋转矩形内白色像素面积的辅助函数
+float Light::computeRotatedRectArea(const cv::RotatedRect& rect, const cv::Mat& binary_img) {
+    // 获取旋转矩形的四个顶点
+    cv::Point2f vertices[4];
+    rect.points(vertices);
+    
+    // 计算最小外接矩形（ROI）
+    cv::Rect boundRect = cv::boundingRect(std::vector<cv::Point2f>(vertices, vertices + 4));
+    boundRect &= cv::Rect(0, 0, binary_img.cols, binary_img.rows);  // 确保在图像范围内
+    
+    // 如果ROI无效，返回0面积
+    if (boundRect.width <= 0 || boundRect.height <= 0) {
+        return 0;
+    }
+    
+    // 创建局部ROI的掩码
+    cv::Mat localMask = cv::Mat::zeros(boundRect.size(), CV_8UC1);
+    
+    // 将顶点坐标转换为ROI局部坐标
+    std::vector<cv::Point> polyPoints;
+    for (int i = 0; i < 4; i++) {
+        polyPoints.push_back(cv::Point(
+            static_cast<int>(vertices[i].x - boundRect.x),
+            static_cast<int>(vertices[i].y - boundRect.y)
+        ));
+    }
+    
+    // 填充多边形创建掩码
+    cv::fillConvexPoly(localMask, polyPoints, cv::Scalar(255));
+    
+    // 提取ROI区域并计算面积
+    cv::Mat roi = binary_img(boundRect);
+    cv::bitwise_and(roi, localMask, localMask);
+    return cv::countNonZero(localMask);
 }
 
 /************************* LightBarDetector类实现 *************************/
@@ -114,6 +133,12 @@ void LightBarDetector::setEnemyColor(int color) {
     enemy_color = static_cast<Params::EnemyColor>(color);
 }
 
+struct alignas(64) LightDetectThreadInfo { // 64字节对齐
+    cv::RotatedRect* lightRect;
+    bool is_true_light = true;
+    Light light;
+};
+
 void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
     lights.clear();  // 清除上一帧的检测结果
     
@@ -128,33 +153,65 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
         std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);
 
         // 3. 移除颜色错误的灯条，只保留目标颜色的灯条
+
+        // 进行多线程优化
+        int lightRectsNum = detectedRects.size();
+        std::vector<LightDetectThreadInfo> lightDetectThreadInfos(lightRectsNum);
+        for (size_t i = 0; i < lightRectsNum; ++i) {
+            lightDetectThreadInfos[i].lightRect = &detectedRects[i];
+        }
+
+        cv::Mat color_diff;
         if (enemy_color != Params::BOTH) {
             // 1. 提取颜色通道差值图像
-            cv::Mat color_diff = extractColorChannelDiff(img);
-            for (size_t i = 0; i < detectedRects.size(); ++i) {
-                
+            color_diff = extractColorChannelDiff(img);
+        }
+
+        std::for_each(std::execution::par, lightDetectThreadInfos.begin(), lightDetectThreadInfos.end(), 
+        [&](LightDetectThreadInfo& lightDetectThreadInfo) {
+
+            cv::RotatedRect& rect = *lightDetectThreadInfo.lightRect;
+                    
+            if (enemy_color != Params::BOTH) {
                 // 2. 获取扩张后的旋转矩形
-                cv::RotatedRect expandedRect = rectExpand(detectedRects[i], color_rect_expand_FACTOR);
+                cv::RotatedRect expandedRect = rectExpand(rect, color_rect_expand_FACTOR);
 
                 // 3. 获取矩形范围内通道差值图像的均值
                 float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
 
-                // 4. 删除均值小于阈值的图像
+                // 4. 移除小于阈值的图像
                 // RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
                 if (mean_color_diff < mean_color_diff_THRESHOLD) {
-                    detectedRects.erase(detectedRects.begin() + i);
-                    --i;
+                    lightDetectThreadInfo.is_true_light = false;
+                    return;
                 }
             }
-        }
+
+            // 将Light::calculateDimensions的方向纠正迁移至此
+            // 1. 计算角度并标准化到[-90, 90]
+            if (rect.size.width > rect.size.height) {
+                rect.angle += 90;  // 确保角度始终表示长边的方向
+            }
+            while (rect.angle > 90) rect.angle -= 180;
+            while (rect.angle < -90) rect.angle += 180;
+
+            // 2. 计算长宽（确保length始终为较长边）
+            float length = std::max(rect.size.width, rect.size.height);
+            float width = std::min(rect.size.width, rect.size.height);
+            rect.size.height = length;
+            rect.size.width = width;
+
+            // 4. 将检测到的旋转矩形转换为Light对象
+            lightDetectThreadInfo.light = Light(rect);
+            // 5. 修正在拟合旋转矩形时造成的长度误差
+            lightDetectThreadInfo.light.correctLength(binary_img);
+        });
         
-        // 4. 将检测到的旋转矩形转换为Light对象
-        for (const auto& rect : detectedRects) {
-            lights.emplace_back(rect);
-        }
-        // 5. 修正在拟合旋转矩形时造成的长度误差
-        for (auto& light : lights) {
-            light.correctLength(binary_img);
+        // 统计结果
+        for (const auto& lightDetectThreadInfo : lightDetectThreadInfos) {
+            if (lightDetectThreadInfo.is_true_light) {
+                lights.push_back(lightDetectThreadInfo.light);
+            }
         }
     }
 }
@@ -267,7 +324,7 @@ std::vector<cv::RotatedRect> LightBarDetector::detectLightRects(const cv::Mat& i
         if (contour.size() < 5) continue;
         
         // 检查轮廓面积
-        double area = cv::contourArea(contour);
+        float area = cv::contourArea(contour);
         if (area < params.light_min_area) continue;
 
         // 3. 拟合旋转矩形

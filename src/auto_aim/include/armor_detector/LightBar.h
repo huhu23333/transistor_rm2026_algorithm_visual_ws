@@ -16,6 +16,10 @@ public:
     cv::Point2f top;         // 灯条顶部点坐标
     cv::Point2f bottom;      // 灯条底部点坐标
 
+
+    // 默认构造函数
+    Light();
+
     /**
      * @brief 构造函数，通过旋转矩形初始化灯条
      * @param rect 输入的旋转矩形
@@ -37,7 +41,12 @@ public:
     /**
      * @brief 修正在拟合旋转矩形时造成的长度误差
      */
-    void correctLength(cv::Mat& binary_img);
+    void correctLength(const cv::Mat& binary_img);
+
+    /**
+     * @brief 高效计算旋转矩形内白色像素面积的辅助函数
+     */
+    float computeRotatedRectArea(const cv::RotatedRect& rect, const cv::Mat& binary_img);
 };
 
 #endif // LIGHTBAR_H

@@ -17,6 +17,10 @@
 #include <sstream>
 #include <string>
 #include "test_codes/SharedMemoryTorch.h"
+#include <algorithm>
+#include <execution>
+#include <thread>
+#include <atomic>
 
 
 
@@ -56,7 +60,8 @@ private:
     rclcpp::Node* node;                  // 用于打印的节点
     std::shared_ptr<SharedMemoryTorch> shm_pytorch_processor;
     
-    int MAX_SAVE_COUNT;  // 最大保存数量
+    int MAX_ROI_SAVE_COUNT;  // 最大保存数量
+    std::atomic<int> roi_save_count = 0;
     
     int classify_classes;
 

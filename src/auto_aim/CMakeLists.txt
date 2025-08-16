@@ -16,6 +16,7 @@ find_package(Threads REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(TBB REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SerialData.msg"
@@ -84,6 +85,7 @@ target_link_libraries(armor_detect_node
     ${cv_bridge_LIBRARIES}
     "${cpp_typesupport_target}"
     yaml-cpp
+    TBB::tbb
 )
 
 # 为通信节点添加依赖
