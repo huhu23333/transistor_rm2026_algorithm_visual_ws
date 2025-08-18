@@ -399,7 +399,7 @@ private:
                             delta_y_,
                             delta_z_,
                             bullet_velocity_,
-                            current_pitch_,
+                            pitch_integrate_temp,//current_pitch_,
                             current_yaw_
                         );
                         
@@ -408,10 +408,19 @@ private:
                             has_valid_target_ = true;
                             latest_pitch_angle_ = ballistic_result.pitch_angle;
                             latest_yaw_angle_ = ballistic_result.yaw_angle;
+
+                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.1;
+
+                            if (pitch_integrate_temp > 30.0) {
+                                pitch_integrate_temp = 30.0;
+                            }
+                            if (pitch_integrate_temp < -30.0) {
+                                pitch_integrate_temp = -30.0;
+                            }
                             
                             // 发布云台控制命令
                             auto command_msg = auto_aim::msg::GimbalCommand();
-                            command_msg.pitch = latest_pitch_angle_;
+                            command_msg.pitch = pitch_integrate_temp * 0.01/30;//latest_pitch_angle_;
                             command_msg.yaw = latest_yaw_angle_;
                             gimbal_command_pub_->publish(command_msg);
 
@@ -504,6 +513,7 @@ private:
 #ifdef SAVE_IMG_FREQ
     long long frame_count_ = 0;
 #endif
+    float pitch_integrate_temp = 0.0;
 };
 
 int main(int argc, char * argv[]) {

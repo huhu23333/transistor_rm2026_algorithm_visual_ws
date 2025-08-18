@@ -169,6 +169,8 @@ private:
     }
 
     bool sendData(float pitch_target, float yaw_target) {
+        //pitch_target = -0.01; // 约 0.01对应30°
+        yaw_target = 0;
         // 传入参数使用弧度制 [-M_PI, M_PI]
         // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + pitch_target(4) + yaw_target(2) + CRC(1) = 11字节
         std::array<uint8_t, 11> tx_data{};
@@ -197,9 +199,12 @@ private:
 
         ssize_t written = write(fd_, tx_data.data(), tx_data.size());
         if (written == static_cast<ssize_t>(tx_data.size())) {
-            RCLCPP_DEBUG(get_logger(), "TX: pitch_target=%.2f yaw_target=%.2f(int16=%d)", 
+            RCLCPP_INFO(get_logger(), "TX: pitch_target=%.2f yaw_target=%.2f(int16=%d)", 
                         pitch_target, yaw_target, yaw_int16);
             return true;
+        } else {
+            RCLCPP_INFO(get_logger(), "TX write failed: written %ld bytes", 
+                        written);
         }
         return false;
     }
@@ -356,7 +361,7 @@ private:
 
         // 如果还有数据未处理，在下一个循环继续处理
         if (buffer_index_ >= FRAME_MIN_SIZE) {
-            RCLCPP_DEBUG(get_logger(), "Remaining data in buffer: %zu bytes", buffer_index_);
+            RCLCPP_INFO(get_logger(), "Remaining data in buffer: %zu bytes", buffer_index_);
         }
     }
 

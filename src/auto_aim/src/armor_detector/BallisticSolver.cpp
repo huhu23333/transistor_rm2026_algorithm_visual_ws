@@ -17,29 +17,31 @@ float shortestRadDiff(float target, float current) {
     return diff;
 }
 
-BallisticInfo calcBallisticAngle(float x, float y, float z, float deltax, float deltay, float deltaz, 
+BallisticInfo calcBallisticAngle(float x_camera, float y_camera, float z_camera, float deltax_camera, float deltay_camera, float deltaz_camera, 
                                   float v, float cur_pitch, float cur_yaw) {
     BallisticInfo result;
     result.valid = false;
     
     // 转换单位：mm到m
-    x = (x + deltax) / 1000.0f;
-    y = (y + deltay) / 1000.0f;
-    z = (z + deltaz) / 1000.0f;
-    
-    // 1. 计算目标yaw弧度
-    float target_yaw = atan2(-x, z);
-    target_yaw = normalizeRad(target_yaw + cur_yaw);  // 标准化到[-M_PI, M_PI]
-    
-    // 2. 计算水平距离(使用原始坐标)
-    float r = sqrt(x*x + z*z);
-    
+    x_camera = (x_camera + deltax_camera) / 1000.0f;
+    y_camera = (y_camera + deltay_camera) / 1000.0f;
+    z_camera = (z_camera + deltaz_camera) / 1000.0f;
+
     // 3. 转弧度
     float pitch_rad = cur_pitch * M_PI / 180.0f;
+
+    float x_standard = x_camera;
+    float y_standard = z_camera*sin(pitch_rad) + y_camera*cos(pitch_rad);
+    float z_standard = z_camera*cos(pitch_rad) - y_camera*sin(pitch_rad);
+    float r_standard = sqrt(x_standard*x_standard + z_standard*z_standard);
+
+    // 1. 计算目标yaw弧度
+    float target_delta_yaw = atan2(-x_standard, z_standard);
+    float target_yaw = normalizeRad(target_delta_yaw + cur_yaw);  // 标准化到[-M_PI, M_PI]
     
     // pitch变换
-    float y_g = r*sin(pitch_rad) + y*cos(pitch_rad);
-    float r_g = r*cos(pitch_rad) - y*sin(pitch_rad);
+    float y_g = y_standard;
+    float r_g = r_standard;
     
     // 4. 求解弹道方程
     float g = 9.8f;
