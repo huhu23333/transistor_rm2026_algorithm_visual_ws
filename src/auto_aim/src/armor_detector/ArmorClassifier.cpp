@@ -38,7 +38,7 @@ ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, bo
                                                       Armor(), 0.0, false, false, fourier_fit_step);
     }
     
-    shm_pytorch_processor = std::make_shared<SharedMemoryTorch>();
+    shm_pytorch_processor = std::make_shared<SharedMemoryTorch>(config_file_ptr);
 }
 
 cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {

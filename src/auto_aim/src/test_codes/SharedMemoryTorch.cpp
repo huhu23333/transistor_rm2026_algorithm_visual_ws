@@ -1,6 +1,7 @@
 #include "test_codes/SharedMemoryTorch.h"
 
-SharedMemoryTorch::SharedMemoryTorch() {
+SharedMemoryTorch::SharedMemoryTorch(std::shared_ptr<YAML::Node> config_file_ptr) {
+    SHM_KEY = (*config_file_ptr)["SHM_KEY"].as<int>();
     // 创建或附加共享内存
     size_t shm_size = sizeof(SharedData);
     shm_id_ = shmget(SHM_KEY, shm_size, IPC_CREAT | 0666);

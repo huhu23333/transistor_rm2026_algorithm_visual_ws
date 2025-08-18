@@ -1,3 +1,6 @@
+# SharedMemoryTorch参数
+SHM_KEY : 0x1234
+
 # ArmorDetect_Node 参数
 model_relative_path : "src/auto_aim/models/model_rm2026.pt"
 enemy_color : "BLUE"

@@ -5,10 +5,11 @@
 #include <sys/shm.h>
 #include <unistd.h>
 #include <cstring>
+#include <yaml-cpp/yaml.h>
 
 class SharedMemoryTorch {
 public:
-    SharedMemoryTorch();
+    SharedMemoryTorch(std::shared_ptr<YAML::Node> config_file_ptr);
     ~SharedMemoryTorch();
     
     // 向共享内存写入图像并等待处理结果
@@ -32,7 +33,7 @@ private:
     int shm_id_;
     SharedData* shared_data_;
     const size_t MAX_IMAGES = 100;
-    const int SHM_KEY = 0x1234; // 共享内存键值
+    int SHM_KEY; // 共享内存键值
     
     void attachSharedMemory();
     void detachSharedMemory();

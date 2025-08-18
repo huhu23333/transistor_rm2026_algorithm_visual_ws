@@ -79,10 +79,6 @@ class TransistorRM2026Net(nn.Module):
 class ShmPytorchProcessorNode(Node):
     def __init__(self, name):
         super().__init__(name)
-        # 定义与C++完全一致的内存结构
-        self.shm = None
-        self.MAX_IMAGES = 100
-        self.attach_shared_memory()
 
         # 获取路径及配置文件内容
         script_file_path = os.path.abspath(__file__)
@@ -95,8 +91,14 @@ class ShmPytorchProcessorNode(Node):
         with open(config_file_path, 'r', encoding='utf-8') as config_file:
             config_data = yaml.safe_load(config_file)
 
+        self.SHM_KEY = int(config_data["SHM_KEY"])
         model_relative_path = config_data["model_relative_path"]
         model_path = os.path.join(ws_dir_path, model_relative_path)
+        
+        # 定义与C++完全一致的内存结构
+        self.shm = None
+        self.MAX_IMAGES = 100
+        self.attach_shared_memory()
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = TransistorRM2026Net()
@@ -111,7 +113,7 @@ class ShmPytorchProcessorNode(Node):
     
     def attach_shared_memory(self):
         try:
-            self.shm = SharedMemory(0x1234, flags=0, size=0)
+            self.shm = SharedMemory(self.SHM_KEY, flags=0, size=0)
         except:
             # 首次运行时创建共享内存
             shm_size = (
@@ -120,7 +122,7 @@ class ShmPytorchProcessorNode(Node):
                 + 100 * 12 * 4  # results (100*12*float32)
                 + 100 * 64 * 48 * 3  # images (100*64*48*3 uint8)
             )
-            self.shm = SharedMemory(0x1234, IPC_CREAT, size=shm_size)
+            self.shm = SharedMemory(self.SHM_KEY, IPC_CREAT, size=shm_size)
 
     def run(self):
         """持续监控共享内存并处理图像，添加可视化功能"""
