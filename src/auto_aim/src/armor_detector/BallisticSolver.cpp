@@ -39,24 +39,21 @@ BallisticInfo calcBallisticAngle(float x_camera, float y_camera, float z_camera,
     float target_delta_yaw = atan2(-x_standard, z_standard);
     float target_yaw = normalizeRad(target_delta_yaw + cur_yaw);  // 标准化到[-M_PI, M_PI]
     
-    // pitch变换
-    float y_g = y_standard;
-    float r_g = r_standard;
-    
     // 4. 求解弹道方程
     float g = 9.8f;
-    float v2 = v * v;
-    float temp1 = v2 / r_g / g ;
-    float temp2 = (2 * v2 * y_g ) / (r_g * r_g * g);
-    float delta = temp1 * temp1 + temp2 - 1;
-
-    if (delta < 0) {
+    float denominator = g * r_standard;
+    float v_square = v * v;
+    float numerator_part1 = v_square;
+    float numerator_part2_square = v_square * v_square - g * (g * r_standard * r_standard + 2 * y_standard * v_square);
+    if (numerator_part2_square < 0) {
         return result;  // 返回无效结果
     }
+    float tan_angle1 = (numerator_part1 + sqrt(numerator_part2_square)) / denominator;
+    float tan_angle2 = (numerator_part1 - sqrt(numerator_part2_square)) / denominator;
     
     // 计算两个可能的pitch角
-    float angle1 = atan(-temp1 + sqrt(delta));
-    float angle2 = atan(-temp1 - sqrt(delta));
+    float angle1 = atan(tan_angle1);
+    float angle2 = atan(tan_angle2);
 
     // 选择较小的仰角
     angle1 = angle1 * 180.0f / M_PI;
