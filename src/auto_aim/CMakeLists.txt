@@ -63,7 +63,7 @@ add_library(crc_lib SHARED
 )
 # 添加可执行文件
 add_executable(armor_detect_node src/nodes/ArmorDetect_Node.cpp)
-add_executable(com_node src/nodes/Com_Node.cpp)
+add_executable(com_node src/nodes/Com_Node_New.cpp)
 
 # 为装甲板检测器添加依赖
 target_link_libraries(armor_detector

@@ -187,7 +187,7 @@ private:
         // 更新上一次的数据
         last_bullet_velocity = msg->bullet_velocity;
         last_bullet_angle = msg->bullet_angle;
-        last_gimbal_yaw = msg->gimbal_yaw;
+        last_gimbal_yaw = ((float)(msg->gimbal_yaw)) * M_PI / 4096.0;
         last_color = msg->color;
 
         // 原有的处理逻辑
