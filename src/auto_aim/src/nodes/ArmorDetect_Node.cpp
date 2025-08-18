@@ -171,31 +171,15 @@ public:
 
 private:
     void serialDataCallback(const auto_aim::msg::SerialData::SharedPtr msg) {
-        static float last_bullet_velocity = 0.0f;
-        static float last_bullet_angle = 0.0f;
-        static float last_gimbal_yaw = 0.0f;
-        static uint8_t last_color = 0;
-
-        // 检查所有关键数据是否完全相同
-        if (msg->bullet_velocity == last_bullet_velocity &&
-            msg->bullet_angle == last_bullet_angle &&
-            msg->gimbal_yaw == last_gimbal_yaw &&
-            msg->color == last_color) {
-            return;  // 跳过重复数据
-        }
-
-        // 更新上一次的数据
-        last_bullet_velocity = msg->bullet_velocity;
-        last_bullet_angle = msg->bullet_angle;
-        last_gimbal_yaw = ((float)(msg->gimbal_yaw)) * M_PI / 4096.0;
-        last_color = msg->color;
-
-        // 原有的处理逻辑
         bullet_velocity_ = msg->bullet_velocity;
         current_pitch_ = msg->bullet_angle;
-        current_yaw_ = msg->gimbal_yaw;
+        current_yaw_ = ((float)(msg->gimbal_yaw)) * M_PI / 4096.0;
         enemy_color_ = (msg->color == 0) ? "RED" : "BLUE";
-        
+        if (enemy_color_ == "RED") {
+            params_.enemy_color = Params::RED;
+        } else if (enemy_color_ == "BLUE") {
+            params_.enemy_color = Params::BLUE;
+        }
         if (light_detector_) {
             light_detector_->setEnemyColor(msg->color == 0 ? Params::RED : Params::BLUE);
         }
