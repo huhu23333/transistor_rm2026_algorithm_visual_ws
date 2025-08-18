@@ -409,7 +409,7 @@ private:
                             latest_pitch_angle_ = ballistic_result.pitch_angle;
                             latest_yaw_angle_ = ballistic_result.yaw_angle;
 
-                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.1;
+                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.5;
 
                             if (pitch_integrate_temp > 30.0) {
                                 pitch_integrate_temp = 30.0;
