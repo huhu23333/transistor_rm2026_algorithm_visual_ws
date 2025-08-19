@@ -26,13 +26,13 @@ public:
     void fitQuadratic(int steps);
     
     // 线性预测函数
-    std::vector<cv::Point2f> predictLinear(int pred_length) const;
+    std::vector<cv::Point2f> predictLinear(int pred_length, cv::Point2f ground_stable_point) const;
     
     // 傅里叶预测函数
-    std::vector<cv::Point2f> predictFourier(int pred_length) const;
+    std::vector<cv::Point2f> predictFourier(int pred_length, cv::Point2f ground_stable_point) const;
     
     // 二次曲线预测函数（新增）
-    std::vector<cv::Point2f> predictQuadratic(int pred_length) const;
+    std::vector<cv::Point2f> predictQuadratic(int pred_length, cv::Point2f ground_stable_point) const;
     
     // 获取上一次拟合的MSE
     double getLastMSE() const;

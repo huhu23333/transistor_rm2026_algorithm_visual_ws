@@ -357,7 +357,7 @@ private:
             armors = armor_detector_->detectArmors(lights);
             has_valid_target_ = false;
 
-            classifyResults_expanded = classifier_->classify(frame, armors);
+            classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 

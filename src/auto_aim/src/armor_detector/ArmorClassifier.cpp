@@ -35,7 +35,7 @@ ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, bo
     for (int number = 0; number < classify_classes; ++number)
     {
         classified_latest_tracked_armors.emplace_back(number, current_time, cv::Point2f(0, 0), 
-                                                      Armor(), 0.0, false, false, fourier_fit_step);
+                                                      Armor(), 0.0, false, false, fourier_fit_step, cv::Point2f(0, 0));
     }
     
     shm_pytorch_processor = std::make_shared<SharedMemoryTorch>(config_file_ptr);
@@ -88,8 +88,11 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
 }
 
 bool ArmorClassifier::isNearPreviousCenter(const Armor& current_armor, 
-                                         const cv::Point2f& previous_center, 
-                                         float max_dist_ratio) {
+                                           const cv::Point2f& ground_stable_point,
+                                           const TrackedArmor& previous_tracked_armor, 
+                                           float max_dist_ratio) {
+    cv::Point2f current_center_ground_stable = current_armor.center - ground_stable_point;
+    cv::Point2f previous_center_ground_stable = previous_tracked_armor.center_predicted - previous_tracked_armor.last_ground_stable_point;
     if (max_dist_ratio < 0)
     {
         max_dist_ratio = IS_NEAR_MAX_DIST_RATIO;
@@ -106,7 +109,7 @@ bool ArmorClassifier::isNearPreviousCenter(const Armor& current_armor,
     }
     // 根据系数参数修正
     float max_dist = corners_max_dist * max_dist_ratio;
-    float dist = cv::norm(current_armor.center - previous_center);
+    float dist = cv::norm(current_center_ground_stable - previous_center_ground_stable);
     return dist <= max_dist;
 }
 
@@ -116,7 +119,7 @@ struct alignas(64) RoiImageThreadInfo { // 64字节对齐
 };
 
 std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
-    const cv::Mat& img, const std::vector<Armor>& armors) {
+    const cv::Mat& img, const std::vector<Armor>& armors, const cv::Point2f ground_stable_point) {
     
     std::vector<std::vector<ArmorResult>> results;
     results.push_back(std::vector<ArmorResult>());
@@ -151,6 +154,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             classified_latest_tracked_armors[i].predictions.clear();
             classified_latest_tracked_armors[i].center_predicted = cv::Point2f(0, 0);
             classified_latest_tracked_armors[i].prediction_index = 0;
+            classified_latest_tracked_armors[i].last_ground_stable_point = cv::Point2f(0, 0);
         }
     }
     for (size_t i = 0; i < process_armors_count; ++i) {
@@ -232,7 +236,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
                 if (current_number == tracked_armors[j].number && 
                     is_large == tracked_armors[j].is_large &&
                     //isNearPreviousCenter(current_center, tracked_armors[j].center_last_seen)) {
-                    isNearPreviousCenter(armor, tracked_armors[j].center_predicted)) {
+                    isNearPreviousCenter(armor, ground_stable_point, tracked_armors[j])) {
                     // 若正在跟踪则更新
                     tracked_armors[j].tracking_count += 1;
                     tracked_armors[j].last_seen = current_time;
@@ -241,6 +245,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
                     tracked_armors[j].armor_last_seen = armor;
                     tracked_armors[j].confidence = confidence;
                     tracked_armors[j].not_slant = not_slant;
+                    tracked_armors[j].last_ground_stable_point = ground_stable_point;
                     is_tracked = true;
                     break;
                 }
@@ -248,7 +253,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             // 若未在跟踪则添加至跟踪列表
             if(!is_tracked) {
                 tracked_armors.emplace_back(current_number, current_time, current_center, 
-                    armor, confidence, is_large, not_slant, fit_step);
+                    armor, confidence, is_large, not_slant, fit_step, ground_stable_point);
             }
         }
     }
@@ -271,9 +276,9 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             {
                 tracked_armors[i].predictor.addPoint(tracked_armors[i].predictions[j]);
             }
-            tracked_armors[i].predictor.addPoint(tracked_armors[i].center_last_seen);
+            tracked_armors[i].predictor.addPoint(tracked_armors[i].center_last_seen - tracked_armors[i].last_ground_stable_point);
             tracked_armors[i].predictor.fitLinear(fit_step);
-            tracked_armors[i].predictions = tracked_armors[i].predictor.predictLinear(predict_step);
+            tracked_armors[i].predictions = tracked_armors[i].predictor.predictLinear(predict_step, tracked_armors[i].last_ground_stable_point);
             tracked_armors[i].prediction_index = 0;
         } else if (tracked_armors[i].prediction_index < predict_step-1) {
             tracked_armors[i].prediction_index += 1;
@@ -290,7 +295,8 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             classified_latest_tracked_armors[tracked_armors[i].number].confidence = 1.0;
             classified_latest_tracked_armors[tracked_armors[i].number].is_large = tracked_armors[i].is_large;
             classified_latest_tracked_armors[tracked_armors[i].number].not_slant = tracked_armors[i].not_slant;
-            classified_latest_tracked_armors[tracked_armors[i].number].predictor.addPoint(tracked_armors[i].center_last_seen);
+            classified_latest_tracked_armors[tracked_armors[i].number].predictor.addPoint(tracked_armors[i].center_last_seen - tracked_armors[i].last_ground_stable_point);
+            classified_latest_tracked_armors[tracked_armors[i].number].last_ground_stable_point = tracked_armors[i].last_ground_stable_point;
         } else {
             tracked_armors[i].center_predicted = tracked_armors[i].center_last_seen;
         }
@@ -301,7 +307,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             classified_latest_tracked_armors[i].predictor.addPoint(classified_latest_tracked_armors[i].center_predicted);
         }
         classified_latest_tracked_armors[i].predictor.fitFourier(fourier_fit_step, fourier_fit_order);
-        classified_latest_tracked_armors[i].predictions = classified_latest_tracked_armors[i].predictor.predictFourier(fourier_predict_step);
+        classified_latest_tracked_armors[i].predictions = classified_latest_tracked_armors[i].predictor.predictFourier(fourier_predict_step, classified_latest_tracked_armors[i].last_ground_stable_point);
         classified_latest_tracked_armors[i].center_predicted = classified_latest_tracked_armors[i].predictions[0];
     }
     // 输出

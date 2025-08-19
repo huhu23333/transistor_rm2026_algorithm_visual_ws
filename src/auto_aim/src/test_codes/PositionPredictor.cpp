@@ -196,20 +196,20 @@ void PositionPredictor2D::fitFourier(int steps, int fourier_order) {
     fourier_fitted_ = true;
 }
 
-std::vector<cv::Point2f> PositionPredictor2D::predictLinear(int pred_length) const {
+std::vector<cv::Point2f> PositionPredictor2D::predictLinear(int pred_length, cv::Point2f ground_stable_point) const {
     std::vector<cv::Point2f> predictions;
     
     if (history_.empty()) {
         // 没有历史数据，返回固定值 (0,0)
         for (int i = 0; i < pred_length; i++) {
-            predictions.push_back(cv::Point2f(0, 0));
+            predictions.push_back(cv::Point2f(0, 0) + ground_stable_point);
         }
         return predictions;
     }
     if (!linear_fitted_) {
         // 未拟合，返回最近的值
         for (int i = 0; i < pred_length; i++) {
-            predictions.push_back(history_.back());
+            predictions.push_back(history_.back() + ground_stable_point);
         }
         return predictions;
     }
@@ -219,27 +219,27 @@ std::vector<cv::Point2f> PositionPredictor2D::predictLinear(int pred_length) con
         double t = start_t + i;
         float x = linear_fit_x_.a * t + linear_fit_x_.b;
         float y = linear_fit_y_.a * t + linear_fit_y_.b;
-        predictions.push_back(cv::Point2f(x, y));
+        predictions.push_back(cv::Point2f(x, y) + ground_stable_point);
     }
     
     return predictions;
 }
 
 // 新增：二次曲线预测函数实现
-std::vector<cv::Point2f> PositionPredictor2D::predictQuadratic(int pred_length) const {
+std::vector<cv::Point2f> PositionPredictor2D::predictQuadratic(int pred_length, cv::Point2f ground_stable_point) const {
     std::vector<cv::Point2f> predictions;
     
     if (history_.empty()) {
         // 没有历史数据，返回固定值 (0,0)
         for (int i = 0; i < pred_length; i++) {
-            predictions.push_back(cv::Point2f(0, 0));
+            predictions.push_back(cv::Point2f(0, 0) + ground_stable_point);
         }
         return predictions;
     }
     if (!quadratic_fitted_) {
         // 未拟合，返回最近的值
         for (int i = 0; i < pred_length; i++) {
-            predictions.push_back(history_.back());
+            predictions.push_back(history_.back() + ground_stable_point);
         }
         return predictions;
     }
@@ -249,27 +249,27 @@ std::vector<cv::Point2f> PositionPredictor2D::predictQuadratic(int pred_length) 
         double t = start_t + i;
         float x = quadratic_fit_x_.a0 + quadratic_fit_x_.a1 * t + quadratic_fit_x_.a2 * t * t;
         float y = quadratic_fit_y_.a0 + quadratic_fit_y_.a1 * t + quadratic_fit_y_.a2 * t * t;
-        predictions.push_back(cv::Point2f(x, y));
+        predictions.push_back(cv::Point2f(x, y) + ground_stable_point);
     }
     
     return predictions;
 }
 
-std::vector<cv::Point2f> PositionPredictor2D::predictFourier(int pred_length) const {
+std::vector<cv::Point2f> PositionPredictor2D::predictFourier(int pred_length, cv::Point2f ground_stable_point) const {
     std::vector<cv::Point2f> predictions;
     
 
     if (history_.empty()) {
         // 没有历史数据，返回固定值 (0,0)
         for (int i = 0; i < pred_length; i++) {
-            predictions.push_back(cv::Point2f(0, 0));
+            predictions.push_back(cv::Point2f(0, 0) + ground_stable_point);
         }
         return predictions;
     }
     if (!fourier_fitted_) {
         // 未拟合，返回最近的值
         for (int i = 0; i < pred_length; i++) {
-            predictions.push_back(history_.back());
+            predictions.push_back(history_.back() + ground_stable_point);
         }
         return predictions;
     }
@@ -284,7 +284,7 @@ std::vector<cv::Point2f> PositionPredictor2D::predictFourier(int pred_length) co
                  fourierSeries(t, fourier_fit_.beta_x, T, N);
         float y = linear_fit_y_.a * t + linear_fit_y_.b + 
                  fourierSeries(t, fourier_fit_.beta_y, T, N);
-        predictions.push_back(cv::Point2f(x, y));
+        predictions.push_back(cv::Point2f(x, y) + ground_stable_point);
     }
     
     return predictions;
