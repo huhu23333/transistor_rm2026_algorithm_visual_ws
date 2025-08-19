@@ -3,7 +3,7 @@ SHM_KEY : 0x1234
 
 # ArmorDetect_Node 参数
 model_relative_path : "src/auto_aim/models/model_rm2026.pt"
-enemy_color : "BLUE"
+enemy_color : "RED"
 RESET_DISTANCE_THRESHOLD : 400.0 # 单位：mm
 MAX_LOST_TIME : 0.5              # 单位：秒
 camera_ExposureTime : 2000.0  # 5000.0

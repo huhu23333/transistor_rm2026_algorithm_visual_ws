@@ -177,7 +177,7 @@ public:
 private:
     void serialDataCallback(const auto_aim::msg::SerialData::SharedPtr msg) {
         bullet_velocity_ = msg->bullet_velocity;
-        current_pitch_ = msg->bullet_angle;
+        current_pitch_ = ((float)(msg->bullet_angle)) * 30 / 1.8 * M_PI / 180;
         current_yaw_ = ((float)(msg->gimbal_yaw)) * M_PI / 4096.0;
         enemy_color_ = (msg->color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
@@ -189,9 +189,21 @@ private:
             light_detector_->setEnemyColor(msg->color == 0 ? Params::RED : Params::BLUE);
         }
 
-        RCLCPP_DEBUG(this->get_logger(), 
-            "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s",
-            bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str());
+        if (current_yaw_ < -M_PI/2 && last_yaw_rad_ > M_PI/2) {
+            yaw_circle_ += 1;
+        } else if (current_yaw_ > M_PI/2 && last_yaw_rad_ < -M_PI/2) {
+            yaw_circle_ -= 1;
+        }
+        total_yaw_rad_ = yaw_circle_ * 2 * M_PI + current_yaw_;
+        last_pitch_rad_ = current_pitch_;
+        last_yaw_rad_ = current_yaw_;
+
+        ground_stable_point = cv::Point2f(500+total_yaw_rad_*1300, 500+last_pitch_rad_*1350);
+
+        RCLCPP_INFO(this->get_logger(), 
+            "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f, point=(%.1f, %.1f)",
+            bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str(),
+            yaw_circle_, total_yaw_rad_, ground_stable_point.x, ground_stable_point.y);
     }
 
     void drawResults(cv::Mat& image, 
@@ -200,6 +212,9 @@ private:
                      const std::vector<ArmorResult>& classifyResults,
                      const std::vector<ArmorResult>& classifyResults_forFourierPredict) {
         cv::Mat result = image.clone();
+
+        // 0. 绘制地面系不动点（DEBUG）
+        cv::circle(result, ground_stable_point, 10, cv::Scalar(0, 255, 0), 2);
 
         // 1. 绘制灯条（绿色）
         for (const auto& light : lights) {
@@ -411,30 +426,28 @@ private:
                         if (ballistic_result.valid) {
                             // RCLCPP_INFO(this->get_logger(), "Target detected, publishing command");
                             has_valid_target_ = true;
-                            latest_pitch_angle_ = ballistic_result.pitch_angle;
-                            latest_yaw_angle_ = ballistic_result.yaw_angle;
 
-                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.5;
+                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.2;
 
-                            if (pitch_integrate_temp > 30.0) {
-                                pitch_integrate_temp = 30.0;
+                            if (pitch_integrate_temp > 60.0) {
+                                pitch_integrate_temp = 60.0;
                             }
-                            if (pitch_integrate_temp < -30.0) {
-                                pitch_integrate_temp = -30.0;
+                            if (pitch_integrate_temp < -60.0) {
+                                pitch_integrate_temp = -60.0;
                             }
                             
                             // 发布云台控制命令
                             auto command_msg = auto_aim::msg::GimbalCommand();
-                            command_msg.pitch = pitch_integrate_temp * 0.01/30;//latest_pitch_angle_;
-                            command_msg.yaw = latest_yaw_angle_;
+                            command_msg.pitch = pitch_integrate_temp * 0.01/30;
+                            command_msg.yaw = ballistic_result.yaw_angle;
                             gimbal_command_pub_->publish(command_msg);
 
-                            RCLCPP_INFO(this->get_logger(),
+                            RCLCPP_DEBUG(this->get_logger(),
                                 "Target %d: Position[%.2f, %.2f, %.2f] mm, "
                                 "Command[pitch: %.2f, yaw: %.2f] deg",
                                 best_result.number,
                                 predicted_pos.x, predicted_pos.y, predicted_pos.z,
-                                latest_pitch_angle_, latest_yaw_angle_);
+                                command_msg.pitch, command_msg.yaw);
                             
                                 // 绘制预测点（黄色）
                                 cv::Point2f pred_pixel = armor_solver_->project3DToPixel(predicted_pos);
@@ -507,8 +520,10 @@ private:
     float delta_x_;
     float delta_y_;
     float delta_z_;
-    float latest_pitch_angle_;
-    float latest_yaw_angle_;
+    float last_pitch_rad_ = 0;
+    float last_yaw_rad_ = 0;
+    int yaw_circle_ = 0;
+    float total_yaw_rad_ = 0;
     bool has_valid_target_;
     std::string enemy_color_;
     Params params_;
@@ -519,6 +534,7 @@ private:
     long long frame_count_ = 0;
 #endif
     float pitch_integrate_temp = 0.0;
+    cv::Point2f ground_stable_point;
 };
 
 int main(int argc, char * argv[]) {

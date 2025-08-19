@@ -120,6 +120,7 @@ LightBarDetector::LightBarDetector(const Params& params, std::shared_ptr<YAML::N
 
 void LightBarDetector::setEnemyColor(int color) {
     enemy_color = static_cast<Params::EnemyColor>(color);
+    params.enemy_color = enemy_color;
 }
 
 struct alignas(64) LightDetectThreadInfo { // 64字节对齐

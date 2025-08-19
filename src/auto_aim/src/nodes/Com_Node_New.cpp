@@ -65,7 +65,7 @@ private:
     static constexpr size_t FRAME_MIN_SIZE = 5;
     std::queue<auto_aim::msg::GimbalCommand::SharedPtr> command_queue_;
     std::mutex queue_mutex_;
-    static constexpr size_t MAX_QUEUE_SIZE = 10;
+    static constexpr size_t MAX_QUEUE_SIZE = 1;
     struct DataFrame {
         float bullet_velocity;
         float bullet_angle;
@@ -139,7 +139,7 @@ private:
         }
 
         tcflush(fd_, TCIOFLUSH);
-        RCLCPP_INFO(get_logger(), "Serial initialized: %s @ %d", port.c_str(), baudrate);
+        RCLCPP_DEBUG(get_logger(), "Serial initialized: %s @ %d", port.c_str(), baudrate);
     }
 
         // 查找可用的串口
@@ -192,6 +192,8 @@ private:
             yaw_int16 += 8192;
         }
 
+        //yaw_int16 = 1234;
+
         memcpy(&tx_data[8], &yaw_int16, sizeof(int16_t));  // 2字节
         
         // 计算并添加CRC
@@ -199,11 +201,11 @@ private:
 
         ssize_t written = write(fd_, tx_data.data(), tx_data.size());
         if (written == static_cast<ssize_t>(tx_data.size())) {
-            RCLCPP_INFO(get_logger(), "TX: pitch_target=%.2f yaw_target=%.2f(int16=%d)", 
+            RCLCPP_DEBUG(get_logger(), "TX: pitch_target=%.2f yaw_target=%.2f(int16=%d)", 
                         pitch_target, yaw_target, yaw_int16);
             return true;
         } else {
-            RCLCPP_INFO(get_logger(), "TX write failed: written %ld bytes", 
+            RCLCPP_DEBUG(get_logger(), "TX write failed: written %ld bytes", 
                         written);
         }
         return false;
@@ -230,10 +232,10 @@ private:
         memcpy(&frame.z_rotation_velocity, &data[offset], sizeof(float));
 
         // 格式化输出
-        RCLCPP_INFO(get_logger(), 
+        RCLCPP_DEBUG(get_logger(), 
             "\033[1;34m[Received Data]\033[0m\n"
             "\033[1;32mBullet Velocity:\033[0m %.2f m/s\n"
-            "\033[1;32mBullet Angle:\033[0m %.2f°\n"
+            "\033[1;32mBullet Angle:\033[0m %.2f\n"
             "\033[1;33mGimbal Yaw:\033[0m %d (%.2f°)\n"
             "\033[1;36mMark:\033[0m %d\n"
             "\033[1;31mColor:\033[0m %d\n"
@@ -260,7 +262,7 @@ private:
         std::lock_guard<std::mutex> lock(queue_mutex_);
         received_commands_count_++;
         
-        RCLCPP_INFO(get_logger(), 
+        RCLCPP_DEBUG(get_logger(), 
             "[Command Received] Pitch: %.2f, Yaw: %.2f, Queue Size: %zu", 
             msg->pitch, msg->yaw, command_queue_.size());
 
@@ -361,7 +363,7 @@ private:
 
         // 如果还有数据未处理，在下一个循环继续处理
         if (buffer_index_ >= FRAME_MIN_SIZE) {
-            RCLCPP_INFO(get_logger(), "Remaining data in buffer: %zu bytes", buffer_index_);
+            RCLCPP_DEBUG(get_logger(), "Remaining data in buffer: %zu bytes", buffer_index_);
         }
     }
 
@@ -376,7 +378,7 @@ private:
         
         // 统计信息部分保持不变
         if ((current_time - last_debug_time_).seconds() >= 1.0) {
-            RCLCPP_INFO(get_logger(),
+            RCLCPP_DEBUG(get_logger(),
                 "Statistics: Received %d commands, Sent %d commands, Queue size: %zu",
                 received_commands_count_.load(),
                 sent_commands_count_.load(),
@@ -409,36 +411,36 @@ private:
         double elapsed = (current_time - last_send_time).seconds();
         
         // Debug: 打印串口状态和时间间隔
-        RCLCPP_INFO(get_logger(), "Serial fd: %d, Elapsed time: %.6f seconds", fd_, elapsed);
+        RCLCPP_DEBUG(get_logger(), "Serial fd: %d, Elapsed time: %.6f seconds", fd_, elapsed);
         
         // 提高发送频率到200Hz（5ms间隔）
         if (elapsed >= 0.005) {
             // Debug: 打印进入发送逻辑
-            RCLCPP_INFO(get_logger(), "Entering send logic");
+            RCLCPP_DEBUG(get_logger(), "Entering send logic");
             
             {  // 使用花括号限制锁的范围
                 std::lock_guard<std::mutex> lock(queue_mutex_);
                 // Debug: 打印队列状态
-                RCLCPP_INFO(get_logger(), "Queue size before sending: %zu", command_queue_.size());
+                RCLCPP_DEBUG(get_logger(), "Queue size before sending: %zu", command_queue_.size());
 
-                if (command_queue_.empty()) {
-                    bool send_success = sendData(0, 8000);
-                }
+                /* if (command_queue_.empty()) {
+                    bool send_success = sendData(0, 0);
+                } */
                 while (!command_queue_.empty()) {  // 处理队列中的所有命令
                     auto cmd = command_queue_.front();
                     // Debug: 打印即将发送的命令
-                    RCLCPP_INFO(get_logger(), "Attempting to send - Pitch: %.2f, Yaw: %.2f", 
+                    RCLCPP_DEBUG(get_logger(), "Attempting to send - Pitch: %.2f, Yaw: %.2f", 
                             cmd->pitch, cmd->yaw);
                     
                     bool send_success = sendData(cmd->pitch, cmd->yaw);
                     
                     // Debug: 打印发送结果
-                    RCLCPP_INFO(get_logger(), "Send result: %s", send_success ? "Success" : "Failed");
+                    RCLCPP_DEBUG(get_logger(), "Send result: %s", send_success ? "Success" : "Failed");
                     
                     if (send_success) {
                         command_queue_.pop();
                         sent_commands_count_++;
-                        RCLCPP_INFO(get_logger(),
+                        RCLCPP_DEBUG(get_logger(),
                             "[Command Sent] Pitch: %.2f, Yaw: %.2f, Queue Size: %zu",
                             cmd->pitch, cmd->yaw, command_queue_.size());
                     } else {
@@ -449,20 +451,20 @@ private:
                     // 检查是否超过最大处理时间
                     double process_time = (this->now() - current_time).seconds();
                     // Debug: 打印处理时间
-                    RCLCPP_INFO(get_logger(), "Process time: %.6f seconds", process_time);
+                    RCLCPP_DEBUG(get_logger(), "Process time: %.6f seconds", process_time);
                     
                     if (process_time > 0.001) {  // 最多处理1ms
-                        RCLCPP_INFO(get_logger(), "Breaking due to time limit");
+                        RCLCPP_DEBUG(get_logger(), "Breaking due to time limit");
                         break;
                     }
                 }
                 // Debug: 打印队列最终状态
-                RCLCPP_INFO(get_logger(), "Queue size after sending: %zu", command_queue_.size());
+                RCLCPP_DEBUG(get_logger(), "Queue size after sending: %zu", command_queue_.size());
             }
             last_send_time = current_time;
         } else {
             // Debug: 打印未达到发送间隔的情况
-            RCLCPP_INFO(get_logger(), "Skipping send due to time interval (%.6f < 0.005)", elapsed);
+            RCLCPP_DEBUG(get_logger(), "Skipping send due to time interval (%.6f < 0.005)", elapsed);
         }
     }
 };
