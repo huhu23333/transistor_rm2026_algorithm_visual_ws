@@ -361,6 +361,12 @@ private:
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
+            if (armors.empty()) {
+                auto command_msg = auto_aim::msg::GimbalCommand(); // 初始化
+                command_msg.pitch = 0;
+                command_msg.yaw = 0;
+                gimbal_command_pub_->publish(command_msg);
+            }
 
             if (!armors.empty()) {
 
@@ -453,7 +459,7 @@ private:
                                 cv::Point2f pred_pixel = armor_solver_->project3DToPixel(predicted_pos);
                                 cv::circle(frame, pred_pixel, 8, cv::Scalar(0, 255, 255), 2);
                         }
-                    } 
+                    }
                     
                 }
             }
