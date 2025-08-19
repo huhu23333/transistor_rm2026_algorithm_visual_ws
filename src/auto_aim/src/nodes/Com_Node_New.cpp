@@ -58,8 +58,7 @@ public:
 private:
     rclcpp::Publisher<auto_aim::msg::SerialData>::SharedPtr serial_data_pub_;
     rclcpp::Subscription<auto_aim::msg::GimbalCommand>::SharedPtr gimbal_command_sub_;
-    static constexpr size_t BUFFER_SIZE = 256;
-    static constexpr size_t READ_BUFFER_SIZE = 64;
+    static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;
     static constexpr uint8_t FRAME_HEADER2 = 0x52;
     static constexpr uint8_t COMMAND_CODE = 0xCD;
@@ -283,6 +282,12 @@ private:
         size_t frames_processed = 0;
 
         while (buffer_index_ >= FRAME_MIN_SIZE && frames_processed < MAX_FRAMES_PER_LOOP) {
+            // 安全检查：如果缓冲区接近满，立即清空
+            if (buffer_index_ >= BUFFER_SIZE - 128) {
+                RCLCPP_WARN(get_logger(), "Buffer approaching capacity (%zu bytes), clearing", buffer_index_);
+                buffer_index_ = 0;
+                return;
+            }
 
             // 查找帧头
             size_t header_pos = 0;
@@ -384,18 +389,21 @@ private:
             last_debug_time_ = current_time;
         }
 
-        // 读取串口数据部分保持不变            
-        // 安全检查：如果缓冲区接近满，立即清空
-        if (buffer_index_ >= BUFFER_SIZE - READ_BUFFER_SIZE) {
-            RCLCPP_WARN(get_logger(), "Buffer approaching capacity (%zu bytes), clearing", buffer_index_);
-            buffer_index_ = 0;
-        }
-        uint8_t temp_buffer[READ_BUFFER_SIZE];
-        ssize_t bytes_read = read(fd_, temp_buffer, sizeof(temp_buffer));
-        if (bytes_read > 0) {
-            memcpy(buffer_.data() + buffer_index_, temp_buffer, bytes_read);
-            buffer_index_ += bytes_read;
-            processBuffer();
+        // 读取串口数据部分保持不变
+        if (buffer_index_ < BUFFER_SIZE - 128) {
+            uint8_t temp_buffer[128];
+            ssize_t bytes_read = read(fd_, temp_buffer, sizeof(temp_buffer));
+            
+            if (bytes_read > 0) {
+                if (buffer_index_ + bytes_read < BUFFER_SIZE) {
+                    memcpy(buffer_.data() + buffer_index_, temp_buffer, bytes_read);
+                    buffer_index_ += bytes_read;
+                    processBuffer();
+                } else {
+                    RCLCPP_WARN(get_logger(), "Buffer near full, discarding data");
+                    buffer_index_ = 0;
+                }
+            }
         }
 
         // 修改发送命令部分
