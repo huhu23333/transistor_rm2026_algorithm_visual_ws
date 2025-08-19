@@ -420,7 +420,10 @@ private:
                 std::lock_guard<std::mutex> lock(queue_mutex_);
                 // Debug: 打印队列状态
                 RCLCPP_INFO(get_logger(), "Queue size before sending: %zu", command_queue_.size());
-                
+
+                if (command_queue_.empty()) {
+                    bool send_success = sendData(0, 8000);
+                }
                 while (!command_queue_.empty()) {  // 处理队列中的所有命令
                     auto cmd = command_queue_.front();
                     // Debug: 打印即将发送的命令
