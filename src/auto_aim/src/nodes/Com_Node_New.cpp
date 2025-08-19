@@ -58,8 +58,8 @@ public:
 private:
     rclcpp::Publisher<auto_aim::msg::SerialData>::SharedPtr serial_data_pub_;
     rclcpp::Subscription<auto_aim::msg::GimbalCommand>::SharedPtr gimbal_command_sub_;
-    static constexpr size_t BUFFER_SIZE = 128;
-    static constexpr size_t READ_BUFFER_SIZE = 32;
+    static constexpr size_t BUFFER_SIZE = 256;
+    static constexpr size_t READ_BUFFER_SIZE = 64;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;
     static constexpr uint8_t FRAME_HEADER2 = 0x52;
     static constexpr uint8_t COMMAND_CODE = 0xCD;
