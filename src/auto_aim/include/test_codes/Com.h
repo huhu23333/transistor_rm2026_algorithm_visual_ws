@@ -48,7 +48,7 @@ private:
         uint8_t color;
         float z_rotation_velocity;
     };
-    static constexpr size_t BUFFER_SIZE = 256;
+    static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;
     static constexpr uint8_t FRAME_HEADER2 = 0x52;
     static constexpr uint8_t COMMAND_CODE = 0xCD;

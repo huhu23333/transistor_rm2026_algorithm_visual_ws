@@ -129,6 +129,7 @@ public:
         camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
 #endif
 #endif
+        reset_com_frame = (*config_file_ptr)["reset_com_frame"].as<int>();
 
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -156,7 +157,7 @@ public:
             std::bind(&ArmorDetectNode::processImage, this));
         
         com_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(10), // 33
+            std::chrono::milliseconds(1),
             std::bind(&SerialCommunicationClass::timerCallback, serial_communication_));
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
@@ -197,9 +198,9 @@ private:
         last_pitch_rad_ = current_pitch_;
         last_yaw_rad_ = current_yaw_;
 
-        ground_stable_point = cv::Point2f(500+total_yaw_rad_*1300, 500+last_pitch_rad_*1350);
+        ground_stable_point = cv::Point2f(2000+total_yaw_rad_*1300, 500+last_pitch_rad_*1350);
 
-        RCLCPP_INFO(this->get_logger(), 
+        RCLCPP_DEBUG(this->get_logger(), 
             "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f, point=(%.1f, %.1f)",
             bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str(),
             yaw_circle_, total_yaw_rad_, ground_stable_point.x, ground_stable_point.y);
@@ -365,11 +366,14 @@ private:
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            if (armors.empty()) {
+            if (armors.empty() && reset_com_frame_count >= reset_com_frame) {
                 serial_communication_->sendData(0, 0);
             }
+            if (reset_com_frame_count < reset_com_frame) {
+                reset_com_frame_count += 1;
+            }
             if (!armors.empty()) {
-
+                reset_com_frame_count = 0;
                 // 选择最佳目标（置信度最高）
                 auto it = std::max_element(
                     classifyResults.begin(), classifyResults.end(),
@@ -434,6 +438,7 @@ private:
                             has_valid_target_ = true;
 
                             pitch_integrate_temp += ballistic_result.pitch_angle * 0.2;
+                            pitch_integrate_temp = pitch_integrate_temp * 0.99;
 
                             if (pitch_integrate_temp > 60.0) {
                                 pitch_integrate_temp = 60.0;
@@ -478,7 +483,7 @@ private:
         }        
 
         // 获取处理帧率
-        RCLCPP_DEBUG(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
+        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
     }
 
     // 参数文件
@@ -541,11 +546,16 @@ private:
     cv::Point2f ground_stable_point;
     std::queue<cv::Point2f> ground_stable_point_delay;
     std::shared_ptr<SerialCommunicationClass> serial_communication_;
+    int reset_com_frame;
+    int reset_com_frame_count = 0;
 };
 
 int main(int argc, char * argv[]) {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<ArmorDetectNode>());
+    auto node = std::make_shared<ArmorDetectNode>();
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    executor.spin();
     rclcpp::shutdown();
     return 0;
 }
