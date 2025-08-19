@@ -170,7 +170,7 @@ private:
 
     bool sendData(float pitch_target, float yaw_target) {
         //pitch_target = -0.01; // 约 0.01对应30°
-        yaw_target = 0;
+        //yaw_target = 0;
         // 传入参数使用弧度制 [-M_PI, M_PI]
         // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + pitch_target(4) + yaw_target(2) + CRC(1) = 11字节
         std::array<uint8_t, 11> tx_data{};
@@ -275,8 +275,8 @@ private:
     }
 
     void processBuffer() {
-        // 每次处理最多处理5个帧，防止处理过多数据导致阻塞
-        static const size_t MAX_FRAMES_PER_LOOP = 5;
+        // 每次处理最多处理10个帧，防止处理过多数据导致阻塞
+        static const size_t MAX_FRAMES_PER_LOOP = 10;
         size_t frames_processed = 0;
 
         while (buffer_index_ >= FRAME_MIN_SIZE && frames_processed < MAX_FRAMES_PER_LOOP) {

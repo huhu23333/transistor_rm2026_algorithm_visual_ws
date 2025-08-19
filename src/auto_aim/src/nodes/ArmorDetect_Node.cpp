@@ -160,6 +160,11 @@ public:
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
+        auto command_msg = auto_aim::msg::GimbalCommand(); // 初始化
+        command_msg.pitch = 0;
+        command_msg.yaw = 0;
+        gimbal_command_pub_->publish(command_msg);
+
         RCLCPP_INFO(this->get_logger(), "ArmorDetectNode initialized");
     }
 
