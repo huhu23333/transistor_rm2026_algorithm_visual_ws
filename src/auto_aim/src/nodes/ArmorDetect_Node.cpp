@@ -7,8 +7,8 @@
 #include "armor_detector/ArmorClassifier.h"
 #include "armor_detector/ArmorSolver.h"
 #include "armor_detector/ArmorAngleKalman.h"
-#include "auto_aim/msg/serial_data.hpp"
-#include "auto_aim/msg/gimbal_command.hpp"
+//#include "auto_aim/msg/serial_data.hpp"
+//#include "auto_aim/msg/gimbal_command.hpp"
 #include <chrono>
 #include <string>
 #include <thread>
@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <queue>
+#include "test_codes/Com.h"
 
 namespace fs = std::filesystem;
 
@@ -71,13 +72,8 @@ public:
 
 
 
-        // 初始化发布者和订阅者
-        gimbal_command_pub_ = this->create_publisher<auto_aim::msg::GimbalCommand>(
-            "gimbal_command", 10);
-            
-        serial_data_sub_ = this->create_subscription<auto_aim::msg::SerialData>(
-            "serial_data", 10,
-            std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
+        // 初始化串口通信器
+        serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
 
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
@@ -158,13 +154,15 @@ public:
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
             std::bind(&ArmorDetectNode::processImage, this));
+        
+        com_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(10), // 33
+            std::bind(&SerialCommunicationClass::timerCallback, serial_communication_));
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
-        auto command_msg = auto_aim::msg::GimbalCommand(); // 初始化
-        command_msg.pitch = 0;
-        command_msg.yaw = 0;
-        gimbal_command_pub_->publish(command_msg);
+        // 串口通信下位机初始化
+        serial_communication_->sendData(0, 0);
 
         RCLCPP_INFO(this->get_logger(), "ArmorDetectNode initialized");
     }
@@ -176,18 +174,18 @@ public:
     }
 
 private:
-    void serialDataCallback(const auto_aim::msg::SerialData::SharedPtr msg) {
-        bullet_velocity_ = msg->bullet_velocity;
-        current_pitch_ = ((float)(msg->bullet_angle)) * 30 / 1.8 * M_PI / 180;
-        current_yaw_ = ((float)(msg->gimbal_yaw)) * M_PI / 4096.0;
-        enemy_color_ = (msg->color == 0) ? "RED" : "BLUE";
+    void serialDataCallback(const SerialData& msg) {
+        bullet_velocity_ = msg.bullet_velocity;
+        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180;
+        current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;
+        enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
         } else if (enemy_color_ == "BLUE") {
             params_.enemy_color = Params::BLUE;
         }
         if (light_detector_) {
-            light_detector_->setEnemyColor(msg->color == 0 ? Params::RED : Params::BLUE);
+            light_detector_->setEnemyColor(msg.color == 0 ? Params::RED : Params::BLUE);
         }
 
         if (current_yaw_ < -M_PI/2 && last_yaw_rad_ > M_PI/2) {
@@ -368,12 +366,8 @@ private:
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
             if (armors.empty()) {
-                auto command_msg = auto_aim::msg::GimbalCommand(); // 初始化
-                command_msg.pitch = 0;
-                command_msg.yaw = 0;
-                gimbal_command_pub_->publish(command_msg);
+                serial_communication_->sendData(0, 0);
             }
-
             if (!armors.empty()) {
 
                 // 选择最佳目标（置信度最高）
@@ -449,17 +443,16 @@ private:
                             }
                             
                             // 发布云台控制命令
-                            auto command_msg = auto_aim::msg::GimbalCommand();
-                            command_msg.pitch = pitch_integrate_temp * 0.01/30;
-                            command_msg.yaw = ballistic_result.yaw_angle;
-                            gimbal_command_pub_->publish(command_msg);
+                            float command_pitch = pitch_integrate_temp * 0.01/30;
+                            float command_yaw = ballistic_result.yaw_angle;
+                            serial_communication_->sendData(command_pitch, command_yaw);
 
                             RCLCPP_DEBUG(this->get_logger(),
                                 "Target %d: Position[%.2f, %.2f, %.2f] mm, "
                                 "Command[pitch: %.2f, yaw: %.2f] deg",
                                 best_result.number,
                                 predicted_pos.x, predicted_pos.y, predicted_pos.z,
-                                command_msg.pitch, command_msg.yaw);
+                                command_pitch, command_yaw);
                             
                                 // 绘制预测点（黄色）
                                 cv::Point2f pred_pixel = armor_solver_->project3DToPixel(predicted_pos);
@@ -511,9 +504,8 @@ private:
     float RESET_DISTANCE_THRESHOLD; // 单位：mm
     float MAX_LOST_TIME;              // 单位：秒
     // 成员变量
-    rclcpp::Publisher<auto_aim::msg::GimbalCommand>::SharedPtr gimbal_command_pub_;
-    rclcpp::Subscription<auto_aim::msg::SerialData>::SharedPtr serial_data_sub_;
     rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr com_timer_;
     
     std::shared_ptr<Camera> camera_;
     std::shared_ptr<LightBarDetector> light_detector_;
@@ -548,6 +540,7 @@ private:
     float pitch_integrate_temp = 0.0;
     cv::Point2f ground_stable_point;
     std::queue<cv::Point2f> ground_stable_point_delay;
+    std::shared_ptr<SerialCommunicationClass> serial_communication_;
 };
 
 int main(int argc, char * argv[]) {

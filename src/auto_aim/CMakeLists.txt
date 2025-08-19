@@ -18,15 +18,15 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(TBB REQUIRED)
 
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/SerialData.msg"
-  "msg/GimbalCommand.msg"
-)
+#rosidl_generate_interfaces(${PROJECT_NAME}
+#  "msg/SerialData.msg"
+#  "msg/GimbalCommand.msg"
+#)
 
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
+#rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
 
 # 查找 MvCameraControl 库
 find_library(MVCAMERA_LIB MvCameraControl PATHS /opt/MVS/lib/64)
@@ -57,13 +57,14 @@ add_library(armor_detector SHARED
     src/test_codes/VideoInput.cpp
     src/test_codes/ImagesInput.cpp
     src/test_codes/SharedMemoryTorch.cpp
+    src/test_codes/Com.cpp
 )
 add_library(crc_lib SHARED
     src/nodes/CRC.cpp
 )
 # 添加可执行文件
 add_executable(armor_detect_node src/nodes/ArmorDetect_Node.cpp)
-add_executable(com_node src/nodes/Com_Node_New.cpp)
+#add_executable(com_node src/nodes/Com_Node_New.cpp)
 
 # 为装甲板检测器添加依赖
 target_link_libraries(armor_detector
@@ -71,6 +72,9 @@ target_link_libraries(armor_detector
     Eigen3::Eigen
     rclcpp::rclcpp   # 添加这一行
     yaml-cpp
+#    "${cpp_typesupport_target}"
+    crc_lib
+    pthread
 )
 
 # 为装甲板检测节点添加依赖
@@ -83,18 +87,18 @@ target_link_libraries(armor_detect_node
     rclcpp::rclcpp
     ${sensor_msgs_LIBRARIES}
     ${cv_bridge_LIBRARIES}
-    "${cpp_typesupport_target}"
+#    "${cpp_typesupport_target}"
     yaml-cpp
     TBB::tbb
 )
 
 # 为通信节点添加依赖
-target_link_libraries(com_node
-    crc_lib
-    pthread
-    rclcpp::rclcpp
-    "${cpp_typesupport_target}"
-)
+#target_link_libraries(com_node
+#    crc_lib
+#    pthread
+#    rclcpp::rclcpp
+#    "${cpp_typesupport_target}"
+#)
 
 ament_target_dependencies(armor_detector yaml-cpp)
 
@@ -115,7 +119,7 @@ link_directories(/opt/MVS/lib/64)
 # 安装
 install(TARGETS
     armor_detect_node
-    com_node
+#    com_node
     armor_detector  # 添加这行
     crc_lib        # 添加这行
     LIBRARY DESTINATION lib
