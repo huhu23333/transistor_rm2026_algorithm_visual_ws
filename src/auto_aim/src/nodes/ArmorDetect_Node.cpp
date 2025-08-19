@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <unistd.h>
 #include <limits.h>
+#include <queue>
 
 namespace fs = std::filesystem;
 
@@ -214,7 +215,7 @@ private:
         cv::Mat result = image.clone();
 
         // 0. 绘制地面系不动点（DEBUG）
-        cv::circle(result, ground_stable_point, 10, cv::Scalar(0, 255, 0), 2);
+        cv::circle(result, ground_stable_point_delay.front(), 10, cv::Scalar(0, 255, 0), 2);
 
         // 1. 绘制灯条（绿色）
         for (const auto& light : lights) {
@@ -357,7 +358,12 @@ private:
             armors = armor_detector_->detectArmors(lights);
             has_valid_target_ = false;
 
-            classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
+
+            ground_stable_point_delay.push(ground_stable_point);
+            while (ground_stable_point_delay.size() > 1) {
+                ground_stable_point_delay.pop();
+            }
+            classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point_delay.front());
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
@@ -541,6 +547,7 @@ private:
 #endif
     float pitch_integrate_temp = 0.0;
     cv::Point2f ground_stable_point;
+    std::queue<cv::Point2f> ground_stable_point_delay;
 };
 
 int main(int argc, char * argv[]) {

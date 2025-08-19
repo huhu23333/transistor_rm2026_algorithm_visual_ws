@@ -55,7 +55,7 @@ binary_img_THRESHOLD : 240 # 128 # 180
 color_rect_expand_FACTOR : 1.5
 mean_color_diff_THRESHOLD_BLUE : 15.0
 mean_color_diff_THRESHOLD_RED : 5.0
-THRES_MAX_COLOR_RED : 100
+THRES_MAX_COLOR_RED : 60
 THRES_MAX_COLOR_BLUE : 100
 
 # ArmorDetector 参数
@@ -96,7 +96,7 @@ INPUT_WIDTH : 64
 MAX_TRACKING_AGE_MS : 100  # 最大跟踪时间100ms // DEBUG // 100
 MIN_TRACKING_COUNT : 2     # 最小连续跟踪次数           // 2
 IS_NEAR_MAX_DIST_RATIO : 2.0     # 50.0
-fit_step : 3
+fit_step : 5
 predict_step : 5
 fourier_fit_step : 60
 fourier_fit_order : 5
