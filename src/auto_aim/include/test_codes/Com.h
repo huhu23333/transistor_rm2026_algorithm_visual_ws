@@ -38,6 +38,7 @@ public:
     ~SerialCommunicationClass();
     void timerCallback();
     bool sendData(float pitch_target, float yaw_target);
+    void timerThread();
     
 private:
     struct DataFrame {
@@ -64,6 +65,8 @@ private:
 
     rclcpp::Node* node;
     std::function<void(const SerialData&)> serialDataCallback;
+    int error_print_slower = 0;
+    bool running = true;
     
     void initializeSerial();
     std::string findAvailableSerialPort();

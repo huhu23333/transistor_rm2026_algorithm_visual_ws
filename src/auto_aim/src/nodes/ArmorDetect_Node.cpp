@@ -25,6 +25,7 @@
 #include <limits.h>
 #include <queue>
 #include "test_codes/Com.h"
+#include <csignal>
 
 namespace fs = std::filesystem;
 
@@ -42,6 +43,7 @@ bool image_used = true;
 class ArmorDetectNode : public rclcpp::Node {
 public:
     ArmorDetectNode() : Node("armor_detect_node") {
+
         // 1. 获取可执行文件路径
         char exec_path[PATH_MAX];
         ssize_t len = readlink("/proc/self/exe", exec_path, sizeof(exec_path) - 1);
@@ -155,10 +157,9 @@ public:
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
             std::bind(&ArmorDetectNode::processImage, this));
-        
-        com_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(1),
-            std::bind(&SerialCommunicationClass::timerCallback, serial_communication_));
+
+        com_timer_thread_ = std::thread(std::bind(&SerialCommunicationClass::timerThread, serial_communication_));
+        com_timer_thread_.detach();
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
@@ -169,6 +170,7 @@ public:
     }
 
     ~ArmorDetectNode() {
+        serial_communication_->~SerialCommunicationClass();
         cv::destroyAllWindows();
         pthread_mutex_destroy(&g_mutex);
         RCLCPP_INFO(this->get_logger(), "ArmorDetectNode destroyed");
@@ -448,7 +450,7 @@ private:
                             }
                             
                             // 发布云台控制命令
-                            float command_pitch = pitch_integrate_temp * 0.01/30;
+                            float command_pitch = pitch_integrate_temp;
                             float command_yaw = ballistic_result.yaw_angle;
                             serial_communication_->sendData(command_pitch, command_yaw);
 
@@ -483,7 +485,7 @@ private:
         }        
 
         // 获取处理帧率
-        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
+        RCLCPP_DEBUG(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
     }
 
     // 参数文件
@@ -510,7 +512,7 @@ private:
     float MAX_LOST_TIME;              // 单位：秒
     // 成员变量
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::TimerBase::SharedPtr com_timer_;
+    std::thread com_timer_thread_;
     
     std::shared_ptr<Camera> camera_;
     std::shared_ptr<LightBarDetector> light_detector_;
@@ -550,12 +552,16 @@ private:
     int reset_com_frame_count = 0;
 };
 
+std::shared_ptr<ArmorDetectNode> node;
+void signalHandler(int signum) {
+    if (node) {
+        rclcpp::shutdown();
+    }
+}
 int main(int argc, char * argv[]) {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<ArmorDetectNode>();
-    //rclcpp::executors::MultiThreadedExecutor executor;
-    //executor.add_node(node);
-    //executor.spin();
+    node = std::make_shared<ArmorDetectNode>();
+    signal(SIGINT, signalHandler);
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

@@ -216,7 +216,7 @@ class ShmPytorchProcessorNode(Node):
 
                     t_5 = time.time()
 
-                    self.get_logger().info(f"python process time: {(time.time()-t_start)*1000:.2f}ms\n{(t_1-t_start)*1000:.2f} | {(t_2-t_1)*1000:.2f} | {(t_3-t_2)*1000:.2f} | {(t_4-t_3)*1000:.2f} | {(t_5-t_4)*1000:.2f}")
+                    self.get_logger().debug(f"python process time: {(time.time()-t_start)*1000:.2f}ms\n{(t_1-t_start)*1000:.2f} | {(t_2-t_1)*1000:.2f} | {(t_3-t_2)*1000:.2f} | {(t_4-t_3)*1000:.2f} | {(t_5-t_4)*1000:.2f}")
 
                 time.sleep(0.001)  # 减少CPU占用
                 

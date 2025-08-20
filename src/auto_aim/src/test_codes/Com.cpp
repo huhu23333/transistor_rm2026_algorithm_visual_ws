@@ -8,6 +8,7 @@ SerialCommunicationClass::SerialCommunicationClass(rclcpp::Node* node, std::func
 }
 
 SerialCommunicationClass::~SerialCommunicationClass() {
+    running = false;
     if (fd_ >= 0) {
         close(fd_);
     }
@@ -107,6 +108,7 @@ bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target) {
         tx_data[3] = 0x06;  // 数据长度为6（4字节pitch_target + 2字节yaw_target）
         
         // 处理pitch_target (4字节)
+        pitch_target = pitch_target * 0.01/30;
         memcpy(&tx_data[4], &pitch_target, sizeof(float));  // 4字节float
         
         // 处理yaw_target (2字节)
@@ -275,7 +277,10 @@ void SerialCommunicationClass::processBuffer() {
 void SerialCommunicationClass::timerCallback() {
     // 检查串口状态
     if (fd_ < 0) {
-        RCLCPP_ERROR(node->get_logger(), "Serial port not available");
+        if (error_print_slower % 1000 == 0) {
+            RCLCPP_ERROR(node->get_logger(), "Serial port not available");
+        }
+        error_print_slower += 1;
         return;
     }
 
@@ -294,5 +299,16 @@ void SerialCommunicationClass::timerCallback() {
                 buffer_index_ = 0;
             }
         }
+    }
+}
+
+void SerialCommunicationClass::timerThread() {
+    while (running) {
+        auto start = std::chrono::steady_clock::now();
+
+        timerCallback();
+
+        // 休眠至下一次调用
+        std::this_thread::sleep_until(start + std::chrono::microseconds(1000));  // 大约1ms周期
     }
 }
