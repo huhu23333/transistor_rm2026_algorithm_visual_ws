@@ -107,11 +107,8 @@ float Light::computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& b
 
 LightBarDetector::LightBarDetector(const Params& params, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) // 新增传入节点，用于debug打印
     : params(params), enemy_color(params.enemy_color), node(node), config_file_ptr(config_file_ptr) {
-        if (params.enemy_color == Params::BLUE) {
-            mean_color_diff_THRESHOLD = (*config_file_ptr)["mean_color_diff_THRESHOLD_BLUE"].as<float>(); 
-        } else {
-            mean_color_diff_THRESHOLD = (*config_file_ptr)["mean_color_diff_THRESHOLD_RED"].as<float>(); 
-        }
+        mean_color_diff_THRESHOLD_BLUE = (*config_file_ptr)["mean_color_diff_THRESHOLD_BLUE"].as<float>();
+        mean_color_diff_THRESHOLD_RED = (*config_file_ptr)["mean_color_diff_THRESHOLD_RED"].as<float>();
         color_rect_expand_FACTOR = (*config_file_ptr)["color_rect_expand_FACTOR"].as<float>(); 
         binary_img_THRESHOLD = (*config_file_ptr)["binary_img_THRESHOLD"].as<uint8_t>(); 
         THRES_MAX_COLOR_RED = (*config_file_ptr)["THRES_MAX_COLOR_RED"].as<int>(); 
@@ -172,6 +169,12 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
 
                 // 4. 移除小于阈值的图像
                 RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
+                float mean_color_diff_THRESHOLD;
+                if (params.enemy_color == Params::BLUE) {
+                    mean_color_diff_THRESHOLD = mean_color_diff_THRESHOLD_BLUE;
+                } else {
+                    mean_color_diff_THRESHOLD = mean_color_diff_THRESHOLD_RED;
+                }
                 if (mean_color_diff < mean_color_diff_THRESHOLD) {
                     lightDetectThreadInfo.is_true_light = false;
                     return;

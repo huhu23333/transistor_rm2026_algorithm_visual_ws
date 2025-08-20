@@ -55,7 +55,8 @@ private:
     rclcpp::Node* node;                  // 用于打印的节点
     std::shared_ptr<YAML::Node> config_file_ptr; // 配置文件
     // 灯条检测参数
-    float mean_color_diff_THRESHOLD;
+    float mean_color_diff_THRESHOLD_RED;
+    float mean_color_diff_THRESHOLD_BLUE;
     float color_rect_expand_FACTOR;
     uint8_t binary_img_THRESHOLD;
     // 颜色通道差值的阈值常量
