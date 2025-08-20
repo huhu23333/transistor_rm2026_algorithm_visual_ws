@@ -105,5 +105,5 @@ fit_step : 5
 predict_step : 5
 fourier_fit_step : 60
 fourier_fit_order : 5
-fourier_predict_step : 10
+fourier_predict_step : 30
 MAX_FOURIER_TRACKING_AGE_MS : 1000

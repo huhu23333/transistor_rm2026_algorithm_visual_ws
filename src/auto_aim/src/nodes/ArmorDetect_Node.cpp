@@ -439,10 +439,10 @@ private:
                         float total_delay = image_latency + comm_latency + bullet_time;
                         
                         // 预测未来位置
-                        //cv::Point3f predicted_pos = angle_kalman_->predictKalmanFilter(total_delay);
+                        cv::Point3f predicted_pos = angle_kalman_->predictKalmanFilter(total_delay);
 
-                        cv::Point3f predicted_pos = trans_pred_->trans2DPredTo3D(best_result, aim.position, classifyResults_forFourierPredict,
-                                                                                 total_delay, fps_counter->fps());
+                        //cv::Point3f predicted_pos = trans_pred_->trans2DPredTo3D(best_result, aim.position, classifyResults_forFourierPredict,
+                        //                                                         total_delay, fps_counter->fps());
                         
                         // 弹道解算
                         BallisticInfo ballistic_result = calcBallisticAngle(
