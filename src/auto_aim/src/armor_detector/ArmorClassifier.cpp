@@ -274,7 +274,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         if (tracked_armors[i].is_tracked_now) {
             for (int j = 0; j < tracked_armors[i].prediction_index-1; ++j)
             {
-                tracked_armors[i].predictor.addPoint(tracked_armors[i].predictions[j]);
+                tracked_armors[i].predictor.addPoint(tracked_armors[i].predictions[j] - tracked_armors[i].last_ground_stable_point);
             }
             tracked_armors[i].predictor.addPoint(tracked_armors[i].center_last_seen - tracked_armors[i].last_ground_stable_point);
             tracked_armors[i].predictor.fitLinear(fit_step);
@@ -304,7 +304,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
     // 更新每一类装甲板傅里叶预测结果
     for (size_t i = 0; i < classified_latest_tracked_armors.size(); ++i) {;
         if (!classified_latest_tracked_armors[i].is_tracked_now) {
-            classified_latest_tracked_armors[i].predictor.addPoint(classified_latest_tracked_armors[i].center_predicted);
+            classified_latest_tracked_armors[i].predictor.addPoint(classified_latest_tracked_armors[i].center_predicted - classified_latest_tracked_armors[i].last_ground_stable_point);
         }
         classified_latest_tracked_armors[i].predictor.fitFourier(fourier_fit_step, fourier_fit_order);
         classified_latest_tracked_armors[i].predictions = classified_latest_tracked_armors[i].predictor.predictFourier(fourier_predict_step, classified_latest_tracked_armors[i].last_ground_stable_point);

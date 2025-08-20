@@ -217,6 +217,14 @@ private:
 
         // 0. 绘制地面系不动点（DEBUG）
         cv::circle(result, ground_stable_point_delay.front(), 10, cv::Scalar(0, 255, 0), 2);
+        cv::circle(result, cv::Point2f(1000, 1000) - ground_stable_point_delay.front(), 10, cv::Scalar(0, 255, 0), 2);
+        for (const auto& res : classifyResults) {
+            for (size_t i = 0; i < res.corners.size() && i < 4; i++) {
+                cv::line(result, res.corners[i] - ground_stable_point_delay.front() + cv::Point2f(500, 500), 
+                        res.corners[(i+1)%4] - ground_stable_point_delay.front() + cv::Point2f(500, 500), 
+                        cv::Scalar(0, 255, 0), 2);
+            }    
+        }
 
         // 1. 绘制灯条（绿色）
         for (const auto& light : lights) {
@@ -485,7 +493,7 @@ private:
         }        
 
         // 获取处理帧率
-        RCLCPP_DEBUG(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
+        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
     }
 
     // 参数文件
