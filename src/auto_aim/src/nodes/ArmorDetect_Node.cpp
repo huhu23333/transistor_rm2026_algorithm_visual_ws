@@ -377,7 +377,7 @@ private:
 
 
             ground_stable_point_delay.push(ground_stable_point);
-            while (ground_stable_point_delay.size() > 1) {
+            while (ground_stable_point_delay.size() > 2) {
                 ground_stable_point_delay.pop();
             }
             classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point_delay.front());
