@@ -155,6 +155,7 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
         if (enemy_color != Params::BOTH) {
             // 1. 提取颜色通道差值图像
             color_diff = extractColorChannelDiff(img);
+            // cv::imshow("Light Bar Debug", color_diff);
         }
 
         std::for_each(std::execution::par, lightDetectThreadInfos.begin(), lightDetectThreadInfos.end(), 
@@ -170,7 +171,7 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
                 float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
 
                 // 4. 移除小于阈值的图像
-                // RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
+                RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
                 if (mean_color_diff < mean_color_diff_THRESHOLD) {
                     lightDetectThreadInfo.is_true_light = false;
                     return;
