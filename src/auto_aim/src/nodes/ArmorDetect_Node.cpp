@@ -262,8 +262,10 @@ private:
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
         for (const auto& res : classifyResults_forFourierPredict) {
-            for (auto& prediction : res.predictions) {
-                cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
+            if (res.is_steady_tracked) {
+                for (auto& prediction : res.predictions) {
+                    cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
+                }
             }
         }
         for (const auto& res : classifyResults) {

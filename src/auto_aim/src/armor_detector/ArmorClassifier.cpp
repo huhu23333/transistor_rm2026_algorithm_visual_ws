@@ -315,21 +315,20 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         if (tracked_armors[i].is_steady_tracked) {
             results[0].emplace_back(tracked_armors[i].armor_last_seen, tracked_armors[i].number, tracked_armors[i].confidence, 
                 tracked_armors[i].is_tracked_now, tracked_armors[i].is_large, tracked_armors[i].not_slant, 
-                tracked_armors[i].predictions, tracked_armors[i].center_predicted);
+                tracked_armors[i].predictions, tracked_armors[i].center_predicted, tracked_armors[i].is_steady_tracked);
         }
     }
     for (size_t i = 0; i < classified_latest_tracked_armors.size(); ++i) {
-        if (classified_latest_tracked_armors[i].is_steady_tracked) {
-            results[1].emplace_back(
-                classified_latest_tracked_armors[i].armor_last_seen, 
-                classified_latest_tracked_armors[i].number, 
-                classified_latest_tracked_armors[i].confidence, 
-                classified_latest_tracked_armors[i].is_tracked_now, 
-                classified_latest_tracked_armors[i].is_large, 
-                classified_latest_tracked_armors[i].not_slant, 
-                classified_latest_tracked_armors[i].predictions, 
-                classified_latest_tracked_armors[i].center_predicted);
-        }
+        results[1].emplace_back(
+            classified_latest_tracked_armors[i].armor_last_seen, 
+            classified_latest_tracked_armors[i].number, 
+            classified_latest_tracked_armors[i].confidence, 
+            classified_latest_tracked_armors[i].is_tracked_now, 
+            classified_latest_tracked_armors[i].is_large, 
+            classified_latest_tracked_armors[i].not_slant, 
+            classified_latest_tracked_armors[i].predictions, 
+            classified_latest_tracked_armors[i].center_predicted,
+            classified_latest_tracked_armors[i].is_steady_tracked);
     }
     
     return results;
