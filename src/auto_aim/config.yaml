@@ -97,7 +97,7 @@ INPUT_HEIGHT : 48
 INPUT_WIDTH : 64
 MAX_TRACKING_AGE_MS : 300  # 最大跟踪时间100ms // DEBUG // 100
 MIN_TRACKING_COUNT : 2     # 最小连续跟踪次数           // 2
-IS_NEAR_MAX_DIST_RATIO : 2.0     # 50.0
+IS_NEAR_MAX_DIST_RATIO : 1.5     # 50.0
 fit_step : 5
 predict_step : 5
 fourier_fit_step : 60

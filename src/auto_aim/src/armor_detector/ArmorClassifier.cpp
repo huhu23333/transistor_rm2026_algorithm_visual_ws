@@ -141,7 +141,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             --i;
         }
     }
-    /* for (size_t i = 0; i < classified_latest_tracked_armors.size(); ++i) {
+    for (size_t i = 0; i < classified_latest_tracked_armors.size(); ++i) {
         classified_latest_tracked_armors[i].is_tracked_now = false;
         auto age = std::chrono::duration_cast<std::chrono::milliseconds>(
             current_time - classified_latest_tracked_armors[i].last_seen).count();
@@ -156,7 +156,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             classified_latest_tracked_armors[i].prediction_index = 0;
             classified_latest_tracked_armors[i].last_ground_stable_point = cv::Point2f(0, 0);
         }
-    } */
+    }
     for (size_t i = 0; i < process_armors_count; ++i) {
         roiImageThreadInfos[i].armor = &armors[i];
         roiImageThreadInfos[i].armor_index = i;
