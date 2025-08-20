@@ -201,7 +201,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             is_armor_probability, is_large_probability, not_screen_probability, not_slant_probability, classify_confidence, current_number
         );
 
-        is_armor_probability = 1.0; // DEBUG
+        //is_armor_probability = 1.0; // DEBUG
         is_large_probability = 0.0;
         not_screen_probability = 1.0;
         not_slant_probability = 1.0;
@@ -245,7 +245,6 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
                     tracked_armors[j].armor_last_seen = armor;
                     tracked_armors[j].confidence = confidence;
                     tracked_armors[j].not_slant = not_slant;
-                    tracked_armors[j].last_ground_stable_point = ground_stable_point;
                     is_tracked = true;
                     break;
                 }
@@ -257,7 +256,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             }
         }
     }
-    // 更新所有目标
+    // 更新所有目标 part1
     for (size_t i = 0; i < tracked_armors.size(); ++i) {
         if (tracked_armors[i].last_seen != current_time && tracked_armors[i].tracking_count > 0) {
             tracked_armors[i].tracking_count -= 1;
@@ -276,9 +275,10 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             {
                 tracked_armors[i].predictor.addPoint(tracked_armors[i].predictions[j] - tracked_armors[i].last_ground_stable_point);
             }
-            tracked_armors[i].predictor.addPoint(tracked_armors[i].center_last_seen - tracked_armors[i].last_ground_stable_point);
+            tracked_armors[i].last_ground_stable_point = ground_stable_point;
+            tracked_armors[i].predictor.addPoint(tracked_armors[i].center_last_seen - ground_stable_point);
             tracked_armors[i].predictor.fitLinear(fit_step);
-            tracked_armors[i].predictions = tracked_armors[i].predictor.predictLinear(predict_step, tracked_armors[i].last_ground_stable_point);
+            tracked_armors[i].predictions = tracked_armors[i].predictor.predictLinear(predict_step, ground_stable_point);
             tracked_armors[i].prediction_index = 0;
         } else if (tracked_armors[i].prediction_index < predict_step-1) {
             tracked_armors[i].prediction_index += 1;
@@ -296,7 +296,6 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
             classified_latest_tracked_armors[tracked_armors[i].number].is_large = tracked_armors[i].is_large;
             classified_latest_tracked_armors[tracked_armors[i].number].not_slant = tracked_armors[i].not_slant;
             classified_latest_tracked_armors[tracked_armors[i].number].predictor.addPoint(tracked_armors[i].center_last_seen - tracked_armors[i].last_ground_stable_point);
-            classified_latest_tracked_armors[tracked_armors[i].number].last_ground_stable_point = tracked_armors[i].last_ground_stable_point;
         } else {
             tracked_armors[i].center_predicted = tracked_armors[i].center_last_seen;
         }
@@ -309,6 +308,12 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         classified_latest_tracked_armors[i].predictor.fitFourier(fourier_fit_step, fourier_fit_order);
         classified_latest_tracked_armors[i].predictions = classified_latest_tracked_armors[i].predictor.predictFourier(fourier_predict_step, classified_latest_tracked_armors[i].last_ground_stable_point);
         classified_latest_tracked_armors[i].center_predicted = classified_latest_tracked_armors[i].predictions[0];
+    }
+    // 更新所有目标 part2
+    for (size_t i = 0; i < tracked_armors.size(); ++i) {
+        if (tracked_armors[i].is_steady_tracked) {
+            classified_latest_tracked_armors[tracked_armors[i].number].last_ground_stable_point = tracked_armors[i].last_ground_stable_point;
+        }
     }
     // 输出
     for (size_t i = 0; i < tracked_armors.size(); ++i) {
