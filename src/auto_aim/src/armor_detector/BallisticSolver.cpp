@@ -61,7 +61,7 @@ BallisticInfo calcBallisticAngle(float x_camera, float y_camera, float z_camera,
     float final_pitch = abs(angle1 - cur_pitch) < abs(angle2 - cur_pitch) ? angle1 : angle2;
 
     // 5. 计算需要转动的角度
-    result.pitch_angle = final_pitch - cur_pitch;
+    result.pitch_angle = (final_pitch - cur_pitch) * M_PI / 180;
     result.yaw_angle = target_yaw;
     
     result.valid = true;

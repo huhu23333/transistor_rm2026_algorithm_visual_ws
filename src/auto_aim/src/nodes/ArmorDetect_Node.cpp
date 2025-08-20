@@ -378,10 +378,13 @@ private:
 
             if (armors.empty() && reset_com_frame_count >= reset_com_frame) {
                 serial_communication_->sendData(0, 0);
+                pitch_integrate_temp = 0; // 积分项重置
             }
             if (reset_com_frame_count < reset_com_frame) {
                 reset_com_frame_count += 1;
             }
+
+
             if (!armors.empty()) {
                 reset_com_frame_count = 0;
                 // 选择最佳目标（置信度最高）
@@ -447,24 +450,23 @@ private:
                             // RCLCPP_INFO(this->get_logger(), "Target detected, publishing command");
                             has_valid_target_ = true;
 
-                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.2;
-                            pitch_integrate_temp = pitch_integrate_temp * 0.99;
+                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.1;
 
-                            if (pitch_integrate_temp > 60.0) {
-                                pitch_integrate_temp = 60.0;
+                            if (pitch_integrate_temp > 0.3) {
+                                pitch_integrate_temp = 0.3;
                             }
-                            if (pitch_integrate_temp < -60.0) {
-                                pitch_integrate_temp = -60.0;
+                            if (pitch_integrate_temp < -0.3) {
+                                pitch_integrate_temp = -0.3;
                             }
                             
                             // 发布云台控制命令
-                            float command_pitch = pitch_integrate_temp;
+                            float command_pitch = last_pitch_rad_ + ballistic_result.pitch_angle * 0.7 + pitch_integrate_temp; // PI控制
                             float command_yaw = ballistic_result.yaw_angle;
                             serial_communication_->sendData(command_pitch, command_yaw);
 
-                            RCLCPP_DEBUG(this->get_logger(),
+                            RCLCPP_INFO(this->get_logger(),
                                 "Target %d: Position[%.2f, %.2f, %.2f] mm, "
-                                "Command[pitch: %.2f, yaw: %.2f] deg",
+                                "Command[pitch: %.2f, yaw: %.2f] rad",
                                 best_result.number,
                                 predicted_pos.x, predicted_pos.y, predicted_pos.z,
                                 command_pitch, command_yaw);
@@ -493,7 +495,7 @@ private:
         }        
 
         // 获取处理帧率
-        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
+        RCLCPP_DEBUG(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
     }
 
     // 参数文件
