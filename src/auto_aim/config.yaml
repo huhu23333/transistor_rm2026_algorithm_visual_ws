@@ -23,6 +23,9 @@ images_relative_path : "input_test_image" # 使用图片输入时的图片文件
 
 frame_rate : 30.0
 
+yaw_rad_to_x_pixel_ratio : 1300.0
+pitch_rad_to_y_pixel_ratio : 1350.0
+
 reset_com_frame : 10
 
 # Params.h 参数设置
@@ -102,5 +105,5 @@ fit_step : 5
 predict_step : 5
 fourier_fit_step : 60
 fourier_fit_order : 5
-fourier_predict_step : 5
+fourier_predict_step : 10
 MAX_FOURIER_TRACKING_AGE_MS : 1000

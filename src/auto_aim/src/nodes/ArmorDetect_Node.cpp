@@ -26,6 +26,7 @@
 #include <queue>
 #include "test_codes/Com.h"
 #include <csignal>
+#include "test_codes/PredictionTrans.h"
 
 namespace fs = std::filesystem;
 
@@ -91,6 +92,9 @@ public:
 
         has_valid_target_ = false;
         enemy_color_ = (*config_file_ptr)["enemy_color"].as<std::string>();
+
+        yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
+        pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
         
         params_.min_light_height = (*config_file_ptr)["min_light_height"].as<int>();
         params_.light_slope_offset = (*config_file_ptr)["light_slope_offset"].as<int>();
@@ -153,6 +157,8 @@ public:
         armor_solver_ = std::make_shared<ArmorSolver>(config_file_ptr, this);
         angle_kalman_ = std::make_shared<ArmorAngleKalman>();
 
+        trans_pred_ = std::make_shared<Trans2DPredTo3DClass>(config_file_ptr);
+
         // 创建定时器
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
@@ -179,8 +185,8 @@ public:
 private:
     void serialDataCallback(const SerialData& msg) {
         bullet_velocity_ = msg.bullet_velocity;
-        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180;
-        current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;
+        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180; // 测定pitch轴传入数据1.8大约对应30°
+        current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
         enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -200,7 +206,7 @@ private:
         last_pitch_rad_ = current_pitch_;
         last_yaw_rad_ = current_yaw_;
 
-        ground_stable_point = cv::Point2f(2000+total_yaw_rad_*1300, 500+last_pitch_rad_*1350);
+        ground_stable_point = cv::Point2f(2000+total_yaw_rad_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_*pitch_rad_to_y_pixel_ratio);
 
         RCLCPP_DEBUG(this->get_logger(), 
             "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f, point=(%.1f, %.1f)",
@@ -431,7 +437,10 @@ private:
                         float total_delay = image_latency + comm_latency + bullet_time;
                         
                         // 预测未来位置
-                        cv::Point3f predicted_pos = angle_kalman_->predictKalmanFilter(total_delay);
+                        //cv::Point3f predicted_pos = angle_kalman_->predictKalmanFilter(total_delay);
+
+                        cv::Point3f predicted_pos = trans_pred_->trans2DPredTo3D(best_result, aim.position, classifyResults_forFourierPredict,
+                                                                                 total_delay, fps_counter->fps());
                         
                         // 弹道解算
                         BallisticInfo ballistic_result = calcBallisticAngle(
@@ -534,6 +543,8 @@ private:
     std::shared_ptr<VideoInput> video_input_;
     std::shared_ptr<ImagesInput> images_input_;
     float frame_rate_;
+
+    std::shared_ptr<Trans2DPredTo3DClass> trans_pred_;
     
     float bullet_velocity_;
     float current_pitch_;
@@ -560,6 +571,8 @@ private:
     std::shared_ptr<SerialCommunicationClass> serial_communication_;
     int reset_com_frame;
     int reset_com_frame_count = 0;
+    float yaw_rad_to_x_pixel_ratio;
+    float pitch_rad_to_y_pixel_ratio;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

@@ -58,6 +58,7 @@ add_library(armor_detector SHARED
     src/test_codes/ImagesInput.cpp
     src/test_codes/SharedMemoryTorch.cpp
     src/test_codes/Com.cpp
+    src/test_codes/PredictionTrans.cpp
 )
 add_library(crc_lib SHARED
     src/nodes/CRC.cpp
