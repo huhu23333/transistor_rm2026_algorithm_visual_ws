@@ -202,11 +202,11 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         );
 
         //is_armor_probability = 1.0; // DEBUG
-        is_large_probability = 0.0;
+        /* is_large_probability = 0.0;
         not_screen_probability = 1.0;
         not_slant_probability = 1.0;
         current_number = 1;
-        classify_confidence = 1.0;
+        classify_confidence = 1.0; */
 
         not_screen_probability = 1.0;
 

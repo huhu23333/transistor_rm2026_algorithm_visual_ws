@@ -50,6 +50,7 @@ add_library(armor_detector SHARED
     src/armor_detector/ArmorSolver.cpp
     src/armor_detector/ArmorAngleKalman.cpp
     src/armor_detector/BallisticSolver.cpp
+    src/armor_detector/CRC.cpp
     src/camera/cameraConnect.cpp  # 添加这一行
     src/test_codes/FrameRateCounter.cpp
     src/test_codes/UnwarpUtils.cpp
@@ -60,9 +61,9 @@ add_library(armor_detector SHARED
     src/test_codes/Com.cpp
     src/test_codes/PredictionTrans.cpp
 )
-add_library(crc_lib SHARED
-    src/nodes/CRC.cpp
-)
+#add_library(crc_lib SHARED
+#    src/nodes/CRC.cpp
+#)
 # 添加可执行文件
 add_executable(armor_detect_node src/nodes/ArmorDetect_Node.cpp)
 #add_executable(com_node src/nodes/Com_Node_New.cpp)
@@ -74,7 +75,7 @@ target_link_libraries(armor_detector
     rclcpp::rclcpp   # 添加这一行
     yaml-cpp
 #    "${cpp_typesupport_target}"
-    crc_lib
+#    crc_lib
     pthread
 )
 
@@ -122,7 +123,7 @@ install(TARGETS
     armor_detect_node
 #    com_node
     armor_detector  # 添加这行
-    crc_lib        # 添加这行
+#    crc_lib        # 添加这行
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
