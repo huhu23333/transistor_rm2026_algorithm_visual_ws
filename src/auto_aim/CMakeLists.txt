@@ -44,6 +44,7 @@ include_directories(
 
 # 添加装甲板检测相关的库
 add_library(armor_detector SHARED
+    src/armor_detector/Armor.cpp
     src/armor_detector/LightBarDetector.cpp
     src/armor_detector/ArmorDetector.cpp
     src/armor_detector/ArmorClassifier.cpp

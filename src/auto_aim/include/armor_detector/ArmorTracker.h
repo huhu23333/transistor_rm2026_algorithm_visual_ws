@@ -1,7 +1,7 @@
 // ArmorTracker.h
 #include <opencv2/opencv.hpp>
 #include <yaml-cpp/yaml.h>
-#include "Armor.h"
+#include "armor_detector/Armor.h"
 #include "test_codes/PositionPredictor.h"
 
 
@@ -11,6 +11,12 @@ public:
     ArmorTracker(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
     ~ArmorTracker();
 
+
+    void preProcess(const cv::Point2f& ground_stable_point);
+    void addArmor(Armor& armor, int number, bool is_large, bool not_slant, float confidence);
+    std::vector<std::vector<ArmorResult>> afterProcess();
+
+private:
     struct TrackedArmor {
         int number;
         int tracking_count;
@@ -37,12 +43,6 @@ public:
         }
     };
 
-
-    void preProcess(const cv::Point2f& ground_stable_point);
-    void addArmor(Armor& armor, int number, bool is_large, bool not_slant, float confidence);
-    std::vector<std::vector<ArmorResult>> afterProcess();
-
-private:
     std::shared_ptr<YAML::Node> config_file_ptr;
     rclcpp::Node* node;
 

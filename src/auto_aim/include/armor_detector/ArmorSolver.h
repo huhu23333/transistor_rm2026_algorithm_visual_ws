@@ -4,7 +4,7 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 #include "LightBar.h"
-#include "Armor.h"
+#include "armor_detector/Armor.h"
 #include <vector>
 #include <yaml-cpp/yaml.h>
 #define _USE_MATH_DEFINES // 启用数学常量
