@@ -153,7 +153,7 @@ public:
 
         light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
-        classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, false, this);
+        classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, this);
         armor_solver_ = std::make_shared<ArmorSolver>(config_file_ptr, this);
         angle_kalman_ = std::make_shared<ArmorAngleKalman>();
 

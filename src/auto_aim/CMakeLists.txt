@@ -47,6 +47,7 @@ add_library(armor_detector SHARED
     src/armor_detector/LightBarDetector.cpp
     src/armor_detector/ArmorDetector.cpp
     src/armor_detector/ArmorClassifier.cpp
+    src/armor_detector/ArmorTracker.cpp
     src/armor_detector/ArmorSolver.cpp
     src/armor_detector/ArmorAngleKalman.cpp
     src/armor_detector/BallisticSolver.cpp
