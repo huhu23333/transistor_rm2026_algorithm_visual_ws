@@ -1,5 +1,4 @@
-#include <math.h>
-#include <iostream>
+// BallisticSolver.cpp
 #include "armor_detector/BallisticSolver.h"  // 包含头文件
 
 using namespace std;

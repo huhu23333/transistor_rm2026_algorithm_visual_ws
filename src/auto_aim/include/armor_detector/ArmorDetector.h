@@ -1,7 +1,7 @@
 // ArmorDetector.h
 #ifndef ARMOR_DETECTOR_H
 #define ARMOR_DETECTOR_H
-#pragma once
+
 #include <opencv2/opencv.hpp>
 #include "LightBar.h"
 #include "armor_detector/Armor.h"

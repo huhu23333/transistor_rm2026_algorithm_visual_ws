@@ -1,4 +1,7 @@
 // Com.h
+#ifndef COM_H
+#define COM_H
+
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -74,3 +77,4 @@ private:
     void processBuffer();
 };
 
+#endif // COM_H

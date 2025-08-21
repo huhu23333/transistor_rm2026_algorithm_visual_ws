@@ -1,7 +1,9 @@
+// CRC.h
 #ifndef CRC_H
 #define CRC_H
 
 #include <stdint.h>
+#include <cstddef>
 
 // CRC8查表法表格声明
 extern const uint8_t CRC8_TAB[256];

@@ -4,6 +4,7 @@
 
 #include <deque>
 #include <chrono>
+#include <algorithm>
 
 class FrameRateCounter {
 public:

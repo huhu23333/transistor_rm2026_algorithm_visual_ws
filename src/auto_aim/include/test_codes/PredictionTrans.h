@@ -1,4 +1,7 @@
 // PredictionTrans.h
+#ifndef PREDICTION_TRANS_H
+#define PREDICTION_TRANS_H
+
 #include <opencv2/opencv.hpp>
 #include "armor_detector/Armor.h"
 #include <vector>
@@ -19,3 +22,5 @@ private:
     float pitch_rad_to_y_pixel_ratio;
     std::shared_ptr<YAML::Node> config_file_ptr;
 };
+
+#endif // PREDICTION_TRANS_H

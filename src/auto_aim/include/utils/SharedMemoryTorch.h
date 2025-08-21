@@ -1,4 +1,7 @@
-#pragma once
+// SharedMemoryTorch.h
+#ifndef SHARED_MEMORY_TORCH_H
+#define SHARED_MEMORY_TORCH_H
+
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <sys/ipc.h>
@@ -39,3 +42,5 @@ private:
     void detachSharedMemory();
     void waitForProcessing();
 };
+
+#endif // SHARED_MEMORY_TORCH_H

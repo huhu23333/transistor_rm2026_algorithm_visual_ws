@@ -1,7 +1,7 @@
 // Armor.h
 #ifndef ARMOR_H
 #define ARMOR_H
-#pragma once
+
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
 #include <rclcpp/rclcpp.hpp>

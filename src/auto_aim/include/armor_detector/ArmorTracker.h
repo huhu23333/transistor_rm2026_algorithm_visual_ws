@@ -1,4 +1,7 @@
 // ArmorTracker.h
+#ifndef ARMOR_TRACKER_H
+#define ARMOR_TRACKER_H
+
 #include <opencv2/opencv.hpp>
 #include <yaml-cpp/yaml.h>
 #include "armor_detector/Armor.h"
@@ -71,3 +74,5 @@ private:
                                            const TrackedArmor& previous_tracked_armor, 
                                            float max_dist_ratio = -1.0);
 };
+
+#endif // ARMOR_TRACKER_H

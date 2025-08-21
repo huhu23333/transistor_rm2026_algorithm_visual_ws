@@ -1,4 +1,9 @@
-#pragma once
+// BallisticSolver.h
+#ifndef BALLISTIC_SOLVER_H
+#define BALLISTIC_SOLVER_H
+
+#include <math.h>
+#include <iostream>
 
 // 结构体声明
 struct BallisticInfo {
@@ -38,3 +43,5 @@ BallisticInfo calcBallisticAngle(float x, float y, float z, float deltax, float 
 //                                 float deltax, float deltay, float deltaz,
 //                                 float v, float cur_pitch, float cur_yaw,
 //                                 const BallisticParams& params = BallisticParams());
+
+#endif // BALLISTIC_SOLVER_H
