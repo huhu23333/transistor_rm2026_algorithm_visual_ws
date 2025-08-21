@@ -50,16 +50,16 @@ add_library(armor_detector SHARED
     src/armor_detector/ArmorSolver.cpp
     src/armor_detector/ArmorAngleKalman.cpp
     src/armor_detector/BallisticSolver.cpp
-    src/armor_detector/CRC.cpp
     src/camera/cameraConnect.cpp  # 添加这一行
-    src/test_codes/FrameRateCounter.cpp
-    src/test_codes/UnwarpUtils.cpp
-    src/test_codes/PositionPredictor.cpp
     src/test_codes/VideoInput.cpp
     src/test_codes/ImagesInput.cpp
-    src/test_codes/SharedMemoryTorch.cpp
-    src/test_codes/Com.cpp
+    src/test_codes/PositionPredictor.cpp
     src/test_codes/PredictionTrans.cpp
+    src/utils/FrameRateCounter.cpp
+    src/utils/UnwarpUtils.cpp
+    src/utils/SharedMemoryTorch.cpp
+    src/utils/Com.cpp
+    src/utils/CRC.cpp
 )
 #add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp

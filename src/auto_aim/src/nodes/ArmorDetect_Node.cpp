@@ -14,8 +14,8 @@
 #include <thread>
 #include <armor_detector/BallisticSolver.h>
 #include <yaml-cpp/yaml.h>
-#include "test_codes/FrameRateCounter.h"
-#include "test_codes/UnwarpUtils.h"
+#include "utils/FrameRateCounter.h"
+#include "utils/UnwarpUtils.h"
 #include "test_codes/VideoInput.h"
 #include "test_codes/ImagesInput.h"
 #include <iostream>
@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <queue>
-#include "test_codes/Com.h"
+#include "utils/Com.h"
 #include <csignal>
 #include "test_codes/PredictionTrans.h"
 

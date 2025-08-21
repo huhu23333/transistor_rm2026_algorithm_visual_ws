@@ -1,4 +1,4 @@
-#include "test_codes/SharedMemoryTorch.h"
+#include "utils/SharedMemoryTorch.h"
 
 SharedMemoryTorch::SharedMemoryTorch(std::shared_ptr<YAML::Node> config_file_ptr) {
     SHM_KEY = (*config_file_ptr)["SHM_KEY"].as<int>();

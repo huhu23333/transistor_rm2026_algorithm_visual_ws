@@ -15,7 +15,7 @@
 #include <mutex>
 #include <atomic>
 #include <chrono>
-#include "armor_detector/CRC.h"
+#include "utils/CRC.h"
 #include <dirent.h>  // 用于遍历/dev目录
 #include <sys/types.h>
 #include <sys/stat.h>
