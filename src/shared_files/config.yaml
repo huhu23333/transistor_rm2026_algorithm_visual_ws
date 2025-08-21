@@ -2,7 +2,7 @@
 SHM_KEY : 0x1234
 
 # ArmorDetect_Node 参数
-model_relative_path : "src/auto_aim/models/model_rm2026.pt"
+model_relative_path : "src/shared_files/models/model_rm2026.pt"
 enemy_color : "BLUE"
 RESET_DISTANCE_THRESHOLD : 400.0 # 单位：mm
 MAX_LOST_TIME : 0.5              # 单位：秒
@@ -18,8 +18,8 @@ delta_z_ : 142.5 #  181.30f  114.34f
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 
-video_relative_path : "src/auto_aim/InputVideo/robosoul.mp4" # 使用视频输入时的视频路径
-images_relative_path : "input_test_image" # 使用图片输入时的图片文件夹路径
+video_relative_path : "InputVideo/robosoul.mp4" # 使用视频输入时的视频路径
+images_relative_path : "InputImages" # 使用图片输入时的图片文件夹路径
 
 frame_rate : 30.0
 

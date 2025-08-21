@@ -86,7 +86,7 @@ class ShmPytorchProcessorNode(Node):
         ws_dir_name = "transistor_rm2026_algorithm_visual_ws"
         ws_dir_path = script_file_path[:script_file_path.find(ws_dir_name)+len(ws_dir_name)]
 
-        config_file_relatvie_path = "src/auto_aim/config.yaml"
+        config_file_relatvie_path = "src/shared_files/config.yaml"
         config_file_path = os.path.join(ws_dir_path, config_file_relatvie_path)
         with open(config_file_path, 'r', encoding='utf-8') as config_file:
             config_data = yaml.safe_load(config_file)

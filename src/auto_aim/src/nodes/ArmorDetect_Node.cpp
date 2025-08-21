@@ -67,7 +67,7 @@ public:
         // 4. 截取到工作空间目录结尾
         fs::path ws_dir_path = full_path_str.substr(0, pos + ws_dir_name.length());
         // 5. 拼接模型路径
-        const std::string config_file_relatvie_path = "src/auto_aim/config.yaml";
+        const std::string config_file_relatvie_path = "src/shared_files/config.yaml";
         fs::path config_file_path = ws_dir_path / config_file_relatvie_path;  // 使用文件系统的路径拼接
 
         // 加载配置文件

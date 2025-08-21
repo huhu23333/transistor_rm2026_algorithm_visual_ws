@@ -5,6 +5,5 @@ log/
 install/
 network_input_images/
 rmdatasets_images/
-input_test_image/
-other_files/train-libtorch/images/
+InputImages/
 camera_images/
