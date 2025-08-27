@@ -18,12 +18,12 @@
 
 ekf_params:
   sigma2_q_x: 0.2e4      # 过程噪声，可以从一个较大的值开始调
-  sigma2_q_y: 1.0e4
-  sigma2_q_z: 1.0e4
+  sigma2_q_y: 0.2e4 #1.0e4
+  sigma2_q_z: 0.2e4 #1.0e4
   # 测量噪声
   r_x_coeff: 3.0e-5
-  r_y_coeff: 5.0e-6
-  r_z_coeff: 5.0e-6
+  r_y_coeff: 3.0e-5 #5.0e-6
+  r_z_coeff: 3.0e-5 #5.0e-6
   p0_init_val: 100.0    # 初始不确定性
 
 # 其他参数...

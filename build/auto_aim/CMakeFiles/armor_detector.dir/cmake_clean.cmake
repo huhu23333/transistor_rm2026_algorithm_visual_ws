@@ -33,6 +33,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/armor_detector.dir/src/utils/Com.cpp.o.d"
   "CMakeFiles/armor_detector.dir/src/utils/FrameRateCounter.cpp.o"
   "CMakeFiles/armor_detector.dir/src/utils/FrameRateCounter.cpp.o.d"
+  "CMakeFiles/armor_detector.dir/src/utils/RestFrame.cpp.o"
+  "CMakeFiles/armor_detector.dir/src/utils/RestFrame.cpp.o.d"
   "CMakeFiles/armor_detector.dir/src/utils/SharedMemoryTorch.cpp.o"
   "CMakeFiles/armor_detector.dir/src/utils/SharedMemoryTorch.cpp.o.d"
   "CMakeFiles/armor_detector.dir/src/utils/UnwarpUtils.cpp.o"

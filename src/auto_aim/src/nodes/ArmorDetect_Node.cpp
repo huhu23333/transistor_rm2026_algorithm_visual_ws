@@ -475,12 +475,12 @@ private:
                         // double continuous_yaw = last_continuous_yaw_ + angles::shortest_angular_distance(last_continuous_yaw_, aim.yaw);
                         // last_continuous_yaw_ = continuous_yaw;
                         // RCLCPP_INFO(this->get_logger(), "Armor position: (%.2f, %.2f, %.2f), yaw: %.2f",
-                        //             aim.position.x, aim.position.y, aim.position.z, aim.yaw);
+                        //             rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
                         // // ==========
 
                         // // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                         // Tracker::Measurement z;
-                        // z << aim.position.x, aim.position.y, aim.position.z, aim.yaw;
+                        // z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw;
 
                         // // 2. EKF 状态机逻辑
                         // if (tracker_->state == Tracker::LOST) {
@@ -490,7 +490,7 @@ private:
                         // } else {
                         //     // 跳变处理
                         //     Eigen::Vector3d pred_armor_pos = tracker_->getArmorPosition();
-                        //     double position_diff = (pred_armor_pos - Eigen::Vector3d(aim.position.x, aim.position.y, aim.position.z)).norm();
+                        //     double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2])).norm();
 
                         //     if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
                         //         if(best_result.number != current_target_id_) {
@@ -528,11 +528,15 @@ private:
                         //     future_zc - future_r * sin(future_yaw)
                         // );
 
+                        // 将pnp结果转换至静止坐标系以稳定预测
+                        std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
+                        std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+
                         // ========== EKF 逻辑 (6D模型修改) ==========
 
                         // 1. 构造3维测量向量 z = [xa, ya, za]
                         Tracker::Measurement z;
-                        z << aim.position.x, aim.position.y, aim.position.z;
+                        z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2];
 
                         // 2. EKF 状态机逻辑
                         if (tracker_->state == Tracker::LOST) {
@@ -542,7 +546,7 @@ private:
                         } else {
                             // 跳变处理
                             Eigen::Vector3d pred_armor_pos = tracker_->getArmorPosition();
-                            double position_diff = (pred_armor_pos - Eigen::Vector3d(aim.position.x, aim.position.y, aim.position.z)).norm();
+                            double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2])).norm();
 
                             if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
                                 if(best_result.number != current_target_id_) {
@@ -579,26 +583,35 @@ private:
                                     predicted_pos.x, predicted_pos.y, predicted_pos.z);
                                     
 
-                        // 预测未来位置
-                        cv::Point3f predicted_pos = angle_kalman_->predictKalmanFilter(total_delay);
+                        // 预测未来位置（旧卡尔曼滤波）
+                        // cv::Point3f predicted_pos = angle_kalman_->predictKalmanFilter(total_delay);
 
                         //cv::Point3f predicted_pos = trans_pred_->trans2DPredTo3D(best_result, aim.position, classifyResults_forFourierPredict,
                         //                                                         total_delay, fps_counter->fps());
                         
                         // 测试静止坐标系
-                        std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(predicted_pos.x, predicted_pos.y, predicted_pos.z);
+                        /* std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(predicted_pos.x, predicted_pos.y, predicted_pos.z);
                         std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
 
                         std::vector<float> rest_frame_pos_new = rest_frame_pos;
 
                         std::vector<float> cam_normal_pos_new = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_new[0], rest_frame_pos_new[1], rest_frame_pos_new[2]);
-                        std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]);
+                        std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]); */
+
+                        // 转换回pnp相机坐标系
+                        std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
+
+                        std::vector<float> cam_normal_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_pred[0], rest_frame_pos_pred[1], rest_frame_pos_pred[2]);
+                        std::vector<float> pnp_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_pred[0], cam_normal_pos_pred[1], cam_normal_pos_pred[2]);
+                        predicted_pos.x = pnp_pos_pred[0];
+                        predicted_pos.y = pnp_pos_pred[1];
+                        predicted_pos.z = pnp_pos_pred[2];
 
                         // 弹道解算
                         BallisticInfo ballistic_result = calcBallisticAngle(
-                            pnp_pos_new[0],//predicted_pos.x, 
-                            pnp_pos_new[1],//predicted_pos.y, 
-                            pnp_pos_new[2],//predicted_pos.z,
+                            predicted_pos.x, 
+                            predicted_pos.y, 
+                            predicted_pos.z,
                             delta_x_,
                             delta_y_,
                             delta_z_,

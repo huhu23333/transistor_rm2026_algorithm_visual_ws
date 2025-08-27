@@ -655,6 +655,30 @@ src/utils/FrameRateCounter.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/armor_detector.dir/build.make CMakeFiles/armor_detector.dir/src/utils/FrameRateCounter.cpp.s
 .PHONY : src/utils/FrameRateCounter.cpp.s
 
+src/utils/RestFrame.o: src/utils/RestFrame.cpp.o
+.PHONY : src/utils/RestFrame.o
+
+# target to build an object file
+src/utils/RestFrame.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/armor_detector.dir/build.make CMakeFiles/armor_detector.dir/src/utils/RestFrame.cpp.o
+.PHONY : src/utils/RestFrame.cpp.o
+
+src/utils/RestFrame.i: src/utils/RestFrame.cpp.i
+.PHONY : src/utils/RestFrame.i
+
+# target to preprocess a source file
+src/utils/RestFrame.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/armor_detector.dir/build.make CMakeFiles/armor_detector.dir/src/utils/RestFrame.cpp.i
+.PHONY : src/utils/RestFrame.cpp.i
+
+src/utils/RestFrame.s: src/utils/RestFrame.cpp.s
+.PHONY : src/utils/RestFrame.s
+
+# target to generate assembly for a file
+src/utils/RestFrame.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/armor_detector.dir/build.make CMakeFiles/armor_detector.dir/src/utils/RestFrame.cpp.s
+.PHONY : src/utils/RestFrame.cpp.s
+
 src/utils/SharedMemoryTorch.o: src/utils/SharedMemoryTorch.cpp.o
 .PHONY : src/utils/SharedMemoryTorch.o
 
@@ -774,6 +798,9 @@ help:
 	@echo "... src/utils/FrameRateCounter.o"
 	@echo "... src/utils/FrameRateCounter.i"
 	@echo "... src/utils/FrameRateCounter.s"
+	@echo "... src/utils/RestFrame.o"
+	@echo "... src/utils/RestFrame.i"
+	@echo "... src/utils/RestFrame.s"
 	@echo "... src/utils/SharedMemoryTorch.o"
 	@echo "... src/utils/SharedMemoryTorch.i"
 	@echo "... src/utils/SharedMemoryTorch.s"
