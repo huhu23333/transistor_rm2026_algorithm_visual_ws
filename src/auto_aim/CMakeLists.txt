@@ -62,6 +62,7 @@ add_library(armor_detector SHARED
     src/utils/SharedMemoryTorch.cpp
     src/utils/Com.cpp
     src/utils/CRC.cpp
+    src/utils/RestFrame.cpp
 )
 #add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp

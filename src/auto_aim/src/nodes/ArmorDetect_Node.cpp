@@ -27,6 +27,7 @@
 #include "utils/Com.h"
 #include <csignal>
 #include "test_codes/PredictionTrans.h"
+#include "utils/RestFrame.h"
 
 namespace fs = std::filesystem;
 
@@ -159,6 +160,10 @@ public:
 
         trans_pred_ = std::make_shared<Trans2DPredTo3DClass>(config_file_ptr);
 
+        rest_frame_ = std::make_shared<RestFrame>();
+        rest_frame_ -> updateCamOrientation(0, 0, 0);
+        rest_frame_ -> updateCamPosition(0, 0, 0);
+
         // 创建定时器
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
@@ -207,6 +212,9 @@ private:
         last_yaw_rad_ = current_yaw_;
 
         ground_stable_point = cv::Point2f(2000+total_yaw_rad_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_*pitch_rad_to_y_pixel_ratio);
+
+        rest_frame_ -> updateCamOrientation(current_yaw_, current_pitch_, 0);
+        rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
 
         RCLCPP_DEBUG(this->get_logger(), 
             "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f, point=(%.1f, %.1f)",
@@ -437,18 +445,27 @@ private:
                         constexpr float comm_latency = 0.040f;  // 10ms通信延迟
                         float bullet_time = abs(aim.position.z) / 1000 / bullet_velocity_;
                         float total_delay = image_latency + comm_latency + bullet_time;
-                        
+
                         // 预测未来位置
                         cv::Point3f predicted_pos = angle_kalman_->predictKalmanFilter(total_delay);
 
                         //cv::Point3f predicted_pos = trans_pred_->trans2DPredTo3D(best_result, aim.position, classifyResults_forFourierPredict,
                         //                                                         total_delay, fps_counter->fps());
                         
+                        // 测试静止坐标系
+                        std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(predicted_pos.x, predicted_pos.y, predicted_pos.z);
+                        std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+
+                        std::vector<float> rest_frame_pos_new = rest_frame_pos;
+
+                        std::vector<float> cam_normal_pos_new = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_new[0], rest_frame_pos_new[1], rest_frame_pos_new[2]);
+                        std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]);
+
                         // 弹道解算
                         BallisticInfo ballistic_result = calcBallisticAngle(
-                            predicted_pos.x, 
-                            predicted_pos.y, 
-                            predicted_pos.z,
+                            pnp_pos_new[0],//predicted_pos.x, 
+                            pnp_pos_new[1],//predicted_pos.y, 
+                            pnp_pos_new[2],//predicted_pos.z,
                             delta_x_,
                             delta_y_,
                             delta_z_,
@@ -547,6 +564,7 @@ private:
     float frame_rate_;
 
     std::shared_ptr<Trans2DPredTo3DClass> trans_pred_;
+    std::shared_ptr<RestFrame> rest_frame_;
     
     float bullet_velocity_;
     float current_pitch_;
