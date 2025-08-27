@@ -1,0 +1,81 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 1.3.12 (/opt/ros/humble/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Found rclcpp: 16.0.14 (/opt/ros/humble/share/rclcpp/cmake)
+-- Found rosidl_generator_c: 3.1.7 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+-- Found rosidl_adapter: 3.1.7 (/opt/ros/humble/share/rosidl_adapter/cmake)
+-- Found rosidl_generator_cpp: 3.1.7 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 6.2.8 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+-- Found FastRTPS: /opt/ros/humble/include  
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found cv_bridge: 3.2.1 (/opt/ros/humble/share/cv_bridge/cmake)
+-- Found OpenCV: /usr (found version "4.5.4") 
+-- Found rosidl_default_generators: 1.2.0 (/opt/ros/humble/share/rosidl_default_generators/cmake)
+-- Found angles: 1.15.0 (/opt/ros/humble/share/angles/cmake)
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim
+[  4%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/LightBarDetector.cpp.o[0m
+[ 13%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/ArmorSolver.cpp.o[0m
+[ 13%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/ArmorTracker.cpp.o[0m
+[ 22%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/camera/cameraConnect.cpp.o[0m
+[ 22%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/Armor.cpp.o[0m
+[ 27%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/ArmorDetector.cpp.o[0m
+[ 36%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/ArmorClassifier.cpp.o[0m
+[ 36%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/test_codes/VideoInput.cpp.o[0m
+[ 40%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/test_codes/ImagesInput.cpp.o[0m
+[ 45%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/test_codes/PredictionTrans.cpp.o[0m
+[ 50%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/ArmorAngleKalman.cpp.o[0m
+[ 59%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/BallisticSolver.cpp.o[0m
+[ 59%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/utils/FrameRateCounter.cpp.o[0m
+[ 63%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/utils/Com.cpp.o[0m
+[ 72%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/Tracker.cpp.o[0m
+[ 77%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/test_codes/PositionPredictor.cpp.o[0m
+[ 77%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/utils/SharedMemoryTorch.cpp.o[0m
+[ 81%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/utils/CRC.cpp.o[0m
+[ 86%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/utils/UnwarpUtils.cpp.o[0m
+[ 90%] [32m[1mLinking CXX shared library libarmor_detector.so[0m
+[ 90%] Built target armor_detector
+[ 95%] [32mBuilding CXX object CMakeFiles/armor_detect_node.dir/src/nodes/ArmorDetect_Node.cpp.o[0m
+[100%] [32m[1mLinking CXX executable armor_detect_node[0m
+[100%] Built target armor_detect_node
+-- Install configuration: "Release"
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/lib/auto_aim/armor_detect_node
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/lib/libarmor_detector.so
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/launch
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/launch/auto_aim_launch.py
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/ament_index/resource_index/package_run_dependencies/auto_aim
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/ament_index/resource_index/parent_prefix_path/auto_aim
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/ament_prefix_path.sh
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/ament_prefix_path.dsv
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/path.sh
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/path.dsv
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.bash
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.sh
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.zsh
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.dsv
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/package.dsv
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/ament_index/resource_index/packages/auto_aim
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/cmake/auto_aimConfig.cmake
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/cmake/auto_aimConfig-version.cmake
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/package.xml

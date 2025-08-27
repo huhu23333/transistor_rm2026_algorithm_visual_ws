@@ -1,10 +1,41 @@
+# ekf_params:
+#   # Process Noise Q (Model Uncertainty)
+#   sigma2_q_x: 1.e-5
+#   sigma2_q_y: 1.0e5
+#   sigma2_q_z: 1.0e-5
+#   sigma2_q_yaw: 1.e-5
+#   sigma2_q_r: 1.e-5
+#   sigma2_q_d_yc: 1.e-5
+
+#   # Measurement Noise R (Measurement Uncertainty)
+#   r_x_coeff: 1.0e-4
+#   r_y_val: 1.0e-1
+#   r_z_coeff: 1.0e-4
+#   r_yaw_val: 1.0e-4
+
+#   # Initial Covariance P0
+#   p0_init_val: 10.0
+
+ekf_params:
+  sigma2_q_x: 0.2e4      # 过程噪声，可以从一个较大的值开始调
+  sigma2_q_y: 1.0e4
+  sigma2_q_z: 1.0e4
+  # 测量噪声
+  r_x_coeff: 3.0e-5
+  r_y_coeff: 5.0e-6
+  r_z_coeff: 5.0e-6
+  p0_init_val: 100.0    # 初始不确定性
+
+# 其他参数...
+RESET_DISTANCE_THRESHOLD : 700.0 # 单位：mm
+
 # SharedMemoryTorch参数
 SHM_KEY : 0x1234
 
 # ArmorDetect_Node 参数
 model_relative_path : "src/shared_files/models/model_rm2026.pt"
 enemy_color : "BLUE"
-RESET_DISTANCE_THRESHOLD : 400.0 # 单位：mm
+
 MAX_LOST_TIME : 0.5              # 单位：秒
 camera_ExposureTime : 2000.0  # 5000.0
 camera_Gain : 16.0            # 16.0
@@ -98,7 +129,7 @@ NOT_SLANT_THRESHOLD : 0.5
 CLASSIFY_THRESHOLD : 0.5
 INPUT_HEIGHT : 48
 INPUT_WIDTH : 64
-MAX_TRACKING_AGE_MS : 300  # 最大跟踪时间100ms // DEBUG // 100
+MAX_TRACKING_AGE_MS : 100  # 最大跟踪时间100ms // DEBUG // 100
 MIN_TRACKING_COUNT : 2     # 最小连续跟踪次数           // 2
 IS_NEAR_MAX_DIST_RATIO : 1.5     # 50.0
 fit_step : 5

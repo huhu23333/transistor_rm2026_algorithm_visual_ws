@@ -17,6 +17,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(TBB REQUIRED)
+find_package(angles REQUIRED) # <<--- 确保这一行存在
 
 #rosidl_generate_interfaces(${PROJECT_NAME}
 #  "msg/SerialData.msg"
@@ -62,6 +63,7 @@ add_library(armor_detector SHARED
     src/utils/SharedMemoryTorch.cpp
     src/utils/Com.cpp
     src/utils/CRC.cpp
+    src/armor_detector/Tracker.cpp
 )
 #add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp
@@ -104,7 +106,7 @@ target_link_libraries(armor_detect_node
 #    "${cpp_typesupport_target}"
 #)
 
-ament_target_dependencies(armor_detector yaml-cpp)
+ament_target_dependencies(armor_detector yaml-cpp angles)
 
 ament_target_dependencies(armor_detect_node yaml-cpp)
 

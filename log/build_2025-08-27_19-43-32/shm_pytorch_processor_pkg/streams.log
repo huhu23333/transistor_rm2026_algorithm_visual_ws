@@ -1,0 +1,37 @@
+[0.306s] Invoking command in '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/shm_pytorch_processor_pkg': PYTHONPATH=/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/shm_pytorch_processor_pkg build --build-base /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build install --record /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/install.log --single-version-externally-managed install_data
+[0.433s] running egg_info
+[0.433s] creating ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info
+[0.433s] writing ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/PKG-INFO
+[0.434s] writing dependency_links to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/dependency_links.txt
+[0.434s] writing entry points to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/entry_points.txt
+[0.434s] writing requirements to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/requires.txt
+[0.434s] writing top-level names to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/top_level.txt
+[0.434s] writing manifest file '../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/SOURCES.txt'
+[0.435s] reading manifest file '../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/SOURCES.txt'
+[0.435s] writing manifest file '../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/SOURCES.txt'
+[0.435s] running build
+[0.435s] running build_py
+[0.435s] creating /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build
+[0.435s] creating /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build/lib
+[0.435s] creating /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build/lib/shm_pytorch_processor_pkg
+[0.435s] copying shm_pytorch_processor_pkg/__init__.py -> /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build/lib/shm_pytorch_processor_pkg
+[0.435s] copying shm_pytorch_processor_pkg/shm_pytorch_processor_node.py -> /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build/lib/shm_pytorch_processor_pkg
+[0.435s] running install
+[0.435s] running install_lib
+[0.436s] creating /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg
+[0.436s] copying /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build/lib/shm_pytorch_processor_pkg/__init__.py -> /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg
+[0.436s] copying /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build/lib/shm_pytorch_processor_pkg/shm_pytorch_processor_node.py -> /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg
+[0.437s] byte-compiling /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg/__init__.py to __init__.cpython-310.pyc
+[0.437s] byte-compiling /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg/shm_pytorch_processor_node.py to shm_pytorch_processor_node.cpython-310.pyc
+[0.438s] running install_data
+[0.438s] creating /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/share/ament_index
+[0.438s] creating /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/share/ament_index/resource_index
+[0.439s] creating /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/share/ament_index/resource_index/packages
+[0.439s] copying resource/shm_pytorch_processor_pkg -> /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/share/ament_index/resource_index/packages
+[0.439s] copying package.xml -> /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/share/shm_pytorch_processor_pkg
+[0.439s] running install_egg_info
+[0.439s] Copying ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info to /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg-0.0.0-py3.10.egg-info
+[0.439s] running install_scripts
+[0.452s] Installing shm_pytorch_processor_node script to /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/shm_pytorch_processor_pkg
+[0.452s] writing list of installed files to '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/install.log'
+[0.467s] Invoked command in '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/shm_pytorch_processor_pkg' returned '0': PYTHONPATH=/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/shm_pytorch_processor_pkg build --build-base /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build install --record /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/install.log --single-version-externally-managed install_data

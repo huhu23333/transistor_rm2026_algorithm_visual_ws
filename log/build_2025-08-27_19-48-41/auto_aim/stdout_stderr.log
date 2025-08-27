@@ -1,0 +1,28 @@
+[  4%] [32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/ArmorClassifier.cpp.o[0m
+[  9%] [32m[1mLinking CXX shared library libarmor_detector.so[0m
+lto-wrapper: warning: using serial compilation of 5 LTRANS jobs
+[ 90%] Built target armor_detector
+[35m[1mConsolidate compiler generated dependencies of target armor_detect_node[0m
+[ 95%] [32m[1mLinking CXX executable armor_detect_node[0m
+/usr/bin/ld: warning: libtbb.so.2, needed by /usr/lib/x86_64-linux-gnu/libopencv_core.so.4.5.4d, may conflict with libtbb.so.12
+[100%] Built target armor_detect_node
+-- Install configuration: "Release"
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/lib/auto_aim/armor_detect_node
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/lib/libarmor_detector.so
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/launch
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/launch/auto_aim_launch.py
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/ament_index/resource_index/package_run_dependencies/auto_aim
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/ament_index/resource_index/parent_prefix_path/auto_aim
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/ament_prefix_path.sh
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/ament_prefix_path.dsv
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/path.sh
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/path.dsv
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.bash
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.sh
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.zsh
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.dsv
+-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/package.dsv
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/ament_index/resource_index/packages/auto_aim
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/cmake/auto_aimConfig.cmake
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/cmake/auto_aimConfig-version.cmake
+-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/package.xml

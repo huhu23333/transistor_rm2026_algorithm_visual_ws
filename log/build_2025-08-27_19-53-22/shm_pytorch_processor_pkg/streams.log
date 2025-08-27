@@ -1,0 +1,21 @@
+[0.362s] Invoking command in '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/shm_pytorch_processor_pkg': PYTHONPATH=/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/shm_pytorch_processor_pkg build --build-base /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build install --record /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/install.log --single-version-externally-managed install_data
+[0.498s] running egg_info
+[0.498s] writing ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/PKG-INFO
+[0.499s] writing dependency_links to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/dependency_links.txt
+[0.499s] writing entry points to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/entry_points.txt
+[0.499s] writing requirements to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/requires.txt
+[0.499s] writing top-level names to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/top_level.txt
+[0.500s] reading manifest file '../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/SOURCES.txt'
+[0.500s] writing manifest file '../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/SOURCES.txt'
+[0.500s] running build
+[0.500s] running build_py
+[0.501s] running install
+[0.501s] running install_lib
+[0.501s] running install_data
+[0.501s] running install_egg_info
+[0.502s] removing '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg-0.0.0-py3.10.egg-info' (and everything under it)
+[0.502s] Copying ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info to /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg-0.0.0-py3.10.egg-info
+[0.503s] running install_scripts
+[0.517s] Installing shm_pytorch_processor_node script to /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/shm_pytorch_processor_pkg
+[0.517s] writing list of installed files to '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/install.log'
+[0.536s] Invoked command in '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/shm_pytorch_processor_pkg' returned '0': PYTHONPATH=/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/shm_pytorch_processor_pkg build --build-base /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build install --record /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/install.log --single-version-externally-managed install_data

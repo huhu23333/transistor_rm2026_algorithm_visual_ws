@@ -1,0 +1,158 @@
+[0.000000] (-) TimerEvent: {}
+[0.000668] (auto_aim) JobQueued: {'identifier': 'auto_aim', 'dependencies': OrderedDict()}
+[0.000700] (shm_pytorch_processor_pkg) JobQueued: {'identifier': 'shm_pytorch_processor_pkg', 'dependencies': OrderedDict()}
+[0.000713] (auto_aim) JobStarted: {'identifier': 'auto_aim'}
+[0.005030] (shm_pytorch_processor_pkg) JobStarted: {'identifier': 'shm_pytorch_processor_pkg'}
+[0.008718] (auto_aim) JobProgress: {'identifier': 'auto_aim', 'progress': 'cmake'}
+[0.009022] (auto_aim) JobProgress: {'identifier': 'auto_aim', 'progress': 'build'}
+[0.009483] (auto_aim) Command: {'cmd': ['/usr/bin/cmake', '--build', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim', '--', '-j20', '-l20'], 'cwd': '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim', 'env': OrderedDict([('LESSOPEN', '| /usr/bin/lesspipe %s'), ('HTTPS_PROXY', 'http://127.0.0.1:7897/'), ('no_proxy', 'localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,172.29.0.0/16,::1'), ('USER', 'rm1'), ('LC_TIME', 'zh_CN.UTF-8'), ('all_proxy', 'socks://127.0.0.1:7897/'), ('XDG_SESSION_TYPE', 'wayland'), ('ALLUSERSPROFILE', '/opt/MVS/MVFG'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:'), ('HOME', '/home/rm1'), ('DESKTOP_SESSION', 'ubuntu'), ('NO_PROXY', 'localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,172.29.0.0/16,::1'), ('ROS_PYTHON_VERSION', '3'), ('GNOME_SHELL_SESSION_MODE', 'ubuntu'), ('GTK_MODULES', 'gail:atk-bridge'), ('LC_MONETARY', 'zh_CN.UTF-8'), ('DBUS_STARTER_BUS_TYPE', 'session'), ('SYSTEMD_EXEC_PID', '3228'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus,guid=2562026282a693ce018660dd68aeed60'), ('COLORTERM', 'truecolor'), ('IM_CONFIG_PHASE', '1'), ('WAYLAND_DISPLAY', 'wayland-0'), ('https_proxy', 'http://127.0.0.1:7897/'), ('COLCON_PREFIX_PATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install'), ('ROS_DISTRO', 'humble'), ('GTK_IM_MODULE', 'fcitx'), ('LOGNAME', 'rm1'), ('ALL_PROXY', 'socks://127.0.0.1:7897/'), ('http_proxy', 'http://127.0.0.1:7897/'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('USERNAME', 'rm1'), ('TERM', 'xterm-256color'), ('GNOME_DESKTOP_SESSION_ID', 'this-is-deprecated'), ('ROS_LOCALHOST_ONLY', '0'), ('MVCAM_SDK_PATH', '/opt/MVS'), ('PATH', '/opt/ros/humble/bin:/home/rm1/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin'), ('SESSION_MANAGER', 'local/standard:@/tmp/.ICE-unix/3228,unix/standard:/tmp/.ICE-unix/3228'), ('MVCAM_GENICAM_CLPROTOCOL', '/opt/MVS/lib/CLProtocol'), ('XDG_MENU_PREFIX', 'gnome-'), ('LC_ADDRESS', 'zh_CN.UTF-8'), ('GNOME_TERMINAL_SCREEN', '/org/gnome/Terminal/screen/60533e18_ba86_4caf_a3f7_a667ddb58ff9'), ('GNOME_SETUP_DISPLAY', ':1'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':0'), ('LANG', 'en_US.UTF-8'), ('XDG_CURRENT_DESKTOP', 'ubuntu:GNOME'), ('LC_TELEPHONE', 'zh_CN.UTF-8'), ('XMODIFIERS', '@im=fcitx'), ('XDG_SESSION_DESKTOP', 'ubuntu'), ('XAUTHORITY', '/run/user/1000/.mutter-Xwaylandauth.8XARB3'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('GNOME_TERMINAL_SERVICE', ':1.120'), ('SSH_AGENT_LAUNCHER', 'gnome-keyring'), ('SSH_AUTH_SOCK', '/run/user/1000/keyring/ssh'), ('AMENT_PREFIX_PATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim:/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LC_NAME', 'zh_CN.UTF-8'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'ubuntu'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('LC_MEASUREMENT', 'zh_CN.UTF-8'), ('LC_IDENTIFICATION', 'zh_CN.UTF-8'), ('QT_IM_MODULE', 'fcitx'), ('PWD', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-ubuntu:/etc/xdg'), ('CLUTTER_IM_MODULE', 'fcitx'), ('DBUS_STARTER_ADDRESS', 'unix:path=/run/user/1000/bus,guid=2562026282a693ce018660dd68aeed60'), ('XDG_DATA_DIRS', '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('HTTP_PROXY', 'http://127.0.0.1:7897/'), ('LC_NUMERIC', 'zh_CN.UTF-8'), ('LC_PAPER', 'zh_CN.UTF-8'), ('COLCON', '1'), ('VTE_VERSION', '6800'), ('CMAKE_PREFIX_PATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg:/opt/ros/humble'), ('MVCAM_COMMON_RUNENV', '/opt/MVS/lib')]), 'shell': False}
+[0.068627] (auto_aim) StdoutLine: {'line': b'[  4%] \x1b[32mBuilding CXX object CMakeFiles/armor_detector.dir/src/armor_detector/ArmorClassifier.cpp.o\x1b[0m\n'}
+[0.100075] (-) TimerEvent: {}
+[0.200384] (-) TimerEvent: {}
+[0.300777] (-) TimerEvent: {}
+[0.389308] (shm_pytorch_processor_pkg) Command: {'cmd': ['/usr/bin/python3', '-W', 'ignore:setup.py install is deprecated', '-W', 'ignore:easy_install command is deprecated', 'setup.py', 'egg_info', '--egg-base', '../../build/shm_pytorch_processor_pkg', 'build', '--build-base', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/build', 'install', '--record', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/install.log', '--single-version-externally-managed', 'install_data'], 'cwd': '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/shm_pytorch_processor_pkg', 'env': {'LESSOPEN': '| /usr/bin/lesspipe %s', 'HTTPS_PROXY': 'http://127.0.0.1:7897/', 'no_proxy': 'localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,172.29.0.0/16,::1', 'USER': 'rm1', 'LC_TIME': 'zh_CN.UTF-8', 'all_proxy': 'socks://127.0.0.1:7897/', 'XDG_SESSION_TYPE': 'wayland', 'ALLUSERSPROFILE': '/opt/MVS/MVFG', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:', 'HOME': '/home/rm1', 'DESKTOP_SESSION': 'ubuntu', 'NO_PROXY': 'localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,172.29.0.0/16,::1', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'LC_MONETARY': 'zh_CN.UTF-8', 'DBUS_STARTER_BUS_TYPE': 'session', 'SYSTEMD_EXEC_PID': '3228', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus,guid=2562026282a693ce018660dd68aeed60', 'COLORTERM': 'truecolor', 'IM_CONFIG_PHASE': '1', 'WAYLAND_DISPLAY': 'wayland-0', 'https_proxy': 'http://127.0.0.1:7897/', 'COLCON_PREFIX_PATH': '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install', 'ROS_DISTRO': 'humble', 'GTK_IM_MODULE': 'fcitx', 'LOGNAME': 'rm1', 'ALL_PROXY': 'socks://127.0.0.1:7897/', 'http_proxy': 'http://127.0.0.1:7897/', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_SESSION_CLASS': 'user', 'USERNAME': 'rm1', 'TERM': 'xterm-256color', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'ROS_LOCALHOST_ONLY': '0', 'MVCAM_SDK_PATH': '/opt/MVS', 'PATH': '/opt/ros/humble/bin:/home/rm1/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin', 'SESSION_MANAGER': 'local/standard:@/tmp/.ICE-unix/3228,unix/standard:/tmp/.ICE-unix/3228', 'MVCAM_GENICAM_CLPROTOCOL': '/opt/MVS/lib/CLProtocol', 'XDG_MENU_PREFIX': 'gnome-', 'LC_ADDRESS': 'zh_CN.UTF-8', 'GNOME_TERMINAL_SCREEN': '/org/gnome/Terminal/screen/60533e18_ba86_4caf_a3f7_a667ddb58ff9', 'GNOME_SETUP_DISPLAY': ':1', 'XDG_RUNTIME_DIR': '/run/user/1000', 'DISPLAY': ':0', 'LANG': 'en_US.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'LC_TELEPHONE': 'zh_CN.UTF-8', 'XMODIFIERS': '@im=fcitx', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/.mutter-Xwaylandauth.8XARB3', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:', 'GNOME_TERMINAL_SERVICE': ':1.120', 'SSH_AGENT_LAUNCHER': 'gnome-keyring', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'AMENT_PREFIX_PATH': '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim:/opt/ros/humble', 'SHELL': '/bin/bash', 'LC_NAME': 'zh_CN.UTF-8', 'QT_ACCESSIBILITY': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'LC_MEASUREMENT': 'zh_CN.UTF-8', 'LC_IDENTIFICATION': 'zh_CN.UTF-8', 'QT_IM_MODULE': 'fcitx', 'PWD': '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'CLUTTER_IM_MODULE': 'fcitx', 'DBUS_STARTER_ADDRESS': 'unix:path=/run/user/1000/bus,guid=2562026282a693ce018660dd68aeed60', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'PYTHONPATH': '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages', 'HTTP_PROXY': 'http://127.0.0.1:7897/', 'LC_NUMERIC': 'zh_CN.UTF-8', 'LC_PAPER': 'zh_CN.UTF-8', 'COLCON': '1', 'VTE_VERSION': '6800', 'CMAKE_PREFIX_PATH': '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim', 'MVCAM_COMMON_RUNENV': '/opt/MVS/lib'}, 'shell': False}
+[0.400870] (-) TimerEvent: {}
+[0.501069] (-) TimerEvent: {}
+[0.538127] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'running egg_info\n'}
+[0.538462] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'writing ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/PKG-INFO\n'}
+[0.538716] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'writing dependency_links to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/dependency_links.txt\n'}
+[0.538878] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'writing entry points to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/entry_points.txt\n'}
+[0.539315] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'writing requirements to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/requires.txt\n'}
+[0.539415] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'writing top-level names to ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/top_level.txt\n'}
+[0.540878] (shm_pytorch_processor_pkg) StdoutLine: {'line': b"reading manifest file '../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/SOURCES.txt'\n"}
+[0.541344] (shm_pytorch_processor_pkg) StdoutLine: {'line': b"writing manifest file '../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info/SOURCES.txt'\n"}
+[0.541512] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'running build\n'}
+[0.541597] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'running build_py\n'}
+[0.541764] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'running install\n'}
+[0.541902] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'running install_lib\n'}
+[0.542717] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'running install_data\n'}
+[0.542826] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'running install_egg_info\n'}
+[0.543814] (shm_pytorch_processor_pkg) StdoutLine: {'line': b"removing '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg-0.0.0-py3.10.egg-info' (and everything under it)\n"}
+[0.543959] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'Copying ../../build/shm_pytorch_processor_pkg/shm_pytorch_processor_pkg.egg-info to /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages/shm_pytorch_processor_pkg-0.0.0-py3.10.egg-info\n'}
+[0.544294] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'running install_scripts\n'}
+[0.558714] (shm_pytorch_processor_pkg) StdoutLine: {'line': b'Installing shm_pytorch_processor_node script to /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/shm_pytorch_processor_pkg\n'}
+[0.558892] (shm_pytorch_processor_pkg) StdoutLine: {'line': b"writing list of installed files to '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/shm_pytorch_processor_pkg/install.log'\n"}
+[0.575941] (shm_pytorch_processor_pkg) CommandEnded: {'returncode': 0}
+[0.583114] (shm_pytorch_processor_pkg) JobEnded: {'identifier': 'shm_pytorch_processor_pkg', 'rc': 0}
+[0.601265] (-) TimerEvent: {}
+[0.701581] (-) TimerEvent: {}
+[0.801931] (-) TimerEvent: {}
+[0.902171] (-) TimerEvent: {}
+[1.002539] (-) TimerEvent: {}
+[1.103011] (-) TimerEvent: {}
+[1.203636] (-) TimerEvent: {}
+[1.304036] (-) TimerEvent: {}
+[1.404350] (-) TimerEvent: {}
+[1.505068] (-) TimerEvent: {}
+[1.605468] (-) TimerEvent: {}
+[1.705917] (-) TimerEvent: {}
+[1.806434] (-) TimerEvent: {}
+[1.906939] (-) TimerEvent: {}
+[2.007296] (-) TimerEvent: {}
+[2.107573] (-) TimerEvent: {}
+[2.207916] (-) TimerEvent: {}
+[2.308146] (-) TimerEvent: {}
+[2.408422] (-) TimerEvent: {}
+[2.508755] (-) TimerEvent: {}
+[2.609120] (-) TimerEvent: {}
+[2.709398] (-) TimerEvent: {}
+[2.809694] (-) TimerEvent: {}
+[2.909938] (-) TimerEvent: {}
+[3.010269] (-) TimerEvent: {}
+[3.110610] (-) TimerEvent: {}
+[3.210889] (-) TimerEvent: {}
+[3.311239] (-) TimerEvent: {}
+[3.411578] (-) TimerEvent: {}
+[3.511683] (auto_aim) StdoutLine: {'line': b'[  9%] \x1b[32m\x1b[1mLinking CXX shared library libarmor_detector.so\x1b[0m\n'}
+[3.511812] (-) TimerEvent: {}
+[3.612028] (-) TimerEvent: {}
+[3.712330] (-) TimerEvent: {}
+[3.736805] (auto_aim) StderrLine: {'line': b'lto-wrapper: warning: using serial compilation of 5 LTRANS jobs\n'}
+[3.812457] (-) TimerEvent: {}
+[3.912815] (-) TimerEvent: {}
+[4.013215] (-) TimerEvent: {}
+[4.113554] (-) TimerEvent: {}
+[4.213784] (-) TimerEvent: {}
+[4.314143] (-) TimerEvent: {}
+[4.414378] (-) TimerEvent: {}
+[4.514723] (-) TimerEvent: {}
+[4.614993] (-) TimerEvent: {}
+[4.715240] (-) TimerEvent: {}
+[4.815461] (-) TimerEvent: {}
+[4.915799] (-) TimerEvent: {}
+[5.016160] (-) TimerEvent: {}
+[5.116499] (-) TimerEvent: {}
+[5.216847] (-) TimerEvent: {}
+[5.317229] (-) TimerEvent: {}
+[5.417555] (-) TimerEvent: {}
+[5.517771] (-) TimerEvent: {}
+[5.618104] (-) TimerEvent: {}
+[5.718436] (-) TimerEvent: {}
+[5.818800] (-) TimerEvent: {}
+[5.919090] (-) TimerEvent: {}
+[6.019414] (-) TimerEvent: {}
+[6.119766] (-) TimerEvent: {}
+[6.219988] (-) TimerEvent: {}
+[6.320231] (-) TimerEvent: {}
+[6.420566] (-) TimerEvent: {}
+[6.520901] (-) TimerEvent: {}
+[6.621226] (-) TimerEvent: {}
+[6.721476] (-) TimerEvent: {}
+[6.821812] (-) TimerEvent: {}
+[6.847096] (auto_aim) StdoutLine: {'line': b'[ 90%] Built target armor_detector\n'}
+[6.860057] (auto_aim) StdoutLine: {'line': b'\x1b[35m\x1b[1mConsolidate compiler generated dependencies of target armor_detect_node\x1b[0m\n'}
+[6.879521] (auto_aim) StdoutLine: {'line': b'[ 95%] \x1b[32m\x1b[1mLinking CXX executable armor_detect_node\x1b[0m\n'}
+[6.922000] (-) TimerEvent: {}
+[7.022323] (-) TimerEvent: {}
+[7.122649] (-) TimerEvent: {}
+[7.222919] (-) TimerEvent: {}
+[7.323163] (-) TimerEvent: {}
+[7.423502] (-) TimerEvent: {}
+[7.523745] (-) TimerEvent: {}
+[7.624110] (-) TimerEvent: {}
+[7.724383] (-) TimerEvent: {}
+[7.824725] (-) TimerEvent: {}
+[7.924990] (-) TimerEvent: {}
+[8.025320] (-) TimerEvent: {}
+[8.125664] (-) TimerEvent: {}
+[8.226003] (-) TimerEvent: {}
+[8.326335] (-) TimerEvent: {}
+[8.426598] (-) TimerEvent: {}
+[8.526931] (-) TimerEvent: {}
+[8.627341] (-) TimerEvent: {}
+[8.727572] (-) TimerEvent: {}
+[8.827884] (-) TimerEvent: {}
+[8.928212] (-) TimerEvent: {}
+[9.028509] (-) TimerEvent: {}
+[9.128814] (-) TimerEvent: {}
+[9.202696] (auto_aim) StderrLine: {'line': b'/usr/bin/ld: warning: libtbb.so.2, needed by /usr/lib/x86_64-linux-gnu/libopencv_core.so.4.5.4d, may conflict with libtbb.so.12\n'}
+[9.228946] (-) TimerEvent: {}
+[9.329285] (-) TimerEvent: {}
+[9.429719] (-) TimerEvent: {}
+[9.499765] (auto_aim) StdoutLine: {'line': b'[100%] Built target armor_detect_node\n'}
+[9.507883] (auto_aim) CommandEnded: {'returncode': 0}
+[9.508494] (auto_aim) JobProgress: {'identifier': 'auto_aim', 'progress': 'install'}
+[9.514342] (auto_aim) Command: {'cmd': ['/usr/bin/cmake', '--install', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim'], 'cwd': '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim', 'env': OrderedDict([('LESSOPEN', '| /usr/bin/lesspipe %s'), ('HTTPS_PROXY', 'http://127.0.0.1:7897/'), ('no_proxy', 'localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,172.29.0.0/16,::1'), ('USER', 'rm1'), ('LC_TIME', 'zh_CN.UTF-8'), ('all_proxy', 'socks://127.0.0.1:7897/'), ('XDG_SESSION_TYPE', 'wayland'), ('ALLUSERSPROFILE', '/opt/MVS/MVFG'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib:/opt/MVS/lib/64:/opt/MVS/lib/32:/opt/MVS/lib/64:/opt/MVS/lib/32:'), ('HOME', '/home/rm1'), ('DESKTOP_SESSION', 'ubuntu'), ('NO_PROXY', 'localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,172.29.0.0/16,::1'), ('ROS_PYTHON_VERSION', '3'), ('GNOME_SHELL_SESSION_MODE', 'ubuntu'), ('GTK_MODULES', 'gail:atk-bridge'), ('LC_MONETARY', 'zh_CN.UTF-8'), ('DBUS_STARTER_BUS_TYPE', 'session'), ('SYSTEMD_EXEC_PID', '3228'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus,guid=2562026282a693ce018660dd68aeed60'), ('COLORTERM', 'truecolor'), ('IM_CONFIG_PHASE', '1'), ('WAYLAND_DISPLAY', 'wayland-0'), ('https_proxy', 'http://127.0.0.1:7897/'), ('COLCON_PREFIX_PATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install'), ('ROS_DISTRO', 'humble'), ('GTK_IM_MODULE', 'fcitx'), ('LOGNAME', 'rm1'), ('ALL_PROXY', 'socks://127.0.0.1:7897/'), ('http_proxy', 'http://127.0.0.1:7897/'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('USERNAME', 'rm1'), ('TERM', 'xterm-256color'), ('GNOME_DESKTOP_SESSION_ID', 'this-is-deprecated'), ('ROS_LOCALHOST_ONLY', '0'), ('MVCAM_SDK_PATH', '/opt/MVS'), ('PATH', '/opt/ros/humble/bin:/home/rm1/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin'), ('SESSION_MANAGER', 'local/standard:@/tmp/.ICE-unix/3228,unix/standard:/tmp/.ICE-unix/3228'), ('MVCAM_GENICAM_CLPROTOCOL', '/opt/MVS/lib/CLProtocol'), ('XDG_MENU_PREFIX', 'gnome-'), ('LC_ADDRESS', 'zh_CN.UTF-8'), ('GNOME_TERMINAL_SCREEN', '/org/gnome/Terminal/screen/60533e18_ba86_4caf_a3f7_a667ddb58ff9'), ('GNOME_SETUP_DISPLAY', ':1'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':0'), ('LANG', 'en_US.UTF-8'), ('XDG_CURRENT_DESKTOP', 'ubuntu:GNOME'), ('LC_TELEPHONE', 'zh_CN.UTF-8'), ('XMODIFIERS', '@im=fcitx'), ('XDG_SESSION_DESKTOP', 'ubuntu'), ('XAUTHORITY', '/run/user/1000/.mutter-Xwaylandauth.8XARB3'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('GNOME_TERMINAL_SERVICE', ':1.120'), ('SSH_AGENT_LAUNCHER', 'gnome-keyring'), ('SSH_AUTH_SOCK', '/run/user/1000/keyring/ssh'), ('AMENT_PREFIX_PATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim:/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LC_NAME', 'zh_CN.UTF-8'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'ubuntu'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('LC_MEASUREMENT', 'zh_CN.UTF-8'), ('LC_IDENTIFICATION', 'zh_CN.UTF-8'), ('QT_IM_MODULE', 'fcitx'), ('PWD', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-ubuntu:/etc/xdg'), ('CLUTTER_IM_MODULE', 'fcitx'), ('DBUS_STARTER_ADDRESS', 'unix:path=/run/user/1000/bus,guid=2562026282a693ce018660dd68aeed60'), ('XDG_DATA_DIRS', '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('HTTP_PROXY', 'http://127.0.0.1:7897/'), ('LC_NUMERIC', 'zh_CN.UTF-8'), ('LC_PAPER', 'zh_CN.UTF-8'), ('COLCON', '1'), ('VTE_VERSION', '6800'), ('CMAKE_PREFIX_PATH', '/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim:/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/shm_pytorch_processor_pkg:/opt/ros/humble'), ('MVCAM_COMMON_RUNENV', '/opt/MVS/lib')]), 'shell': False}
+[9.518261] (auto_aim) StdoutLine: {'line': b'-- Install configuration: "Release"\n'}
+[9.518336] (auto_aim) StdoutLine: {'line': b'-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/lib/auto_aim/armor_detect_node\n'}
+[9.518485] (auto_aim) StdoutLine: {'line': b'-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/lib/libarmor_detector.so\n'}
+[9.518757] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/launch\n'}
+[9.518793] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/launch/auto_aim_launch.py\n'}
+[9.518833] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/ament_index/resource_index/package_run_dependencies/auto_aim\n'}
+[9.518897] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/ament_index/resource_index/parent_prefix_path/auto_aim\n'}
+[9.518925] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/ament_prefix_path.sh\n'}
+[9.518951] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/ament_prefix_path.dsv\n'}
+[9.518978] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/path.sh\n'}
+[9.519003] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/environment/path.dsv\n'}
+[9.519027] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.bash\n'}
+[9.519069] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.sh\n'}
+[9.519131] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.zsh\n'}
+[9.519154] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/local_setup.dsv\n'}
+[9.519175] (auto_aim) StdoutLine: {'line': b'-- Installing: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/package.dsv\n'}
+[9.519196] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/ament_index/resource_index/packages/auto_aim\n'}
+[9.519216] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/cmake/auto_aimConfig.cmake\n'}
+[9.519240] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/cmake/auto_aimConfig-version.cmake\n'}
+[9.519263] (auto_aim) StdoutLine: {'line': b'-- Up-to-date: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/install/auto_aim/share/auto_aim/package.xml\n'}
+[9.520489] (auto_aim) CommandEnded: {'returncode': 0}
+[9.527900] (auto_aim) JobEnded: {'identifier': 'auto_aim', 'rc': 0}
+[9.528468] (-) EventReactorShutdown: {}

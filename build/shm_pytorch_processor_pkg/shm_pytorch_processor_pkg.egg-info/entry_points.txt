@@ -1,0 +1,3 @@
+[console_scripts]
+shm_pytorch_processor_node = shm_pytorch_processor_pkg.shm_pytorch_processor_node:main
+

@@ -1,5 +1,6 @@
 // ArmorSolver.cpp
 #include "armor_detector/ArmorSolver.h"
+#include <Eigen/Geometry> // For Quaternion and rotation matrix math
 
 void ArmorSolver::initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) {
     const YAML::Node& camera_matrix_Node = (*config_file_ptr)["camera_matrix"];
@@ -86,8 +87,13 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result) const {
         bool solve_success = cv::solvePnP(armor_points_3d, armor.corners, 
                                         camera_matrix, dist_coeffs, 
                                         rvec, tvec, false, cv::SOLVEPNP_IPPE);
-        
-        if (!solve_success) {
+
+        if (solve_success) {
+            result.valid = true;
+            result.position = cv::Point3f(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
+            result.rvec = rvec.clone(); // <<--- 填充rvec
+            result.yaw = getYawFromRvec(rvec); // <<--- 计算并填充yaw
+        } else {
             std::cerr << "PnP solve failed!" << std::endl;
             return result;
         }
@@ -108,4 +114,18 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result) const {
     }
     
     return result;
+}
+
+double ArmorSolver::getYawFromRvec(const cv::Mat& rvec) {
+    if (rvec.empty()) return 0.0;
+    cv::Mat rmat;
+    cv::Rodrigues(rvec, rmat); // 从旋转向量得到旋转矩阵
+
+    // 根据OpenCV相机坐标系从旋转矩阵直接计算Yaw角
+    // Yaw是绕Y轴的旋转，一个稳健的计算方法如下：
+    // yaw = atan2(-R(2,0), sqrt(R(0,0)^2 + R(1,0)^2))
+    double yaw = std::atan2(-rmat.at<double>(2, 0),
+                           std::sqrt(std::pow(rmat.at<double>(0, 0), 2) +
+                                     std::pow(rmat.at<double>(1, 0), 2)));
+    return yaw;
 }
