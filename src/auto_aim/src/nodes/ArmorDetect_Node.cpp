@@ -529,8 +529,9 @@ private:
                         // );
 
                         // 将pnp结果转换至静止坐标系以稳定预测
-                        std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
-                        std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+                        //std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
+                        //std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+                        std::vector<float> cam_normal_pos = {aim.position.x, aim.position.y, aim.position.z};
 
                         // ========== EKF 逻辑 (6D模型修改) ==========
 
@@ -599,13 +600,13 @@ private:
                         std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]); */
 
                         // 转换回pnp相机坐标系
-                        std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
+                        /* std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
 
                         std::vector<float> cam_normal_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_pred[0], rest_frame_pos_pred[1], rest_frame_pos_pred[2]);
                         std::vector<float> pnp_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_pred[0], cam_normal_pos_pred[1], cam_normal_pos_pred[2]);
                         predicted_pos.x = pnp_pos_pred[0];
                         predicted_pos.y = pnp_pos_pred[1];
-                        predicted_pos.z = pnp_pos_pred[2];
+                        predicted_pos.z = pnp_pos_pred[2]; */
 
                         // 弹道解算
                         BallisticInfo ballistic_result = calcBallisticAngle(
