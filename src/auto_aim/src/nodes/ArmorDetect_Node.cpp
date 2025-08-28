@@ -476,7 +476,7 @@ private:
                         // last_continuous_yaw_ = continuous_yaw;
                         // RCLCPP_INFO(this->get_logger(), "Armor position: (%.2f, %.2f, %.2f), yaw: %.2f",
                         //             rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
-                        // // ==========
+                        //
 
                         // // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                         // Tracker::Measurement z;
@@ -564,8 +564,8 @@ private:
 
                         // 3. 提前预测与弹道解算
                         // 计算总延迟 (这部分逻辑不变)
-                        constexpr float image_latency = 0.043f;
-                        constexpr float comm_latency  = 0.030f;
+                        constexpr float image_latency = 0.013f;
+                        constexpr float comm_latency  = 0.010f;
                         float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
                         float total_delay = image_latency + comm_latency + bullet_time;
 

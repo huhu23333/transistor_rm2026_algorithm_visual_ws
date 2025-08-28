@@ -17,17 +17,18 @@
 #   p0_init_val: 10.0
 
 ekf_params:
-  sigma2_q_x: 0.2e4      # 过程噪声，可以从一个较大的值开始调
-  sigma2_q_y: 0.2e4 #1.0e4
-  sigma2_q_z: 0.2e4 #1.0e4
+# 过程噪声，可以从一个较大的值开始调
+  sigma2_q_x: 1.0e3
+  sigma2_q_y: 1.0e3 #1.0e4
+  sigma2_q_z: 2.0e3 #1.0e4
   # 测量噪声
-  r_x_coeff: 3.0e-5
-  r_y_coeff: 3.0e-5 #5.0e-6
+  r_x_coeff: 1.0e-4
+  r_y_coeff: 3.0e-4 #5.0e-6
   r_z_coeff: 3.0e-5 #5.0e-6
-  p0_init_val: 100.0    # 初始不确定性
+  p0_init_val: 10.0    # 初始不确定性
 
 # 其他参数...
-RESET_DISTANCE_THRESHOLD : 700.0 # 单位：mm
+RESET_DISTANCE_THRESHOLD : 100.0 # 单位：mm
 
 # SharedMemoryTorch参数
 SHM_KEY : 0x1234
@@ -52,7 +53,7 @@ cam_ip : "192.168.10.10"
 video_relative_path : "InputVideo/robosoul.mp4" # 使用视频输入时的视频路径
 images_relative_path : "InputImages" # 使用图片输入时的图片文件夹路径
 
-frame_rate : 30.0
+frame_rate : 100.0
 
 yaw_rad_to_x_pixel_ratio : 1300.0
 pitch_rad_to_y_pixel_ratio : 1350.0
