@@ -193,6 +193,7 @@ public:
 #endif
 #endif
         reset_com_frame = (*config_file_ptr)["reset_com_frame"].as<int>();
+        serial_delay_time = (*config_file_ptr)["serial_delay_time"].as<float>();
 
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -263,19 +264,38 @@ private:
         } else if (current_yaw_ > M_PI/2 && last_yaw_rad_ < -M_PI/2) {
             yaw_circle_ -= 1;
         }
+
         total_yaw_rad_ = yaw_circle_ * 2 * M_PI + current_yaw_;
         last_pitch_rad_ = current_pitch_;
         last_yaw_rad_ = current_yaw_;
 
-        ground_stable_point = cv::Point2f(2000+total_yaw_rad_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_*pitch_rad_to_y_pixel_ratio);
+        RCLCPP_DEBUG(this->get_logger(), 
+            "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f",
+            bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str(),
+            yaw_circle_, total_yaw_rad_);
 
-        rest_frame_ -> updateCamOrientation(current_yaw_, current_pitch_, 0);
+
+        std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+        DelayInfos now_serial_infos;
+        now_serial_infos.last_pitch_rad_ = last_pitch_rad_;
+        now_serial_infos.last_yaw_rad_ = last_yaw_rad_;
+        now_serial_infos.total_yaw_rad_ = total_yaw_rad_;
+        now_serial_infos.push_time = current_time;
+        serial_infos_delay.push(now_serial_infos)
+        while (serial_infos_delay.size() > 1 && 
+               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - now_serial_infos.front().push_time).count() > serial_delay_time) {
+            serial_infos_delay.pop();
+        }
+        DelayInfos delayed_serial_infos = serial_infos_delay.front();
+        last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
+        last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
+        total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
+
+        ground_stable_point = cv::Point2f(2000+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
+
+        rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
 
-        RCLCPP_DEBUG(this->get_logger(), 
-            "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f, point=(%.1f, %.1f)",
-            bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str(),
-            yaw_circle_, total_yaw_rad_, ground_stable_point.x, ground_stable_point.y);
     }
 
     void drawResults(cv::Mat& image, 
@@ -286,12 +306,12 @@ private:
         cv::Mat result = image.clone();
 
         // 0. 绘制地面系不动点（DEBUG）
-        cv::circle(result, ground_stable_point_delay.front(), 10, cv::Scalar(0, 255, 0), 2);
-        /* cv::circle(result, cv::Point2f(1000, 1000) - ground_stable_point_delay.front(), 10, cv::Scalar(0, 255, 0), 2);
+        cv::circle(result, ground_stable_point, 10, cv::Scalar(0, 255, 0), 2);
+        /* cv::circle(result, cv::Point2f(1000, 1000) - ground_stable_point, 10, cv::Scalar(0, 255, 0), 2);
         for (const auto& res : classifyResults) {
             for (size_t i = 0; i < res.corners.size() && i < 4; i++) {
-                cv::line(result, res.corners[i] - ground_stable_point_delay.front() + cv::Point2f(500, 500), 
-                        res.corners[(i+1)%4] - ground_stable_point_delay.front() + cv::Point2f(500, 500), 
+                cv::line(result, res.corners[i] - ground_stable_point + cv::Point2f(500, 500), 
+                        res.corners[(i+1)%4] - ground_stable_point + cv::Point2f(500, 500), 
                         cv::Scalar(0, 255, 0), 2);
             }    
         } */
@@ -440,11 +460,7 @@ private:
             has_valid_target_ = false;
 
 
-            ground_stable_point_delay.push(ground_stable_point);
-            while (ground_stable_point_delay.size() > 2) {
-                ground_stable_point_delay.pop();
-            }
-            classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point_delay.front());
+            classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
@@ -529,9 +545,8 @@ private:
                         // );
 
                         // 将pnp结果转换至静止坐标系以稳定预测
-                        //std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
-                        //std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
-                        std::vector<float> cam_normal_pos = {aim.position.x, aim.position.y, aim.position.z};
+                        std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
+                        std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
 
                         // ========== EKF 逻辑 (6D模型修改) ==========
 
@@ -600,13 +615,13 @@ private:
                         std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]); */
 
                         // 转换回pnp相机坐标系
-                        /* std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
+                        std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
 
                         std::vector<float> cam_normal_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_pred[0], rest_frame_pos_pred[1], rest_frame_pos_pred[2]);
                         std::vector<float> pnp_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_pred[0], cam_normal_pos_pred[1], cam_normal_pos_pred[2]);
                         predicted_pos.x = pnp_pos_pred[0];
                         predicted_pos.y = pnp_pos_pred[1];
-                        predicted_pos.z = pnp_pos_pred[2]; */
+                        predicted_pos.z = pnp_pos_pred[2];
 
                         // 弹道解算
                         BallisticInfo ballistic_result = calcBallisticAngle(
@@ -617,15 +632,15 @@ private:
                             delta_y_,
                             delta_z_,
                             bullet_velocity_,
-                            pitch_integrate_temp,//current_pitch_,
-                            current_yaw_
+                            pitch_integrate_temp,//last_pitch_rad_delayed_,
+                            last_yaw_rad_delayed_
                         );
                         
                         if (ballistic_result.valid) {
                             // RCLCPP_INFO(this->get_logger(), "Target detected, publishing command");
                             has_valid_target_ = true;
 
-                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.1;
+                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.01;
 
                             if (pitch_integrate_temp > 0.3) {
                                 pitch_integrate_temp = 0.3;
@@ -635,7 +650,7 @@ private:
                             }
                             
                             // 发布云台控制命令
-                            float command_pitch = last_pitch_rad_ + ballistic_result.pitch_angle * 0.7 + pitch_integrate_temp; // PI控制
+                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integrate_temp; // PI控制
                             float command_yaw = ballistic_result.yaw_angle;
                             serial_communication_->sendData(command_pitch, command_yaw);
 
@@ -667,7 +682,7 @@ private:
             // // 显示当前参数状态
             // cv::putText(frame, 
             //     cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
-            //         bullet_velocity_, current_pitch_, current_yaw_),
+            //         bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_),
             //     cv::Point(10, 60),
             //     cv::FONT_HERSHEY_SIMPLEX, 0.5,
             //     cv::Scalar(0, 255, 0), 1);
@@ -723,10 +738,21 @@ private:
     float delta_x_;
     float delta_y_;
     float delta_z_;
+    int yaw_circle_ = 0;
     float last_pitch_rad_ = 0;
     float last_yaw_rad_ = 0;
-    int yaw_circle_ = 0;
     float total_yaw_rad_ = 0;
+    float last_pitch_rad_delayed_ = 0;
+    float last_yaw_rad_delayed_ = 0;
+    float total_yaw_rad_delayed_ = 0;
+    struct DelayInfos {
+        float last_pitch_rad_;
+        float last_yaw_rad_;
+        float total_yaw_rad_;
+        std::chrono::steady_clock::time_point push_time;
+    };
+    std::queue<DelayInfos> serial_infos_delay;
+    float serial_delay_time;
     bool has_valid_target_;
     std::string enemy_color_;
     Params params_;
@@ -742,7 +768,6 @@ private:
 #endif
     float pitch_integrate_temp = 0.0;
     cv::Point2f ground_stable_point;
-    std::queue<cv::Point2f> ground_stable_point_delay;
     std::shared_ptr<SerialCommunicationClass> serial_communication_;
     int reset_com_frame;
     int reset_com_frame_count = 0;
