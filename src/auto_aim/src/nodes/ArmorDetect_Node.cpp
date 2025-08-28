@@ -192,7 +192,7 @@ public:
         camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
 #endif
 #endif
-        reset_com_frame = (*config_file_ptr)["reset_com_frame"].as<int>();
+        reset_com_time = (*config_file_ptr)["reset_com_time"].as<float>();
         serial_delay_time = (*config_file_ptr)["serial_delay_time"].as<float>();
 
         if (enemy_color_ == "RED") {
@@ -281,9 +281,9 @@ private:
         now_serial_infos.last_yaw_rad_ = last_yaw_rad_;
         now_serial_infos.total_yaw_rad_ = total_yaw_rad_;
         now_serial_infos.push_time = current_time;
-        serial_infos_delay.push(now_serial_infos)
+        serial_infos_delay.push(now_serial_infos);
         while (serial_infos_delay.size() > 1 && 
-               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - now_serial_infos.front().push_time).count() > serial_delay_time) {
+               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - serial_infos_delay.front().push_time).count() > serial_delay_time) {
             serial_infos_delay.pop();
         }
         DelayInfos delayed_serial_infos = serial_infos_delay.front();
@@ -464,17 +464,14 @@ private:
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            if (armors.empty() && reset_com_frame_count >= reset_com_frame) {
+            if (armors.empty() && 
+                std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
                 serial_communication_->sendData(0, 0);
-                pitch_integrate_temp = 0; // 积分项重置
+                pitch_integration = 0; // 积分项重置
             }
-            if (reset_com_frame_count < reset_com_frame) {
-                reset_com_frame_count += 1;
-            }
-
 
             if (!armors.empty()) {
-                reset_com_frame_count = 0;
+                last_com_time = std::chrono::steady_clock::now();
                 // 选择最佳目标（置信度最高）
                 auto it = std::max_element(
                     classifyResults.begin(), classifyResults.end(),
@@ -632,7 +629,7 @@ private:
                             delta_y_,
                             delta_z_,
                             bullet_velocity_,
-                            pitch_integrate_temp,//last_pitch_rad_delayed_,
+                            pitch_integration,//last_pitch_rad_delayed_,
                             last_yaw_rad_delayed_
                         );
                         
@@ -640,17 +637,17 @@ private:
                             // RCLCPP_INFO(this->get_logger(), "Target detected, publishing command");
                             has_valid_target_ = true;
 
-                            pitch_integrate_temp += ballistic_result.pitch_angle * 0.01;
+                            pitch_integration += ballistic_result.pitch_angle * 0.01;
 
-                            if (pitch_integrate_temp > 0.3) {
-                                pitch_integrate_temp = 0.3;
+                            if (pitch_integration > 0.3) {
+                                pitch_integration = 0.3;
                             }
-                            if (pitch_integrate_temp < -0.3) {
-                                pitch_integrate_temp = -0.3;
+                            if (pitch_integration < -0.3) {
+                                pitch_integration = -0.3;
                             }
                             
                             // 发布云台控制命令
-                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integrate_temp; // PI控制
+                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integration; // PI控制
                             float command_yaw = ballistic_result.yaw_angle;
                             serial_communication_->sendData(command_pitch, command_yaw);
 
@@ -766,11 +763,11 @@ private:
 #ifdef SAVE_IMG_FREQ
     long long frame_count_ = 0;
 #endif
-    float pitch_integrate_temp = 0.0;
+    float pitch_integration = 0.0;
     cv::Point2f ground_stable_point;
     std::shared_ptr<SerialCommunicationClass> serial_communication_;
-    int reset_com_frame;
-    int reset_com_frame_count = 0;
+    float reset_com_time;
+    std::chrono::steady_clock::time_point last_com_time = std::chrono::steady_clock::now();
     float yaw_rad_to_x_pixel_ratio;
     float pitch_rad_to_y_pixel_ratio;
 };
