@@ -474,6 +474,11 @@ private:
                 serial_communication_->sendData(0, 0);
                 pitch_integration = 0; // 积分项重置
                 predictor3d -> clearHistory(); 
+            } else {
+                predictor3d -> addPoint(fourierPredictions[predictIndex]);
+                if (predictIndex < 29) {
+                    predictIndex += 1;
+                }
             }
 
             if (!armors.empty()) {
@@ -621,9 +626,10 @@ private:
                         // 测试3D傅里叶预测器
                         predictor3d -> addPoint(cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]));
                         predictor3d -> fitFourier(90, 5);
-                        std::vector<cv::Point3f> fourierPrediction = predictor3d -> predictFourier(30);
-                        size_t fourierPrediction_index = std::min(29, (int)(total_delay / fps_counter->fps()));
-                        predicted_pos = fourierPrediction[fourierPrediction_index];
+                        fourierPredictions = predictor3d -> predictFourier(30);
+                        predictIndex = 0;
+                        size_t fourierPrediction_indexToAim = std::min(29, (int)(total_delay / fps_counter->fps()));
+                        predicted_pos = fourierPredictions[fourierPrediction_indexToAim];
                         
                         // 转换回pnp相机坐标系
                         std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
@@ -785,6 +791,8 @@ private:
     float yaw_rad_to_x_pixel_ratio;
     float pitch_rad_to_y_pixel_ratio;
     std::shared_ptr<PositionPredictor3D> predictor3d;
+    int predictIndex = 0;
+    std::vector<cv::Point3f> fourierPredictions;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
