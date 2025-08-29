@@ -22,20 +22,20 @@ BallisticInfo calcBallisticAngle(float x_camera, float y_camera, float z_camera,
     result.valid = false;
     
     // 转换单位：mm到m
-    x_camera = (x_camera + deltax_camera) / 1000.0f; // 向左
+    x_camera = (x_camera + deltax_camera) / 1000.0f; // 向右
     y_camera = (y_camera + deltay_camera) / 1000.0f; // 向下
     z_camera = (z_camera + deltaz_camera) / 1000.0f; // 向前
 
     // 3. 转弧度
     float pitch_rad = cur_pitch * M_PI / 180.0f;
 
-    float x_standard = -x_camera;                                               // 向右
+    float x_standard = x_camera;                                               // 向右
     float y_standard = z_camera*sin(pitch_rad) - y_camera*cos(pitch_rad);       // 向上
     float z_standard = z_camera*cos(pitch_rad) + y_camera*sin(pitch_rad);       // 向前
     float r_standard = sqrt(x_standard*x_standard + z_standard*z_standard);
 
     // 1. 计算目标yaw弧度
-    float target_delta_yaw = atan2(x_standard, z_standard);
+    float target_delta_yaw = -atan2(x_standard, z_standard);
     float target_yaw = normalizeRad(target_delta_yaw + cur_yaw);  // 标准化到[-M_PI, M_PI]
     
     // 4. 求解弹道方程

@@ -1,6 +1,6 @@
-// PositionPredictor.h
-#ifndef POSITION_PREDICTOR_H
-#define POSITION_PREDICTOR_H
+// PositionPredictor3D.h
+#ifndef POSITION_PREDICTOR3D_H
+#define POSITION_PREDICTOR3D_H
 
 #include <vector>
 #include <opencv2/core.hpp>
@@ -9,13 +9,13 @@
 #include <stdexcept>
 #include <iostream>
 
-class PositionPredictor2D {
+class PositionPredictor3D {
 public:
     // 构造函数，指定最大历史步数
-    PositionPredictor2D(int max_history = 100);
+    PositionPredictor3D(int max_history = 100);
     
     // 添加新的位置点（重命名为addPoint）
-    void addPoint(const cv::Point2f& point);
+    void addPoint(const cv::Point3f& point);
     
     // 线性拟合函数
     void fitLinear(int steps);
@@ -27,13 +27,13 @@ public:
     void fitQuadratic(int steps);
     
     // 线性预测函数
-    std::vector<cv::Point2f> predictLinear(int pred_length, cv::Point2f ground_stable_point) const;
+    std::vector<cv::Point3f> predictLinear(int pred_length) const;
     
     // 傅里叶预测函数
-    std::vector<cv::Point2f> predictFourier(int pred_length, cv::Point2f ground_stable_point) const;
+    std::vector<cv::Point3f> predictFourier(int pred_length) const;
     
     // 二次曲线预测函数（新增）
-    std::vector<cv::Point2f> predictQuadratic(int pred_length, cv::Point2f ground_stable_point) const;
+    std::vector<cv::Point3f> predictQuadratic(int pred_length) const;
     
     // 获取上一次拟合的MSE
     double getLastMSE() const;
@@ -72,6 +72,7 @@ private:
     struct FourierFitResult {
         std::vector<double> beta_x;
         std::vector<double> beta_y;
+        std::vector<double> beta_z;
         int period;
         double mse;
         int fit_point_count;   // 拟合时的点计数
@@ -97,14 +98,16 @@ private:
     double fourierSeries(double t, const std::vector<double>& beta, int T, int N) const;
     
     int max_history_;          // 最大历史步数
-    std::vector<cv::Point2f> history_;  // 历史位置点
+    std::vector<cv::Point3f> history_;  // 历史位置点
     int point_count_ = 0;      // 添加点的计数
     
     // 拟合结果
     LinearFitResult linear_fit_x_;
     LinearFitResult linear_fit_y_;
+    LinearFitResult linear_fit_z_;
     QuadraticFitResult quadratic_fit_x_;  // 新增
     QuadraticFitResult quadratic_fit_y_;  // 新增
+    QuadraticFitResult quadratic_fit_z_;  // 新增
     FourierFitResult fourier_fit_;
     
     bool linear_fitted_ = false;  // 线性拟合是否完成
@@ -114,4 +117,4 @@ private:
     double last_mse_ = 0.0;
 };
 
-#endif // POSITION_PREDICTOR_H
+#endif // POSITION_PREDICTOR3D_H

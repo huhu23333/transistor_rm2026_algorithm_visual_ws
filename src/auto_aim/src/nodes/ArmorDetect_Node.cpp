@@ -32,6 +32,7 @@
 #include <csignal>
 #include "test_codes/PredictionTrans.h"
 #include "utils/RestFrame.h"
+#include "utils/PositionPredictor3D.h"
 
 namespace fs = std::filesystem;
 
@@ -216,6 +217,8 @@ public:
         angle_kalman_ = std::make_shared<ArmorAngleKalman>();
 
         trans_pred_ = std::make_shared<Trans2DPredTo3DClass>(config_file_ptr);
+
+        predictor3d = std::make_shared<PositionPredictor3D>(100);
 
         rest_frame_ = std::make_shared<RestFrame>();
         rest_frame_ -> updateCamOrientation(0, 0, 0);
@@ -470,6 +473,7 @@ private:
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
                 serial_communication_->sendData(0, 0);
                 pitch_integration = 0; // 积分项重置
+                predictor3d -> clearHistory(); 
             }
 
             if (!armors.empty()) {
@@ -614,6 +618,13 @@ private:
                         std::vector<float> cam_normal_pos_new = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_new[0], rest_frame_pos_new[1], rest_frame_pos_new[2]);
                         std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]); */
 
+                        // 测试3D傅里叶预测器
+                        predictor3d -> addPoint(cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]));
+                        predictor3d -> fitFourier(90, 5);
+                        std::vector<cv::Point3f> fourierPrediction = predictor3d -> predictFourier(30);
+                        size_t fourierPrediction_index = std::min(29, (int)(total_delay / fps_counter->fps()))
+                        predicted_pos = fourierPrediction[fourierPrediction_index];
+                        
                         // 转换回pnp相机坐标系
                         std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
 
@@ -773,6 +784,7 @@ private:
     std::chrono::steady_clock::time_point last_com_time = std::chrono::steady_clock::now();
     float yaw_rad_to_x_pixel_ratio;
     float pitch_rad_to_y_pixel_ratio;
+    std::shared_ptr<PositionPredictor3D> predictor3d;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
