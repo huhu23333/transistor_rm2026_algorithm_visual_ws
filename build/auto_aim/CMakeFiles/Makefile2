@@ -137,12 +137,12 @@ CMakeFiles/auto_aim_uninstall.dir/clean:
 CMakeFiles/armor_detector.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/armor_detector.dir/build.make CMakeFiles/armor_detector.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/armor_detector.dir/build.make CMakeFiles/armor_detector.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim/CMakeFiles --progress-num=3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23 "Built target armor_detector"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim/CMakeFiles --progress-num=3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22 "Built target armor_detector"
 .PHONY : CMakeFiles/armor_detector.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/armor_detector.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim/CMakeFiles 21
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim/CMakeFiles 20
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/armor_detector.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim/CMakeFiles 0
 .PHONY : CMakeFiles/armor_detector.dir/rule
@@ -168,7 +168,7 @@ CMakeFiles/armor_detect_node.dir/all: CMakeFiles/armor_detector.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/armor_detect_node.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim/CMakeFiles 23
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim/CMakeFiles 22
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/armor_detect_node.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/build/auto_aim/CMakeFiles 0
 .PHONY : CMakeFiles/armor_detect_node.dir/rule

@@ -25,7 +25,6 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/src/utils/CRC.cpp" "CMakeFiles/armor_detector.dir/src/utils/CRC.cpp.o" "gcc" "CMakeFiles/armor_detector.dir/src/utils/CRC.cpp.o.d"
   "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/src/utils/Com.cpp" "CMakeFiles/armor_detector.dir/src/utils/Com.cpp.o" "gcc" "CMakeFiles/armor_detector.dir/src/utils/Com.cpp.o.d"
   "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/src/utils/FrameRateCounter.cpp" "CMakeFiles/armor_detector.dir/src/utils/FrameRateCounter.cpp.o" "gcc" "CMakeFiles/armor_detector.dir/src/utils/FrameRateCounter.cpp.o.d"
-  "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/src/utils/RestFrame.cpp" "CMakeFiles/armor_detector.dir/src/utils/RestFrame.cpp.o" "gcc" "CMakeFiles/armor_detector.dir/src/utils/RestFrame.cpp.o.d"
   "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/src/utils/SharedMemoryTorch.cpp" "CMakeFiles/armor_detector.dir/src/utils/SharedMemoryTorch.cpp.o" "gcc" "CMakeFiles/armor_detector.dir/src/utils/SharedMemoryTorch.cpp.o.d"
   "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/src/auto_aim/src/utils/UnwarpUtils.cpp" "CMakeFiles/armor_detector.dir/src/utils/UnwarpUtils.cpp.o" "gcc" "CMakeFiles/armor_detector.dir/src/utils/UnwarpUtils.cpp.o.d"
   )

@@ -31,7 +31,6 @@
 #include "utils/Com.h"
 #include <csignal>
 #include "test_codes/PredictionTrans.h"
-#include "utils/RestFrame.h"
 
 namespace fs = std::filesystem;
 
@@ -216,10 +215,6 @@ public:
 
         trans_pred_ = std::make_shared<Trans2DPredTo3DClass>(config_file_ptr);
 
-        rest_frame_ = std::make_shared<RestFrame>();
-        rest_frame_ -> updateCamOrientation(0, 0, 0);
-        rest_frame_ -> updateCamPosition(0, 0, 0);
-
         // 创建定时器
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
@@ -268,9 +263,6 @@ private:
         last_yaw_rad_ = current_yaw_;
 
         ground_stable_point = cv::Point2f(2000+total_yaw_rad_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_*pitch_rad_to_y_pixel_ratio);
-
-        rest_frame_ -> updateCamOrientation(current_yaw_, current_pitch_, 0);
-        rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
 
         RCLCPP_DEBUG(this->get_logger(), 
             "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f, point=(%.1f, %.1f)",
@@ -325,13 +317,13 @@ private:
         }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
-        /*for (const auto& res : classifyResults_forFourierPredict) {
+        for (const auto& res : classifyResults_forFourierPredict) {
             if (res.is_steady_tracked) {
                 for (auto& prediction : res.predictions) {
                     cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
                 }
             }
-        }*/
+        }
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
             if (res.is_tracked_now) {
@@ -349,10 +341,10 @@ private:
             }
 
             // 绘制预测中心点
-            /*for (auto& prediction : res.predictions) {
+            for (auto& prediction : res.predictions) {
                 cv::circle(result, prediction, 3, cv::Scalar(255, 0, 255), -1);
             }
-            cv::circle(result, res.center_predicted, 3, cv::Scalar(0, 255, 255), -1);*/
+            cv::circle(result, res.center_predicted, 3, cv::Scalar(0, 255, 255), -1);
 
             // 绘制中心点和编号
             cv::Point2f center = res.center;
@@ -475,12 +467,12 @@ private:
                         // double continuous_yaw = last_continuous_yaw_ + angles::shortest_angular_distance(last_continuous_yaw_, aim.yaw);
                         // last_continuous_yaw_ = continuous_yaw;
                         // RCLCPP_INFO(this->get_logger(), "Armor position: (%.2f, %.2f, %.2f), yaw: %.2f",
-                        //             rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
-                        //
+                        //             aim.position.x, aim.position.y, aim.position.z, aim.yaw);
+                        // // ==========
 
                         // // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                         // Tracker::Measurement z;
-                        // z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw;
+                        // z << aim.position.x, aim.position.y, aim.position.z, aim.yaw;
 
                         // // 2. EKF 状态机逻辑
                         // if (tracker_->state == Tracker::LOST) {
@@ -490,7 +482,7 @@ private:
                         // } else {
                         //     // 跳变处理
                         //     Eigen::Vector3d pred_armor_pos = tracker_->getArmorPosition();
-                        //     double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2])).norm();
+                        //     double position_diff = (pred_armor_pos - Eigen::Vector3d(aim.position.x, aim.position.y, aim.position.z)).norm();
 
                         //     if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
                         //         if(best_result.number != current_target_id_) {
@@ -528,35 +520,58 @@ private:
                         //     future_zc - future_r * sin(future_yaw)
                         // );
 
-                        // 将pnp结果转换至静止坐标系以稳定预测
-                        std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
-                        std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+                        // ArmorDetect_Node.cpp 中的 processImage 函数
 
                         // ========== EKF 逻辑 (6D模型修改) ==========
 
                         // 1. 构造3维测量向量 z = [xa, ya, za]
                         Tracker::Measurement z;
-                        z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2];
+                        z << aim.position.x, aim.position.y, aim.position.z;
 
                         // 2. EKF 状态机逻辑
                         if (tracker_->state == Tracker::LOST) {
-                            // 如果是丢失状态，用当前测量值重置滤波器
+                            // 如果完全丢失，必须重置
                             tracker_->reset(z);
                             current_target_id_ = best_result.number;
-                        } else {
-                            // 跳变处理
-                            Eigen::Vector3d pred_armor_pos = tracker_->getArmorPosition();
-                            double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2])).norm();
+                        } 
+                        else if (tracker_->state == Tracker::TEMP_LOST) {
+                            // 如果是短暂丢失后重新看到目标，进行速度一致性检查
+                            Eigen::Vector3d pred_pos = tracker_->getArmorPosition();
+                            Eigen::Vector3d measurement_pos = z.head<3>();
+                            Eigen::Vector3d pos_diff_vec = measurement_pos - pred_pos;
 
-                            if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
-                                if(best_result.number != current_target_id_) {
-                                    RCLCPP_WARN(this->get_logger(), "ID switched, resetting tracker.");
-                                } else {
-                                    RCLCPP_WARN(this->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
-                                }
+                            double dt = 1.0 / frame_rate_; 
+                            Eigen::Vector3d implied_velocity = pos_diff_vec / dt;
+
+                            Tracker::State current_state = tracker_->getTargetState();
+                            Eigen::Vector3d current_velocity(current_state(1), current_state(3), current_state(5));
+
+                            double speed_diff = (implied_velocity - current_velocity).norm();
+                            constexpr double MAX_VELOCITY_CHANGE_THRESHOLD = 2000.0; // 2 m/s 的加速度，可调
+
+                            if (speed_diff > MAX_VELOCITY_CHANGE_THRESHOLD) {
+                                // 速度变化剧烈，判定为切换，调用“状态引导”
+                                tracker_->guideState(z);
+                                current_target_id_ = best_result.number; // 更新目标ID
+                            } else {
+                                // 速度变化合理，是同一个目标，正常更新
+                                tracker_->predict();
+                                tracker_->update(z);
+                            }
+                        }
+                        else { // state == TRACKING or DETECTING
+                            // 正常跟踪中，检查ID切换或小的跳变
+                            bool is_id_switched = (best_result.number != current_target_id_);
+                            Eigen::Vector3d pred_pos = tracker_->getArmorPosition();
+                            double position_diff = (pred_pos - z.head<3>()).norm();
+
+                            if (is_id_switched || position_diff > RESET_DISTANCE_THRESHOLD) {
+                                // 如果ID切换或距离跳变太大，还是执行重置
+                                RCLCPP_WARN(this->get_logger(), "ID switched or position jumped while tracking. Resetting.");
                                 tracker_->reset(z);
                                 current_target_id_ = best_result.number;
                             } else {
+                                // 一切正常，标准预测+更新
                                 tracker_->predict();
                                 tracker_->update(z);
                             }
@@ -582,31 +597,6 @@ private:
                         RCLCPP_INFO(this->get_logger(), "Future armor pos: (%.2f, %.2f, %.2f)",
                                     predicted_pos.x, predicted_pos.y, predicted_pos.z);
                                     
-
-                        // 预测未来位置（旧卡尔曼滤波）
-                        // cv::Point3f predicted_pos = angle_kalman_->predictKalmanFilter(total_delay);
-
-                        //cv::Point3f predicted_pos = trans_pred_->trans2DPredTo3D(best_result, aim.position, classifyResults_forFourierPredict,
-                        //                                                         total_delay, fps_counter->fps());
-                        
-                        // 测试静止坐标系
-                        /* std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(predicted_pos.x, predicted_pos.y, predicted_pos.z);
-                        std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
-
-                        std::vector<float> rest_frame_pos_new = rest_frame_pos;
-
-                        std::vector<float> cam_normal_pos_new = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_new[0], rest_frame_pos_new[1], rest_frame_pos_new[2]);
-                        std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]); */
-
-                        // 转换回pnp相机坐标系
-                        std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
-
-                        std::vector<float> cam_normal_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_pred[0], rest_frame_pos_pred[1], rest_frame_pos_pred[2]);
-                        std::vector<float> pnp_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_pred[0], cam_normal_pos_pred[1], cam_normal_pos_pred[2]);
-                        predicted_pos.x = pnp_pos_pred[0];
-                        predicted_pos.y = pnp_pos_pred[1];
-                        predicted_pos.z = pnp_pos_pred[2];
-
                         // 弹道解算
                         BallisticInfo ballistic_result = calcBallisticAngle(
                             predicted_pos.x, 
@@ -714,7 +704,6 @@ private:
     float frame_rate_;
 
     std::shared_ptr<Trans2DPredTo3DClass> trans_pred_;
-    std::shared_ptr<RestFrame> rest_frame_;
     
     float bullet_velocity_;
     float current_pitch_;
