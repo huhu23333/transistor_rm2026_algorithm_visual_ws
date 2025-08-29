@@ -622,7 +622,7 @@ private:
                         predictor3d -> addPoint(cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]));
                         predictor3d -> fitFourier(90, 5);
                         std::vector<cv::Point3f> fourierPrediction = predictor3d -> predictFourier(30);
-                        size_t fourierPrediction_index = std::min(29, (int)(total_delay / fps_counter->fps()))
+                        size_t fourierPrediction_index = std::min(29, (int)(total_delay / fps_counter->fps()));
                         predicted_pos = fourierPrediction[fourierPrediction_index];
                         
                         // 转换回pnp相机坐标系

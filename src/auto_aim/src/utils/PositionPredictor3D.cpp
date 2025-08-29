@@ -330,7 +330,7 @@ int PositionPredictor3D::getPointCount() const {
     return point_count_;
 }
 
-cv::Vec2f PositionPredictor3D::getLinearVelocity() const {
+cv::Vec3f PositionPredictor3D::getLinearVelocity() const {
     if (!linear_fitted_) {
         // 未进行线性拟合，返回零向量
         return cv::Vec3f(0.0f, 0.0f, 0.0f);

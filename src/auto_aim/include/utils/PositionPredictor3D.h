@@ -45,7 +45,7 @@ public:
     int getPointCount() const;
     
     // 新增函数：获取线性拟合的速度向量
-    cv::Vec2f getLinearVelocity() const;
+    cv::Vec3f getLinearVelocity() const;
 
 private:
     // 一维序列线性拟合
