@@ -218,7 +218,8 @@ public:
 
         trans_pred_ = std::make_shared<Trans2DPredTo3DClass>(config_file_ptr);
 
-        predictor3d = std::make_shared<PositionPredictor3D>(100);
+        predictor3d = std::make_shared<PositionPredictor3D>(200);
+        fourierPredictions.push_back(cv::Point3f(0,0,0));
 
         rest_frame_ = std::make_shared<RestFrame>();
         rest_frame_ -> updateCamOrientation(0, 0, 0);
@@ -469,17 +470,21 @@ private:
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            if (armors.empty() && 
+            if (armors.empty()) {
+            	if (
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
-                serial_communication_->sendData(0, 0);
-                pitch_integration = 0; // 积分项重置
-                predictor3d -> clearHistory(); 
-            } else {
-                predictor3d -> addPoint(fourierPredictions[predictIndex]);
-                if (predictIndex < 29) {
-                    predictIndex += 1;
+                	serial_communication_->sendData(0, 0);
+                	pitch_integration = 0; // 积分项重置
+                	predictor3d -> clearHistory(); 
+                } else {
+                
+                	predictor3d -> addPoint(fourierPredictions[predictIndex]);
+                	if (predictIndex < 29) {
+                	    predictIndex += 1;
+                	}
                 }
-            }
+            } 
+            
 
             if (!armors.empty()) {
                 last_com_time = std::chrono::steady_clock::now();
@@ -590,7 +595,7 @@ private:
                         // 计算总延迟 (这部分逻辑不变)
                         constexpr float image_latency = 0.013f;
                         constexpr float comm_latency  = 0.010f;
-                        constexpr float extra_latency  = 0.050f;
+                        constexpr float extra_latency  = 0.200f;
                         float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
                         float total_delay = image_latency + comm_latency + bullet_time + extra_latency;
 
@@ -625,10 +630,10 @@ private:
 
                         // 测试3D傅里叶预测器
                         predictor3d -> addPoint(cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]));
-                        predictor3d -> fitFourier(90, 5);
-                        fourierPredictions = predictor3d -> predictFourier(30);
+                        predictor3d -> fitFourier(180, 10);
+                        fourierPredictions = predictor3d -> predictFourier(90);
                         predictIndex = 0;
-                        size_t fourierPrediction_indexToAim = std::min(29, (int)(total_delay / fps_counter->fps()));
+                        size_t fourierPrediction_indexToAim = std::min(89, (int)(0.3 * fps_counter->fps())); // total_delay
                         predicted_pos = fourierPredictions[fourierPrediction_indexToAim];
                         
                         // 转换回pnp相机坐标系

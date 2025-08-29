@@ -35,7 +35,7 @@ BallisticInfo calcBallisticAngle(float x_camera, float y_camera, float z_camera,
     float r_standard = sqrt(x_standard*x_standard + z_standard*z_standard);
 
     // 1. 计算目标yaw弧度
-    float target_delta_yaw = -atan2(x_standard, z_standard);
+    float target_delta_yaw = -atan2(x_standard, z_standard) * 2.0;
     float target_yaw = normalizeRad(target_delta_yaw + cur_yaw);  // 标准化到[-M_PI, M_PI]
     
     // 4. 求解弹道方程
