@@ -720,6 +720,7 @@ private:
     float frame_rate_;
 
     std::shared_ptr<Trans2DPredTo3DClass> trans_pred_;
+    std::shared_ptr<RestFrame> rest_frame_;
     
     float bullet_velocity_;
     float current_pitch_;
