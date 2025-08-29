@@ -234,3 +234,39 @@ Tracker::State Tracker::predictAhead(double t_ahead) const {
     pred(x_k.data(), x_final.data());
     return x_final;
 }
+
+// 新增函数的实现
+void Tracker::guideState(const Measurement& z) {
+    // === 状态引导逻辑 ===
+    RCLCPP_WARN(rclcpp::get_logger("armor_detect_node"), "Potential armor switch detected! Guiding the state.");
+
+    // 1. 获取当前状态
+    State current_state = this->getTargetState();
+
+    // 2. 保留并约束历史速度
+    Eigen::Vector3d old_velocity(current_state(1), current_state(3), current_state(5));
+    double old_speed = old_velocity.norm();
+    
+    constexpr double MAX_REASONABLE_SPEED = 1000.0; // 3 m/s，可调
+    if (old_speed > MAX_REASONABLE_SPEED) {
+        old_velocity = old_velocity.normalized() * MAX_REASONABLE_SPEED;
+    }
+
+    // 3. 构建新的“引导”状态
+    State guided_state;
+    guided_state(0) = z(0);
+    guided_state(1) = old_velocity.x();
+    guided_state(2) = z(1);
+    guided_state(3) = old_velocity.y();
+    guided_state(4) = z(2);
+    guided_state(5) = old_velocity.z();
+
+    // 4. 手动设置EKF内部状态
+    ekf_->setState(guided_state);
+    
+    // 5. 将追踪器状态拉回到TRACKING
+    lost_count_ = 0;
+    detect_count_ = 0; // 可以顺便重置，以防万一
+    state = TRACKING; // 恢复状态
+    RCLCPP_INFO(rclcpp::get_logger("armor_detect_node"), "Tracker state guided back to TRACKING.");
+}

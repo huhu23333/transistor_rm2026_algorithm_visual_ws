@@ -351,13 +351,13 @@ private:
         }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
-        /*for (const auto& res : classifyResults_forFourierPredict) {
+        for (const auto& res : classifyResults_forFourierPredict) {
             if (res.is_steady_tracked) {
                 for (auto& prediction : res.predictions) {
                     cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
                 }
             }
-        }*/
+        }
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
             if (res.is_tracked_now) {
@@ -375,10 +375,10 @@ private:
             }
 
             // 绘制预测中心点
-            /*for (auto& prediction : res.predictions) {
+            for (auto& prediction : res.predictions) {
                 cv::circle(result, prediction, 3, cv::Scalar(255, 0, 255), -1);
             }
-            cv::circle(result, res.center_predicted, 3, cv::Scalar(0, 255, 255), -1);*/
+            cv::circle(result, res.center_predicted, 3, cv::Scalar(0, 255, 255), -1);
 
             // 绘制中心点和编号
             cv::Point2f center = res.center;
@@ -498,65 +498,8 @@ private:
                 if (it != classifyResults.end()) {
                     auto best_result = *it;
                     AimResult aim = armor_solver_->solveArmor(best_result);
-                    if (aim.valid) {
-
-                        // // 连续化Yaw角
-                        // double continuous_yaw = last_continuous_yaw_ + angles::shortest_angular_distance(last_continuous_yaw_, aim.yaw);
-                        // last_continuous_yaw_ = continuous_yaw;
-                        // RCLCPP_INFO(this->get_logger(), "Armor position: (%.2f, %.2f, %.2f), yaw: %.2f",
-                        //             rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
-                        //
-
-                        // // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
-                        // Tracker::Measurement z;
-                        // z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw;
-
-                        // // 2. EKF 状态机逻辑
-                        // if (tracker_->state == Tracker::LOST) {
-                        //     // 如果是丢失状态，用当前测量值重置滤波器
-                        //     tracker_->reset(z);
-                        //     current_target_id_ = best_result.number;
-                        // } else {
-                        //     // 跳变处理
-                        //     Eigen::Vector3d pred_armor_pos = tracker_->getArmorPosition();
-                        //     double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2])).norm();
-
-                        //     if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
-                        //         if(best_result.number != current_target_id_) {
-                        //             RCLCPP_WARN(this->get_logger(), "ID switched, resetting tracker.");
-                        //         } else {
-                        //             RCLCPP_WARN(this->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
-                        //         }
-                        //         tracker_->reset(z);
-                        //         current_target_id_ = best_result.number;
-                        //     } else {
-                        //         tracker_->predict();
-                        //         tracker_->update(z);
-                                
-                        //     }
-                        // }
+                    if (aim.valid) {                     
                         
-                        // // 3. 提前预测与弹道解算
-                        // // 计算总延迟
-                        // constexpr float image_latency = 0.043f;
-                        // constexpr float comm_latency  = 0.030f;
-                        // float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                        // float total_delay = image_latency + comm_latency + bullet_time;
-
-                        // // 获取提前预测后的机器人中心状态
-                        // Tracker::State future_state = tracker_->predictAhead(total_delay);
-                        // RCLCPP_INFO(this->get_logger(), "Future state: (%.2f, %.2f, %.2f), yaw: %.2f",
-                        //             future_state(0), future_state(2), future_state(4), future_state(6));
-
-                        // // 从预测的机器人中心状态，反解出未来时刻装甲板的位置
-                        // double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-                        // double future_yaw = future_state(6), future_r = future_state(8), future_d_yc = future_state(9);
-                        // cv::Point3f predicted_pos(
-                        //     future_xc - future_r * cos(future_yaw),
-                        //     future_yc + future_d_yc,
-                        //     future_zc - future_r * sin(future_yaw)
-                        // );
-
                         // 将pnp结果转换至静止坐标系以稳定预测
                         std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
                         std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
@@ -569,23 +512,48 @@ private:
 
                         // 2. EKF 状态机逻辑
                         if (tracker_->state == Tracker::LOST) {
-                            // 如果是丢失状态，用当前测量值重置滤波器
+                            // 如果完全丢失，必须重置
                             tracker_->reset(z);
                             current_target_id_ = best_result.number;
-                        } else {
-                            // 跳变处理
-                            Eigen::Vector3d pred_armor_pos = tracker_->getArmorPosition();
-                            double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2])).norm();
+                        } 
+                        else if (tracker_->state == Tracker::TEMP_LOST) {
+                            // 如果是短暂丢失后重新看到目标，进行速度一致性检查
+                            Eigen::Vector3d pred_pos = tracker_->getArmorPosition();
+                            Eigen::Vector3d measurement_pos = z.head<3>();
+                            Eigen::Vector3d pos_diff_vec = measurement_pos - pred_pos;
 
-                            if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
-                                if(best_result.number != current_target_id_) {
-                                    RCLCPP_WARN(this->get_logger(), "ID switched, resetting tracker.");
-                                } else {
-                                    RCLCPP_WARN(this->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
-                                }
+                            double dt = 1.0 / frame_rate_; 
+                            Eigen::Vector3d implied_velocity = pos_diff_vec / dt;
+
+                            Tracker::State current_state = tracker_->getTargetState();
+                            Eigen::Vector3d current_velocity(current_state(1), current_state(3), current_state(5));
+
+                            double speed_diff = (implied_velocity - current_velocity).norm();
+                            constexpr double MAX_VELOCITY_CHANGE_THRESHOLD = 2000.0; // 2 m/s 的加速度，可调
+
+                            if (speed_diff > MAX_VELOCITY_CHANGE_THRESHOLD) {
+                                // 速度变化剧烈，判定为切换，调用“状态引导”
+                                tracker_->guideState(z);
+                                current_target_id_ = best_result.number; // 更新目标ID
+                            } else {
+                                // 速度变化合理，是同一个目标，正常更新
+                                tracker_->predict();
+                                tracker_->update(z);
+                            }
+                        }
+                        else { // state == TRACKING or DETECTING
+                            // 正常跟踪中，检查ID切换或小的跳变
+                            bool is_id_switched = (best_result.number != current_target_id_);
+                            Eigen::Vector3d pred_pos = tracker_->getArmorPosition();
+                            double position_diff = (pred_pos - z.head<3>()).norm();
+
+                            if (is_id_switched || position_diff > RESET_DISTANCE_THRESHOLD) {
+                                // 如果ID切换或距离跳变太大，还是执行重置
+                                RCLCPP_WARN(this->get_logger(), "ID switched or position jumped while tracking. Resetting.");
                                 tracker_->reset(z);
                                 current_target_id_ = best_result.number;
                             } else {
+                                // 一切正常，标准预测+更新
                                 tracker_->predict();
                                 tracker_->update(z);
                             }
@@ -634,7 +602,7 @@ private:
                         fourierPredictions = predictor3d -> predictFourier(90);
                         predictIndex = 0;
                         size_t fourierPrediction_indexToAim = std::min(89, (int)(0.3 * fps_counter->fps())); // total_delay
-                        predicted_pos = fourierPredictions[fourierPrediction_indexToAim];
+                        // predicted_pos = fourierPredictions[fourierPrediction_indexToAim];
                         
                         // 转换回pnp相机坐标系
                         std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
@@ -752,7 +720,6 @@ private:
     float frame_rate_;
 
     std::shared_ptr<Trans2DPredTo3DClass> trans_pred_;
-    std::shared_ptr<RestFrame> rest_frame_;
     
     float bullet_velocity_;
     float current_pitch_;

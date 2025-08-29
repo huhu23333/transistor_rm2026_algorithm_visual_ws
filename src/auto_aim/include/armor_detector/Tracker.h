@@ -104,6 +104,9 @@ public:
     // 获取当前装甲板的预测位置 (API简化)
     Eigen::Vector3d getArmorPosition() const;
 
+    // 新增：用于状态引导的公共接口
+    void guideState(const Measurement& z);
+
 private:
     std::unique_ptr<RobotEKF> ekf_; // EKF滤波器实例
     double dt_;                   // 时间步长
@@ -112,3 +115,5 @@ private:
     int detect_count_ = 0;        // 稳定追踪计数
     int lost_count_ = 0;          // 丢失计数
 };
+
+
