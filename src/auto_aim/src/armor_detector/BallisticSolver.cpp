@@ -36,7 +36,7 @@ BallisticInfo calcBallisticAngle(float x_camera, float y_camera, float z_camera,
 
     // 1. 计算目标yaw弧度
     float target_delta_yaw = atan2(x_standard, z_standard);
-    float target_yaw = normalizeRad(target_delta_yaw + cur_yaw);  // 标准化到[-M_PI, M_PI]
+    float target_yaw = normalizeRad(target_delta_yaw + cur_yaw - 0.02);  // 标准化到[-M_PI, M_PI]
     
     // 4. 求解弹道方程
     float g = 9.8f;
@@ -58,6 +58,8 @@ BallisticInfo calcBallisticAngle(float x_camera, float y_camera, float z_camera,
     angle1 = angle1 * 180.0f / M_PI;
     angle2 = angle2 * 180.0f / M_PI;
     float final_pitch = abs(angle1 - cur_pitch) < abs(angle2 - cur_pitch) ? angle1 : angle2;
+    
+    final_pitch += 6.0;
 
     // 5. 计算需要转动的角度
     result.pitch_angle = (final_pitch - cur_pitch) * M_PI / 180;

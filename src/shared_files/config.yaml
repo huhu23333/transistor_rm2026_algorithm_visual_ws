@@ -18,7 +18,7 @@
 
 ekf_params:
 # 过程噪声，可以从一个较大的值开始调
-  sigma2_q_x: 1.0e3
+  sigma2_q_x: 0.9e4
   sigma2_q_y: 1.0e3 #1.0e4
   sigma2_q_z: 2.0e3 #1.0e4
   # 测量噪声
@@ -54,7 +54,7 @@ video_relative_path : "InputVideo/robosoul.mp4" # 使用视频输入时的视频
 images_relative_path : "InputImages" # 使用图片输入时的图片文件夹路径
 
 frame_rate : 30.0
-serial_delay_time : 33.0 # ms
+serial_delay_time : 30.0 # ms
 
 yaw_rad_to_x_pixel_ratio : 1300.0
 pitch_rad_to_y_pixel_ratio : 1350.0

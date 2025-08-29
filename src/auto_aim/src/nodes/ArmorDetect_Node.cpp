@@ -291,10 +291,12 @@ private:
         last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
         total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
 
-        ground_stable_point = cv::Point2f(2000+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
+        ground_stable_point = cv::Point2f(-2000+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
 
         rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
+        
+        RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
 
     }
 
@@ -579,8 +581,9 @@ private:
                         // 计算总延迟 (这部分逻辑不变)
                         constexpr float image_latency = 0.013f;
                         constexpr float comm_latency  = 0.010f;
+                        constexpr float extra_latency  = 0.050f;
                         float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                        float total_delay = image_latency + comm_latency + bullet_time;
+                        float total_delay = image_latency + comm_latency + bullet_time + extra_latency;
 
                         // 获取提前预测后的装甲板状态
                         Tracker::State future_state = tracker_->predictAhead(total_delay);
@@ -637,7 +640,7 @@ private:
                             // RCLCPP_INFO(this->get_logger(), "Target detected, publishing command");
                             has_valid_target_ = true;
 
-                            pitch_integration += ballistic_result.pitch_angle * 0.01;
+                            pitch_integration += ballistic_result.pitch_angle * 0.03;
 
                             if (pitch_integration > 0.3) {
                                 pitch_integration = 0.3;
@@ -647,7 +650,7 @@ private:
                             }
                             
                             // 发布云台控制命令
-                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integration; // PI控制
+                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integration - 0.20; // PI控制
                             float command_yaw = ballistic_result.yaw_angle;
                             serial_communication_->sendData(command_pitch, command_yaw);
 
