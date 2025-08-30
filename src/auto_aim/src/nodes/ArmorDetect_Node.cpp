@@ -40,7 +40,7 @@ namespace fs = std::filesystem;
 //#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
-#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
+//#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
 
 // 全局变量定义
 cv::Mat g_image;
@@ -532,48 +532,23 @@ private:
 
                         // 2. EKF 状态机逻辑
                         if (tracker_->state == Tracker::LOST) {
-                            // 如果完全丢失，必须重置
+                            // 如果是丢失状态，用当前测量值重置滤波器
                             tracker_->reset(z);
                             current_target_id_ = best_result.number;
-                        } 
-                        else if (tracker_->state == Tracker::TEMP_LOST) {
-                            // 如果是短暂丢失后重新看到目标，进行速度一致性检查
-                            Eigen::Vector3d pred_pos = tracker_->getArmorPosition();
-                            Eigen::Vector3d measurement_pos = z.head<3>();
-                            Eigen::Vector3d pos_diff_vec = measurement_pos - pred_pos;
+                        } else {
+                            // 跳变处理
+                            Eigen::Vector3d pred_armor_pos = tracker_->getArmorPosition();
+                            double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2])).norm();
 
-                            double dt = 1.0 / frame_rate_; 
-                            Eigen::Vector3d implied_velocity = pos_diff_vec / dt;
-
-                            Tracker::State current_state = tracker_->getTargetState();
-                            Eigen::Vector3d current_velocity(current_state(1), current_state(3), current_state(5));
-
-                            double speed_diff = (implied_velocity - current_velocity).norm();
-                            constexpr double MAX_VELOCITY_CHANGE_THRESHOLD = 2000.0; // 2 m/s 的加速度，可调
-
-                            if (speed_diff > MAX_VELOCITY_CHANGE_THRESHOLD) {
-                                // 速度变化剧烈，判定为切换，调用“状态引导”
-                                tracker_->guideState(z);
-                                current_target_id_ = best_result.number; // 更新目标ID
-                            } else {
-                                // 速度变化合理，是同一个目标，正常更新
-                                tracker_->predict();
-                                tracker_->update(z);
-                            }
-                        }
-                        else { // state == TRACKING or DETECTING
-                            // 正常跟踪中，检查ID切换或小的跳变
-                            bool is_id_switched = (best_result.number != current_target_id_);
-                            Eigen::Vector3d pred_pos = tracker_->getArmorPosition();
-                            double position_diff = (pred_pos - z.head<3>()).norm();
-
-                            if (is_id_switched || position_diff > RESET_DISTANCE_THRESHOLD) {
-                                // 如果ID切换或距离跳变太大，还是执行重置
-                                RCLCPP_WARN(this->get_logger(), "ID switched or position jumped while tracking. Resetting.");
+                            if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
+                                if(best_result.number != current_target_id_) {
+                                    RCLCPP_WARN(this->get_logger(), "ID switched, resetting tracker.");
+                                } else {
+                                    RCLCPP_WARN(this->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
+                                }
                                 tracker_->reset(z);
                                 current_target_id_ = best_result.number;
                             } else {
-                                // 一切正常，标准预测+更新
                                 tracker_->predict();
                                 tracker_->update(z);
                             }
@@ -583,9 +558,8 @@ private:
                         // 计算总延迟 (这部分逻辑不变)
                         constexpr float image_latency = 0.013f;
                         constexpr float comm_latency  = 0.010f;
-                        constexpr float extra_latency  = 0.200f;
                         float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                        float total_delay = image_latency + comm_latency + bullet_time + extra_latency;
+                        float total_delay = image_latency + comm_latency + bullet_time;
 
                         // 获取提前预测后的装甲板状态
                         Tracker::State future_state = tracker_->predictAhead(total_delay);
