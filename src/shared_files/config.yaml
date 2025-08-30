@@ -60,6 +60,10 @@ pitch_rad_to_y_pixel_ratio : 1350.0
 
 reset_com_time : 2000.0 # ms
 
+predictor3d_fit_step : 60
+predictor3d_predict_step : 30
+predictor3d_fourier_fit_order : 5
+
 # Params.h 参数设置
 min_light_height : 8 # 8
 light_slope_offset : 30

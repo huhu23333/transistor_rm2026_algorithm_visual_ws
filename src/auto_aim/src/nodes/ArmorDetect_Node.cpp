@@ -40,6 +40,7 @@ namespace fs = std::filesystem;
 //#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
+#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
 
 // 全局变量定义
 cv::Mat g_image;
@@ -196,6 +197,10 @@ public:
         reset_com_time = (*config_file_ptr)["reset_com_time"].as<float>();
         serial_delay_time = (*config_file_ptr)["serial_delay_time"].as<float>();
 
+        predictor3d_fit_step = (*config_file_ptr)["predictor3d_fit_step"].as<int>();
+        predictor3d_predict_step = (*config_file_ptr)["predictor3d_predict_step"].as<int>();
+        predictor3d_fourier_fit_order = (*config_file_ptr)["predictor3d_fourier_fit_order"].as<int>();
+
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
         } else if (enemy_color_ == "BLUE") {
@@ -218,8 +223,8 @@ public:
 
         trans_pred_ = std::make_shared<Trans2DPredTo3DClass>(config_file_ptr);
 
-        predictor3d = std::make_shared<PositionPredictor3D>(200);
-        fourierPredictions.push_back(cv::Point3f(0,0,0));
+        predictor3d = std::make_shared<PositionPredictor3D>(predictor3d_fit_step);
+        predictor3dPredictions.push_back(cv::Point3f(0,0,0));
 
         rest_frame_ = std::make_shared<RestFrame>();
         rest_frame_ -> updateCamOrientation(0, 0, 0);
@@ -351,13 +356,13 @@ private:
         }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
-        for (const auto& res : classifyResults_forFourierPredict) {
+        /* for (const auto& res : classifyResults_forFourierPredict) {
             if (res.is_steady_tracked) {
                 for (auto& prediction : res.predictions) {
                     cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
                 }
             }
-        }
+        } */
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
             if (res.is_tracked_now) {
@@ -470,23 +475,38 @@ private:
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            if (armors.empty()) {
+            if (classifyResults.empty()) {
+                if (tracker_->state != Tracker::LOST) {
+                    tracker_->predict();
+                }
+
             	if (
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
                 	serial_communication_->sendData(0, 0);
                 	pitch_integration = 0; // 积分项重置
                 	predictor3d -> clearHistory(); 
                 } else {
-                
-                	predictor3d -> addPoint(fourierPredictions[predictIndex]);
-                	if (predictIndex < 29) {
-                	    predictIndex += 1;
+                    cv::Point3f predicted_pos = predictor3dPredictions[predictor3dPrediction_nowIndex];
+                	predictor3d -> addPoint(predicted_pos);
+                	if (predictor3dPrediction_nowIndex < predictor3dPredictions.size()-1) {
+                	    predictor3dPrediction_nowIndex += 1;
                 	}
+#ifdef USE_PREDICTOR3D
+                    // 转换回pnp相机坐标系
+                    std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
+                    std::vector<float> cam_normal_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_pred[0], rest_frame_pos_pred[1], rest_frame_pos_pred[2]);
+                    std::vector<float> pnp_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_pred[0], cam_normal_pos_pred[1], cam_normal_pos_pred[2]);
+                    predicted_pos.x = pnp_pos_pred[0];
+                    predicted_pos.y = pnp_pos_pred[1];
+                    predicted_pos.z = pnp_pos_pred[2];
+                    // 绘制预测点（黄色）
+                    cv::Point2f pred_pixel = armor_solver_->project3DToPixel(predicted_pos);
+                    cv::circle(frame, pred_pixel, 8, cv::Scalar(0, 255, 255), 2);
+#endif
                 }
             } 
             
-
-            if (!armors.empty()) {
+            if (!classifyResults.empty()) {
                 last_com_time = std::chrono::steady_clock::now();
                 // 选择最佳目标（置信度最高）
                 auto it = std::max_element(
@@ -598,12 +618,14 @@ private:
 
                         // 测试3D傅里叶预测器
                         predictor3d -> addPoint(cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]));
-                        predictor3d -> fitFourier(180, 10);
-                        fourierPredictions = predictor3d -> predictFourier(90);
-                        predictIndex = 0;
-                        size_t fourierPrediction_indexToAim = std::min(89, (int)(0.3 * fps_counter->fps())); // total_delay
-                        // predicted_pos = fourierPredictions[fourierPrediction_indexToAim];
-                        
+                        predictor3d -> fitFourier(predictor3d_fit_step, predictor3d_fourier_fit_order);
+                        predictor3dPredictions = predictor3d -> predictFourier(predictor3d_predict_step);
+                        predictor3dPrediction_nowIndex = 0;
+                        size_t predictor3dPrediction_indexToAim = std::min(predictor3d_predict_step-1, (int)(total_delay * fps_counter->fps())); // total_delay
+#ifdef USE_PREDICTOR3D
+                        predicted_pos = predictor3dPredictions[predictor3dPrediction_indexToAim];
+#endif
+
                         // 转换回pnp相机坐标系
                         std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
 
@@ -651,19 +673,14 @@ private:
                                 predicted_pos.x, predicted_pos.y, predicted_pos.z,
                                 command_pitch, command_yaw);
                             
-                                // 绘制预测点（黄色）
-                                cv::Point2f pred_pixel = armor_solver_->project3DToPixel(predicted_pos);
-                                cv::circle(frame, pred_pixel, 8, cv::Scalar(0, 255, 255), 2);
+                            // 绘制预测点（黄色）
+                            cv::Point2f pred_pixel = armor_solver_->project3DToPixel(predicted_pos);
+                            cv::circle(frame, pred_pixel, 8, cv::Scalar(0, 255, 255), 2);
                         }
                     }
                     
                 }
-            } else {
-                if (tracker_->state != Tracker::LOST) {
-                    tracker_->predict();
-                }
             }
-
             drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
 
             //计算帧率
@@ -764,8 +781,11 @@ private:
     float yaw_rad_to_x_pixel_ratio;
     float pitch_rad_to_y_pixel_ratio;
     std::shared_ptr<PositionPredictor3D> predictor3d;
-    int predictIndex = 0;
-    std::vector<cv::Point3f> fourierPredictions;
+    int predictor3dPrediction_nowIndex = 0;
+    std::vector<cv::Point3f> predictor3dPredictions;
+    int predictor3d_fit_step;
+    int predictor3d_predict_step;
+    int predictor3d_fourier_fit_order;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
