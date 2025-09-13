@@ -42,7 +42,7 @@ namespace fs = std::filesystem;
 //#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
-//#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
+#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
 //#define DEBUG_CODE // 定义后将在初始化结束后运行debug代码而不运行装甲板识别代码
 
 // 全局变量定义
@@ -203,6 +203,7 @@ public:
         predictor3d_fit_step = (*config_file_ptr)["predictor3d_fit_step"].as<int>();
         predictor3d_predict_step = (*config_file_ptr)["predictor3d_predict_step"].as<int>();
         predictor3d_fourier_fit_order = (*config_file_ptr)["predictor3d_fourier_fit_order"].as<int>();
+        predictor3d_fire_distance = (*config_file_ptr)["predictor3d_fire_distance"].as<float>();
 
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -227,7 +228,8 @@ public:
         trans_pred_ = std::make_shared<Trans2DPredTo3DClass>(config_file_ptr);
 
         predictor3d = std::make_shared<PositionPredictor3D>(predictor3d_fit_step);
-        predictor3dPredictions.push_back(cv::Point3f(0,0,0));
+        predictor3dArmorPredictions.push_back(cv::Point3f(0,0,0));
+        predictor3dCenterPredictions.push_back(cv::Point3f(0,0,0));
 
         rest_frame_ = std::make_shared<RestFrame>();
         rest_frame_ -> updateCamOrientation(0, 0, 0);
@@ -520,22 +522,34 @@ private:
                 	pitch_integration = 0; // 积分项重置
                 	predictor3d -> clearHistory(); 
                 } else {
-                    cv::Point3f predicted_pos = predictor3dPredictions[predictor3dPrediction_nowIndex];
-                	predictor3d -> addPoint(predicted_pos);
-                	if (predictor3dPrediction_nowIndex < predictor3dPredictions.size()-1) {
+                    cv::Point3f predicted_aim_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
+                	predictor3d -> addPoint(predicted_aim_pos);
+                	if (predictor3dPrediction_nowIndex < predictor3dArmorPredictions.size()-1) {
                 	    predictor3dPrediction_nowIndex += 1;
                 	}
 #ifdef USE_PREDICTOR3D
                     // 转换回pnp相机坐标系
-                    std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
-                    std::vector<float> cam_normal_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_pred[0], rest_frame_pos_pred[1], rest_frame_pos_pred[2]);
-                    std::vector<float> pnp_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_pred[0], cam_normal_pos_pred[1], cam_normal_pos_pred[2]);
-                    predicted_pos.x = pnp_pos_pred[0];
-                    predicted_pos.y = pnp_pos_pred[1];
-                    predicted_pos.z = pnp_pos_pred[2];
-                    // 绘制预测点（黄色）
-                    cv::Point2f pred_pixel = armor_solver_->project3DToPixel(predicted_pos);
-                    cv::circle(frame, pred_pixel, 8, cv::Scalar(0, 255, 255), 2);
+                    std::vector<float> rest_frame_aim_pos_pred = {predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z};
+                    std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_aim_pos_pred[0], rest_frame_aim_pos_pred[1], rest_frame_aim_pos_pred[2]);
+                    std::vector<float> pnp_aim_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_aim_pos_pred[0], cam_normal_aim_pos_pred[1], cam_normal_aim_pos_pred[2]);
+                    predicted_aim_pos.x = pnp_aim_pos_pred[0];
+                    predicted_aim_pos.y = pnp_aim_pos_pred[1];
+                    predicted_aim_pos.z = pnp_aim_pos_pred[2];
+
+                    cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
+                    // 转换回pnp相机坐标系
+                    std::vector<float> rest_frame_armor_pos_pred = {predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z};
+                    std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
+                    std::vector<float> pnp_armor_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_armor_pos_pred[0], cam_normal_armor_pos_pred[1], cam_normal_armor_pos_pred[2]);
+                    predicted_armor_pos.x = pnp_armor_pos_pred[0];
+                    predicted_armor_pos.y = pnp_armor_pos_pred[1];
+                    predicted_armor_pos.z = pnp_armor_pos_pred[2];
+                    // 绘制瞄准预测点（黄色）
+                    cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
+                    cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
+                    // 绘制装甲板预测点（蓝色）
+                    cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
+                    cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
 #endif
                 }
             } 
@@ -593,30 +607,32 @@ private:
                         constexpr float image_latency = 0.013f;
                         constexpr float comm_latency  = 0.010f;
                         float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                        float total_delay = image_latency + comm_latency + bullet_time;
+                        float extra_time = 0.100f;
+                        float total_delay = image_latency + comm_latency + bullet_time + extra_time;
 
                         // 获取提前预测后的装甲板状态
                         Tracker::State future_state = tracker_->predictAhead(total_delay);
                         
                         // 直接从未来状态中提取预测位置
-                        cv::Point3f predicted_pos(
+                        cv::Point3f predicted_aim_pos(
                             future_state(0),
                             future_state(2),
                             future_state(4)
                         );
                         
                         RCLCPP_INFO(this->get_logger(), "Future armor pos: (%.2f, %.2f, %.2f)",
-                                    predicted_pos.x, predicted_pos.y, predicted_pos.z);
-                                    
+                                    predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
+
+                        bool fire_flag = true;            
 
                         // 预测未来位置（旧卡尔曼滤波）
-                        // cv::Point3f predicted_pos = angle_kalman_->predictKalmanFilter(total_delay);
+                        // cv::Point3f predicted_aim_pos = angle_kalman_->predictKalmanFilter(total_delay);
 
-                        //cv::Point3f predicted_pos = trans_pred_->trans2DPredTo3D(best_result, aim.position, classifyResults_forFourierPredict,
+                        //cv::Point3f predicted_aim_pos = trans_pred_->trans2DPredTo3D(best_result, aim.position, classifyResults_forFourierPredict,
                         //                                                         total_delay, fps_counter->fps());
                         
                         // 测试静止坐标系
-                        /* std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(predicted_pos.x, predicted_pos.y, predicted_pos.z);
+                        /* std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
                         std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
 
                         std::vector<float> rest_frame_pos_new = rest_frame_pos;
@@ -624,30 +640,42 @@ private:
                         std::vector<float> cam_normal_pos_new = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_new[0], rest_frame_pos_new[1], rest_frame_pos_new[2]);
                         std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]); */
 
-                        // 测试3D傅里叶预测器
+                        // 测试3D位置预测器
                         predictor3d -> addPoint(cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]));
                         predictor3d -> fitFourier(predictor3d_fit_step, predictor3d_fourier_fit_order);
-                        predictor3dPredictions = predictor3d -> predictFourier(predictor3d_predict_step);
+                        predictor3dCenterPredictions = predictor3d -> predictLinear(predictor3d_predict_step); // predictFourier | predictLinear
+                        predictor3dArmorPredictions = predictor3d -> predictFourier(predictor3d_predict_step); // predictFourier | predictLinear
                         predictor3dPrediction_nowIndex = 0;
                         size_t predictor3dPrediction_indexToAim = std::min(predictor3d_predict_step-1, (int)(total_delay * fps_counter->fps())); // total_delay
 #ifdef USE_PREDICTOR3D
-                        predicted_pos = predictor3dPredictions[predictor3dPrediction_indexToAim];
+                        predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_indexToAim];
+
+                        cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_indexToAim];
+
+                        fire_flag = cv::norm(predicted_aim_pos - predicted_armor_pos) < predictor3d_fire_distance;
+
+                        // 转换回pnp相机坐标系
+                        std::vector<float> rest_frame_armor_pos_pred = {predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z};
+                        std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
+                        std::vector<float> pnp_armor_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_armor_pos_pred[0], cam_normal_armor_pos_pred[1], cam_normal_armor_pos_pred[2]);
+                        predicted_armor_pos.x = pnp_armor_pos_pred[0];
+                        predicted_armor_pos.y = pnp_armor_pos_pred[1];
+                        predicted_armor_pos.z = pnp_armor_pos_pred[2];
 #endif
 
                         // 转换回pnp相机坐标系
-                        std::vector<float> rest_frame_pos_pred = {predicted_pos.x, predicted_pos.y, predicted_pos.z};
-
-                        std::vector<float> cam_normal_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_pred[0], rest_frame_pos_pred[1], rest_frame_pos_pred[2]);
-                        std::vector<float> pnp_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_pred[0], cam_normal_pos_pred[1], cam_normal_pos_pred[2]);
-                        predicted_pos.x = pnp_pos_pred[0];
-                        predicted_pos.y = pnp_pos_pred[1];
-                        predicted_pos.z = pnp_pos_pred[2];
+                        std::vector<float> rest_frame_aim_pos_pred = {predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z};
+                        std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_aim_pos_pred[0], rest_frame_aim_pos_pred[1], rest_frame_aim_pos_pred[2]);
+                        std::vector<float> pnp_aim_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_aim_pos_pred[0], cam_normal_aim_pos_pred[1], cam_normal_aim_pos_pred[2]);
+                        predicted_aim_pos.x = pnp_aim_pos_pred[0];
+                        predicted_aim_pos.y = pnp_aim_pos_pred[1];
+                        predicted_aim_pos.z = pnp_aim_pos_pred[2];
 
                         // 弹道解算
                         BallisticInfo ballistic_result = calcBallisticAngle(
-                            predicted_pos.x, 
-                            predicted_pos.y, 
-                            predicted_pos.z,
+                            predicted_aim_pos.x, 
+                            predicted_aim_pos.y, 
+                            predicted_aim_pos.z,
                             delta_x_,
                             delta_y_,
                             delta_z_,
@@ -672,18 +700,27 @@ private:
                             // 发布云台控制命令
                             float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integration; // PI控制
                             float command_yaw = ballistic_result.yaw_angle;
-                            serial_communication_->sendData(command_pitch, command_yaw, true);
+                            serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
 
                             RCLCPP_DEBUG(this->get_logger(),
                                 "Target %d: Position[%.2f, %.2f, %.2f] mm, "
                                 "Command[pitch: %.2f, yaw: %.2f] rad",
                                 best_result.number,
-                                predicted_pos.x, predicted_pos.y, predicted_pos.z,
+                                predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z,
                                 command_pitch, command_yaw);
                             
-                            // 绘制预测点（黄色）
-                            cv::Point2f pred_pixel = armor_solver_->project3DToPixel(predicted_pos);
-                            cv::circle(frame, pred_pixel, 8, cv::Scalar(0, 255, 255), 2);
+                            // 绘制瞄准预测点（黄色）
+                            cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
+                            cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
+#ifdef USE_PREDICTOR3D
+                            cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
+                            // 绘制装甲板预测点（蓝色：开火 | 红色：未开火）
+                            if (fire_flag) {
+                                cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(0, 0, 255), 2);
+                            } else {
+                                cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
+                            }
+#endif
                         }
                     }
                     
@@ -790,10 +827,12 @@ private:
     float pitch_rad_to_y_pixel_ratio;
     std::shared_ptr<PositionPredictor3D> predictor3d;
     int predictor3dPrediction_nowIndex = 0;
-    std::vector<cv::Point3f> predictor3dPredictions;
+    std::vector<cv::Point3f> predictor3dArmorPredictions;
+    std::vector<cv::Point3f> predictor3dCenterPredictions;
     int predictor3d_fit_step;
     int predictor3d_predict_step;
     int predictor3d_fourier_fit_order;
+    float predictor3d_fire_distance;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

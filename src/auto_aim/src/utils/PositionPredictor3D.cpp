@@ -47,7 +47,7 @@ void PositionPredictor3D::fitLinear(int steps) {
     linear_fit_y_ = fitLinearComponent(ys, point_count_, actual_steps);
     linear_fit_z_ = fitLinearComponent(zs, point_count_, actual_steps);
 
-    last_mse_ = (linear_fit_x_.mse + linear_fit_y_.mse + linear_fit_z_.mse) / 3;
+    last_mse_ = (linear_fit_x_.mse + linear_fit_y_.mse + linear_fit_z_.mse);
     
     linear_fitted_ = true;
 }
@@ -88,7 +88,7 @@ void PositionPredictor3D::fitQuadratic(int steps) {
         quadratic_fit_y_ = fitQuadraticComponent(ys, point_count_, actual_steps);
         quadratic_fit_z_ = fitQuadraticComponent(zs, point_count_, actual_steps);
         
-        last_mse_ = (quadratic_fit_x_.mse + quadratic_fit_y_.mse + quadratic_fit_z_.mse) / 3;
+        last_mse_ = (quadratic_fit_x_.mse + quadratic_fit_y_.mse + quadratic_fit_z_.mse);
         quadratic_fitted_ = true;
     } 
     catch (const std::runtime_error& e) {
@@ -121,7 +121,7 @@ void PositionPredictor3D::fitQuadratic(int steps) {
         quadratic_fit_z_.fit_point_count = point_count_;
         quadratic_fit_z_.fit_steps = actual_steps;
         
-        last_mse_ = (linear_fit_x_.mse + linear_fit_y_.mse + linear_fit_z_.mse) / 2;
+        last_mse_ = (linear_fit_x_.mse + linear_fit_y_.mse + linear_fit_z_.mse);
         quadratic_fitted_ = true;  // 标记为已拟合
     }
 }
@@ -209,7 +209,7 @@ void PositionPredictor3D::fitFourier(int steps, int fourier_order) {
         mse_y += std::pow(pred_y - ys[t], 2);
         mse_z += std::pow(pred_z - zs[t], 2);
     }
-    fourier_fit_.mse = (mse_x + mse_y + mse_z) / (3 * actual_steps);
+    fourier_fit_.mse = (mse_x + mse_y + mse_z) / (actual_steps);
 
     last_mse_ = fourier_fit_.mse;
     
