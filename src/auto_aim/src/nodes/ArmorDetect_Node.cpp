@@ -43,7 +43,7 @@ namespace fs = std::filesystem;
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 //#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
-#define DEBUG_CODE // 定义后将在初始化结束后运行debug代码而不运行装甲板识别代码
+//#define DEBUG_CODE // 定义后将在初始化结束后运行debug代码而不运行装甲板识别代码
 
 // 全局变量定义
 cv::Mat g_image;
