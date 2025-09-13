@@ -652,7 +652,7 @@ private:
                             delta_y_,
                             delta_z_,
                             bullet_velocity_,
-                            pitch_integration,//pitch_integration, #todo last_pitch_rad_delayed_
+                            last_pitch_rad_delayed_,//pitch_integration | last_pitch_rad_delayed_ #todo
                             last_yaw_rad_delayed_
                         );
                         
