@@ -94,18 +94,18 @@ std::string SerialCommunicationClass::findAvailableSerialPort() {
     return port;
 }
 
-bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target) {
+bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target, bool fire) {
     if (fd_ >= 0) {
         //pitch_target = -0.01; // 约 0.01对应30°
         //yaw_target = 0;
         // 传入参数使用弧度制 [-M_PI, M_PI]
-        // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + pitch_target(4) + yaw_target(2) + CRC(1) = 11字节
-        std::array<uint8_t, 11> tx_data{};
+        // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + pitch_target(4) + yaw_target(2) + fire(1) + CRC(1) = 12字节
+        std::array<uint8_t, 12> tx_data{};
         
         tx_data[0] = FRAME_HEADER1;
         tx_data[1] = FRAME_HEADER2;
         tx_data[2] = COMMAND_CODE;
-        tx_data[3] = 0x06;  // 数据长度为6（4字节pitch_target + 2字节yaw_target）
+        tx_data[3] = 0x07;  // 数据长度为7（4字节pitch_target + 2字节yaw_target + 1字节fire）
         
         // 处理pitch_target (4字节)
         pitch_target = pitch_target *180/M_PI * 0.01/30;
@@ -123,9 +123,16 @@ bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target) {
         //yaw_int16 = 1234;
 
         memcpy(&tx_data[8], &yaw_int16, sizeof(int16_t));  // 2字节
+
+        // 处理fire
+        if (fire) {
+            tx_data[10] = 0x01;
+        } else {
+            tx_data[10] = 0x00;
+        }
         
         // 计算并添加CRC
-        tx_data[10] = CRC8_Check_Sum(tx_data.data(), 10);
+        tx_data[11] = CRC8_Check_Sum(tx_data.data(), 11);
 
         ssize_t written = write(fd_, tx_data.data(), tx_data.size());
         if (written == static_cast<ssize_t>(tx_data.size())) {

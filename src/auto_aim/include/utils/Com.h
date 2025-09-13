@@ -40,7 +40,7 @@ public:
     SerialCommunicationClass(rclcpp::Node* node, std::function<void(const SerialData&)> serialDataCallback);
     ~SerialCommunicationClass();
     void timerCallback();
-    bool sendData(float pitch_target, float yaw_target);
+    bool sendData(float pitch_target, float yaw_target, bool fire = true);
     void timerThread();
     
 private:
