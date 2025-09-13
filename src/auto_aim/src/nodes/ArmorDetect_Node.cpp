@@ -239,7 +239,7 @@ public:
         com_timer_thread_.detach();
 
         // 串口通信下位机初始化
-        serial_communication_->sendData(0, 0);
+        serial_communication_->sendData(0, 0, false);
 
 #ifdef DEBUG_CODE
         debug_code();
@@ -516,7 +516,7 @@ private:
 
             	if (
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
-                	serial_communication_->sendData(0, 0);
+                	serial_communication_->sendData(0, 0, false);
                 	pitch_integration = 0; // 积分项重置
                 	predictor3d -> clearHistory(); 
                 } else {
@@ -672,7 +672,7 @@ private:
                             // 发布云台控制命令
                             float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integration; // PI控制
                             float command_yaw = ballistic_result.yaw_angle;
-                            serial_communication_->sendData(command_pitch, command_yaw);
+                            serial_communication_->sendData(command_pitch, command_yaw, true);
 
                             RCLCPP_DEBUG(this->get_logger(),
                                 "Target %d: Position[%.2f, %.2f, %.2f] mm, "
