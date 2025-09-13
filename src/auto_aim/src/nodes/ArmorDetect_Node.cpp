@@ -278,8 +278,10 @@ private:
                 image_used = true;
             }
             pthread_mutex_unlock(&g_mutex);
-            cv::imshow("debug_code", frame);
-            cv::waitKey(1);
+            if (!frame.empty()) {
+                cv::imshow("debug_code", frame);
+                cv::waitKey(1);
+            }
             auto start = std::chrono::steady_clock::now();
             std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
             debug_time_count += 0.033;
