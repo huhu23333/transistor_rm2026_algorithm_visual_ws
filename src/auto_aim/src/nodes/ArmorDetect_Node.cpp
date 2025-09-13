@@ -33,6 +33,8 @@
 #include "test_codes/PredictionTrans.h"
 #include "utils/RestFrame.h"
 #include "utils/PositionPredictor3D.h"
+#define _USE_MATH_DEFINES // 启用数学常量
+#include <cmath>
 
 namespace fs = std::filesystem;
 
@@ -41,6 +43,7 @@ namespace fs = std::filesystem;
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 //#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
+#define DEBUG_CODE // 定义后将在初始化结束后运行debug代码而不运行装甲板识别代码
 
 // 全局变量定义
 cv::Mat g_image;
@@ -230,18 +233,23 @@ public:
         rest_frame_ -> updateCamOrientation(0, 0, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0);
 
+        fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
+
+        com_timer_thread_ = std::thread(std::bind(&SerialCommunicationClass::timerThread, serial_communication_));
+        com_timer_thread_.detach();
+
+        // 串口通信下位机初始化
+        serial_communication_->sendData(0, 0);
+
+#ifdef DEBUG_CODE
+        debug_code();
+#endif
+
         // 创建定时器
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
             std::bind(&ArmorDetectNode::processImage, this));
 
-        com_timer_thread_ = std::thread(std::bind(&SerialCommunicationClass::timerThread, serial_communication_));
-        com_timer_thread_.detach();
-
-        fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
-
-        // 串口通信下位机初始化
-        serial_communication_->sendData(0, 0);
 
         RCLCPP_INFO(this->get_logger(), "ArmorDetectNode initialized");
     }
@@ -254,6 +262,20 @@ public:
     }
 
 private:
+    void debug_code() {
+        while (true) {
+            static double debug_time_count = 0.0;
+            double debug_freq = 0.3;
+            double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
+            double debug_pitch = std::sin(debug_time_count*M_PI*debug_freq) * M_PI / 6;
+            serial_communication_->sendData(debug_pitch, debug_yaw);
+            RCLCPP_INFO(this->get_logger(), "send debug data: yaw[%.2f] pitch[%.2f]", debug_yaw, debug_pitch);
+            auto start = std::chrono::steady_clock::now();
+            std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
+            debug_time_count += 0.033;
+        }
+    }
+
     void serialDataCallback(const SerialData& msg) {
         bullet_velocity_ = msg.bullet_velocity;
         current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180; // 测定pitch轴传入数据1.8大约对应30°
@@ -618,7 +640,7 @@ private:
                             delta_y_,
                             delta_z_,
                             bullet_velocity_,
-                            pitch_integration,//last_pitch_rad_delayed_,
+                            pitch_integration,//last_pitch_rad_delayed_, #todo
                             last_yaw_rad_delayed_
                         );
                         
