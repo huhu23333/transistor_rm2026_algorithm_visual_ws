@@ -652,7 +652,7 @@ private:
                             delta_y_,
                             delta_z_,
                             bullet_velocity_,
-                            pitch_integration,//last_pitch_rad_delayed_, #todo
+                            pitch_integration,//pitch_integration, #todo last_pitch_rad_delayed_
                             last_yaw_rad_delayed_
                         );
                         
@@ -670,7 +670,7 @@ private:
                             }
                             
                             // 发布云台控制命令
-                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integration - 0.20; // PI控制
+                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integration; // PI控制
                             float command_yaw = ballistic_result.yaw_angle;
                             serial_communication_->sendData(command_pitch, command_yaw);
 
