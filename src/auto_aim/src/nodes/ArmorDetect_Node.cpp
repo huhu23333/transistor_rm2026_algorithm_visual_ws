@@ -35,6 +35,7 @@
 #include "utils/PositionPredictor3D.h"
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
+#include "test_codes/DataVisualizer.h"
 
 namespace fs = std::filesystem;
 
@@ -234,6 +235,10 @@ public:
         rest_frame_ = std::make_shared<RestFrame>();
         rest_frame_ -> updateCamOrientation(0, 0, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0);
+
+        oscilloscope_fire_ = std::make_shared<Oscilloscope>(640, 120, "Fire Data Oscilloscope");
+        oscilloscope_fire_ -> setScale(1.0);
+        oscilloscope_fire_ -> setOffset(-0.5);
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
@@ -550,6 +555,8 @@ private:
                     // 绘制装甲板预测点（蓝色）
                     cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                     cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
+
+                    oscilloscope_fire_ -> addDataPoint(0.0);
 #endif
                 }
             } 
@@ -717,8 +724,10 @@ private:
                             // 绘制装甲板预测点（蓝色：开火 | 红色：未开火）
                             if (fire_flag) {
                                 cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(0, 0, 255), 2);
+                                oscilloscope_fire_ -> addDataPoint(1.0);
                             } else {
                                 cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
+                                oscilloscope_fire_ -> addDataPoint(0.0);
                             }
 #endif
                         }
@@ -727,6 +736,10 @@ private:
                 }
             }
             drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
+#ifdef USE_PREDICTOR3D
+            oscilloscope_fire_ -> update();
+            oscilloscope_fire_ -> show();
+#endif
 
             //计算帧率
             fps_counter->tick();
@@ -783,6 +796,7 @@ private:
 
     std::shared_ptr<Trans2DPredTo3DClass> trans_pred_;
     std::shared_ptr<RestFrame> rest_frame_;
+    std::shared_ptr<Oscilloscope> oscilloscope_fire_;
     
     float bullet_velocity_;
     float current_pitch_;
