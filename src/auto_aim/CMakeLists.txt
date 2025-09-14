@@ -67,6 +67,7 @@ add_library(armor_detector SHARED
     src/utils/RestFrame.cpp
     src/utils/PositionPredictor3D.cpp
     src/test_codes/DataVisualizer.cpp
+    src/utils/PeriodicDataSmoother.cpp
 )
 #add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp

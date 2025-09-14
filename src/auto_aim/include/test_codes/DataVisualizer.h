@@ -1,6 +1,6 @@
 // DataVisualizer.h
-#ifndef DATAVISUALIZER_H
-#define DATAVISUALIZER_H
+#ifndef DATA_VISUALIZER_H
+#define DATA_VISUALIZER_H
 
 #include <opencv2/opencv.hpp>
 #include <vector>
@@ -65,4 +65,4 @@ public:
 };
 
 
-#endif // DATAVISUALIZER_H
+#endif // DATA_VISUALIZER_H
