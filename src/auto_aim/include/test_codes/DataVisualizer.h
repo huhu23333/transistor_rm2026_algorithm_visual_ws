@@ -11,6 +11,7 @@
 
 class Oscilloscope {
 private:
+    cv::Mat data_display;          // 数据图像
     cv::Mat display;          // 显示图像
     std::deque<float> data;   // 存储数据点的双端队列
     int width;                // 显示窗口宽度
@@ -49,6 +50,18 @@ public:
     
     // 获取当前数据点数量
     size_t getDataSize();
+
+    // 绘制文字
+    void putText(
+        const std::string& text,
+        cv::Point org,
+        cv::Scalar color,
+        double fontScale = 1.0,
+        int thickness = 1,
+        int fontFace = cv::FONT_HERSHEY_COMPLEX,
+        int lineType = 8,
+        bool bottomLeftOrigin = false
+    );
 };
 
 

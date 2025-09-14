@@ -47,6 +47,9 @@ public:
     // 新增函数：获取线性拟合的速度向量
     cv::Vec3f getLinearVelocity() const;
 
+    // 获取傅里叶拟合的周期
+    int getFourierPeriod() const;
+
 private:
     // 一维序列线性拟合
     struct LinearFitResult {

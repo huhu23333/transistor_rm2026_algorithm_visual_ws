@@ -343,6 +343,10 @@ cv::Vec3f PositionPredictor3D::getLinearVelocity() const {
     );
 }
 
+int PositionPredictor3D::getFourierPeriod() const {
+    return fourier_fit_.period;
+}
+
 // 私有方法实现
 PositionPredictor3D::LinearFitResult PositionPredictor3D::fitLinearComponent(
     const std::vector<float>& y, int point_count, int steps) const 
@@ -522,7 +526,7 @@ int PositionPredictor3D::findPeriod(const std::vector<double>& modified_acf) con
     
     // 寻找第一个下降点
     for (int k = 2; k < static_cast<int>(modified_acf.size() / 2); k++) {
-        if (modified_acf[k] < 0.5 * max_value) {
+        if (modified_acf[k] < 0) {
             max_k = k;
             max_value = modified_acf[k];
             last_modified_acf = modified_acf[k];
@@ -532,15 +536,18 @@ int PositionPredictor3D::findPeriod(const std::vector<double>& modified_acf) con
     
     bool modified_acf_updating = false;
     for (int k = max_k + 1; k < static_cast<int>(modified_acf.size()); k++) {
-        if ((modified_acf[k] > max_value * 1.1) || (modified_acf_updating && modified_acf[k] > max_value)) {
-            max_value = modified_acf[k];
-            max_k = k;
+        if ((modified_acf[k] > max_value * 3.0) || (modified_acf_updating && modified_acf[k] > max_value * 0.8)) {
             if (modified_acf[k] > last_modified_acf) {
                 modified_acf_updating = true;
             }
+            if (modified_acf[k] > max_value) {
+                max_value = modified_acf[k];
+                max_k = k;
+            }
         }
-        if (modified_acf[k] < last_modified_acf) {
+        if (modified_acf[k] < last_modified_acf * 0.8) {
             modified_acf_updating = false;
+            //break;
         }
         last_modified_acf = modified_acf[k];
     }

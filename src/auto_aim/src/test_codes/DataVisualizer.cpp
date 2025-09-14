@@ -9,8 +9,8 @@ Oscilloscope::Oscilloscope(int w, int h,
     : width(w), height(h), scale(1.0f), offset(0.0f), 
       window_name(name), background_color(bg_color), waveform_color(wf_color) {
     // 初始化显示图像
-    display = cv::Mat::zeros(height, width, CV_8UC3);
-    display.setTo(background_color);
+    data_display = cv::Mat::zeros(height, width, CV_8UC3);
+    data_display.setTo(background_color);
 }
 
 // 添加数据点
@@ -29,11 +29,11 @@ void Oscilloscope::update() {
     std::lock_guard<std::mutex> lock(data_mutex);
     
     // 将显示图像向左滚动一个像素
-    cv::Mat rolled = display(cv::Rect(1, 0, width - 1, height));
-    rolled.copyTo(display(cv::Rect(0, 0, width - 1, height)));
+    cv::Mat rolled = data_display(cv::Rect(1, 0, width - 1, height));
+    rolled.copyTo(data_display(cv::Rect(0, 0, width - 1, height)));
     
     // 清除最右侧的列
-    display.col(width - 1).setTo(background_color);
+    data_display.col(width - 1).setTo(background_color);
     
     // 如果有数据点，绘制最新的数据点
     if (!data.empty()) {
@@ -47,7 +47,7 @@ void Oscilloscope::update() {
         y = std::max(0, std::min(height - 1, y));
         
         // 绘制最新的数据点
-        cv::circle(display, cv::Point(width - 1, y), 1, waveform_color, -1);
+        cv::circle(data_display, cv::Point(width - 1, y), 1, waveform_color, -1);
         
         // 如果数据点足够多，绘制连线
         if (data.size() > 1) {
@@ -56,10 +56,11 @@ void Oscilloscope::update() {
             int prev_y = height - static_cast<int>(prev_normalized * height);
             prev_y = std::max(0, std::min(height - 1, prev_y));
             
-            cv::line(display, cv::Point(width - 2, prev_y), 
+            cv::line(data_display, cv::Point(width - 2, prev_y), 
                      cv::Point(width - 1, y), waveform_color, 1);
         }
     }
+    display = data_display.clone();
 }
 
 // 显示窗口
@@ -82,11 +83,24 @@ void Oscilloscope::setOffset(float o) {
 void Oscilloscope::clear() {
     std::lock_guard<std::mutex> lock(data_mutex);
     data.clear();
-    display.setTo(background_color);
+    data_display.setTo(background_color);
 }
 
 // 获取当前数据点数量
 size_t Oscilloscope::getDataSize() {
     std::lock_guard<std::mutex> lock(data_mutex);
     return data.size();
+}
+
+void Oscilloscope::putText(
+    const std::string& text,
+    cv::Point org,
+    cv::Scalar color,
+    double fontScale,
+    int thickness,
+    int fontFace,
+    int lineType,
+    bool bottomLeftOrigin
+) {
+    cv::putText(display, text, org, fontFace, fontScale, color, thickness, lineType, bottomLeftOrigin);
 }
