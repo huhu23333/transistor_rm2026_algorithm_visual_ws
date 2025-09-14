@@ -684,7 +684,7 @@ private:
                         } else {
                             fire_data_smoother_ -> addPoint(0.0);
                         }
-                        fire_flag = fire_data_smoother_ -> isRising(0);
+                        fire_flag = fire_data_smoother_ -> isUpper(0, 0.2);
 #endif
 
                         // 转换回pnp相机坐标系

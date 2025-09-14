@@ -26,7 +26,10 @@ public:
     double smooth(int time_index) const;
     
     // 判断指定点平滑后数据是否位于上升沿（导数>0）
-    bool isRising(int time_index) const;
+    bool isRising(int time_index, double compare_threshold = 0.0) const;
+
+    // 计算相位是否为正半周期
+    bool isUpper(int time_index, double compare_threshold = 0.0) const;
     
     // 清除历史数据
     void clearHistory();

@@ -52,9 +52,30 @@ double PeriodicDataSmoother::smooth(int time_index) const {
     return a0_ + a1_ * std::cos(2 * M_PI * t / period_) + b1_ * std::sin(2 * M_PI * t / period_);
 }
 
-bool PeriodicDataSmoother::isRising(int time_index) const {
+bool PeriodicDataSmoother::isRising(int time_index, double compare_threshold) const {
     // 计算导数并判断是否大于0
-    return computeDerivative(time_index) > 0.0;
+    return computeDerivative(time_index) / std::sqrt(a1_ * a1_ + b1_ * b1_) > compare_threshold;
+}
+
+bool PeriodicDataSmoother::isUpper(int time_index, double compare_threshold) const {
+    // 计算相位是否为正半周期
+    if (history_.empty() || period_ <= 0) {
+        return 0.0;
+    }
+    
+    // 如果需要，重新计算傅里叶系数
+    if (coefficients_dirty_) {
+        computeFourierCoefficients();
+    }
+    
+    // 计算绝对时间索引
+    int absolute_index = static_cast<int>(history_.size()) - 1 + time_index;
+    double t = static_cast<double>(absolute_index);
+    
+    // 计算傅里叶级数的相位
+    // f(t) = a0 + a1*cos(2πt/T) + b1*sin(2πt/T)
+    double omega = 2 * M_PI / period_;
+    return (a1_ * omega * std::cos(omega * t) + b1_ * omega * std::sin(omega * t)) / std::sqrt(a1_ * a1_ + b1_ * b1_) > compare_threshold;
 }
 
 void PeriodicDataSmoother::clearHistory() {
