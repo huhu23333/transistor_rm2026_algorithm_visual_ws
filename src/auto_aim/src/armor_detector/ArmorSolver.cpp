@@ -22,6 +22,17 @@ void ArmorSolver::initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, 
     dist_coeffs = (cv::Mat_<double>(1, 5) << 
         dist_coeffs_Node[0].as<double>(), dist_coeffs_Node[1].as<double>(), dist_coeffs_Node[2].as<double>(), 
         dist_coeffs_Node[3].as<double>(), dist_coeffs_Node[4].as<double>());
+    
+    // 初始化ba指针
+    std::array<double,9> Karr = {
+    camera_matrix.at<double>(0,0), camera_matrix.at<double>(0,1), camera_matrix.at<double>(0,2),
+    camera_matrix.at<double>(1,0), camera_matrix.at<double>(1,1), camera_matrix.at<double>(1,2),
+    camera_matrix.at<double>(2,0), camera_matrix.at<double>(2,1), camera_matrix.at<double>(2,2)};
+    std::vector<double> distv;
+    distv.reserve(dist_coeffs.total());
+     for (int i = 0; i < dist_coeffs.total(); ++i)
+    distv.push_back(dist_coeffs.at<double>(i));
+    ba_ = std::make_unique<fyt::auto_aim::BaSolver>(Karr, distv);
 }
 
 void ArmorSolver::initArmorPoints() {
@@ -60,11 +71,17 @@ cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const 
 }
 
 // 修改solveArmor函数实现
-AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result) const {
+AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_) const {
     AimResult result;
     result.valid = false;
+    
     const Armor armor = armor_result.armor;
     int number = armor_result.number;
+    
+    // 计算相机到水平系的旋转矩阵
+    Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(0, last_pitch_rad_, last_yaw_rad_));
+    
+
     try {
         bool is_large_armor = armor_result.is_large;
         
@@ -89,10 +106,37 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result) const {
                                         rvec, tvec, false, cv::SOLVEPNP_IPPE);
 
         if (solve_success) {
+
+            RCLCPP_INFO(logger_p, "solvePnP success");
+
+            result.yaw = getYawFromRvec(rvec); // <<--- 计算并填充yaw
+            RCLCPP_INFO(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
+             
+            //转化为ba需要的参数
+            cv::Mat rmat;
+            cv::Rodrigues(rvec, rmat);
+            Eigen::Matrix3d R = fyt::utils::cvToEigen(rmat);
+
+            // 现打印ba优化之前的yaw
+
+            auto rpy_before = ba_ -> rotationMatrixToRPY(R);
+            RCLCPP_INFO(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
+            RCLCPP_INFO(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
+            RCLCPP_INFO(logger_p, "roll before ba: %.2f" , rpy_before[2]);
+
+            Eigen::Vector3d t = fyt::utils::cvToEigen(tvec);
+
+            R = ba_-> solveBa(armor_result, t, R, R_imu_camera);
+            // 将优化后的旋转矩阵转化为RPY
+            auto rpy = ba_ -> rotationMatrixToRPY(R);
+            
+            // 填充所有的result
             result.valid = true;
+            result.yaw = rpy[2]; // <<--- 填充yaw
             result.position = cv::Point3f(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
             result.rvec = rvec.clone(); // <<--- 填充rvec
-            result.yaw = getYawFromRvec(rvec); // <<--- 计算并填充yaw
+
+
         } else {
             std::cerr << "PnP solve failed!" << std::endl;
             return result;
@@ -107,6 +151,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result) const {
         result.distance = cv::norm(result.position);
         
         // 标记解算成功
+        
         result.valid = true;
         
     } catch (const std::exception& e) {
@@ -114,18 +159,4 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result) const {
     }
     
     return result;
-}
-
-double ArmorSolver::getYawFromRvec(const cv::Mat& rvec) {
-    if (rvec.empty()) return 0.0;
-    cv::Mat rmat;
-    cv::Rodrigues(rvec, rmat); // 从旋转向量得到旋转矩阵
-
-    // 根据OpenCV相机坐标系从旋转矩阵直接计算Yaw角
-    // Yaw是绕Y轴的旋转，一个稳健的计算方法如下：
-    // yaw = atan2(-R(2,0), sqrt(R(0,0)^2 + R(1,0)^2))
-    double yaw = std::atan2(-rmat.at<double>(2, 0),
-                           std::sqrt(std::pow(rmat.at<double>(0, 0), 2) +
-                                     std::pow(rmat.at<double>(1, 0), 2)));
-    return yaw;
 }

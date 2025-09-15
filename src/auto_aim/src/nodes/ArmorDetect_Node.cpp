@@ -497,7 +497,8 @@ private:
                 );
                 if (it != classifyResults.end()) {
                     auto best_result = *it;
-                    AimResult aim = armor_solver_->solveArmor(best_result);
+                    AimResult aim = armor_solver_->solveArmor(best_result, last_pitch_rad_, 
+        last_yaw_rad_);
                     if (aim.valid) {
 
                         // // 连续化Yaw角
@@ -609,6 +610,10 @@ private:
                             future_state(4)
                         );
                         
+
+                        RCLCPP_INFO(this->get_logger(), "yaw: %.2f" , aim.yaw );
+                        RCLCPP_INFO(this->get_logger(), "distance: %.2f" , aim.distance );
+                        RCLCPP_INFO(this->get_logger(), "position: (%.2f, %.2f, %.2f)" , aim.position.x, aim.position.y, aim.position.z);
                         RCLCPP_INFO(this->get_logger(), "Future armor pos: (%.2f, %.2f, %.2f)",
                                     predicted_pos.x, predicted_pos.y, predicted_pos.z);
                                     
@@ -691,7 +696,7 @@ private:
                     
                 }
             } else {
-                if (tracker_->state != Tracker::LOST) {
+                if (tracker_->state != Tracker::LOST) { 
                     tracker_->predict();
                 }
             }
