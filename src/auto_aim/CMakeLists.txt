@@ -19,6 +19,11 @@ find_package(yaml-cpp REQUIRED)
 find_package(TBB REQUIRED)
 find_package(angles REQUIRED) # <<--- 确保这一行存在
 
+# ba solver
+find_package(g2o REQUIRED)
+find_package(Sophus REQUIRED)
+find_package(fmt REQUIRED)
+
 #rosidl_generate_interfaces(${PROJECT_NAME}
 #  "msg/SerialData.msg"
 #  "msg/GimbalCommand.msg"
@@ -68,6 +73,11 @@ add_library(armor_detector SHARED
     src/utils/PositionPredictor3D.cpp
     src/test_codes/DataVisualizer.cpp
     src/utils/PeriodicDataSmoother.cpp
+
+    # ba solver
+    src/ba_solver/ba_solver.cpp
+    src/ba_solver/graph_optimizer.cpp
+    src/ba_solver/utils.cpp
 )
 #add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp
@@ -85,6 +95,19 @@ target_link_libraries(armor_detector
 #    "${cpp_typesupport_target}"
 #    crc_lib
     pthread
+
+    # ba solver
+    cv_bridge::cv_bridge
+    g2o_core
+    g2o_stuff
+    g2o_solver_csparse
+    g2o_csparse_extension
+    g2o_types_slam3d
+    g2o_types_sba
+    g2o_solver_dense
+    cxsparse
+    Sophus::Sophus
+    fmt::fmt
 )
 
 # 为装甲板检测节点添加依赖
