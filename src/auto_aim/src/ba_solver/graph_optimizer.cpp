@@ -5,20 +5,20 @@
 // third party
 #include <Eigen/Core>
 #include <g2o/types/slam3d/vertex_pointxyz.h>
-#include <sophus/so3.hpp>
+#include <sophus/so3.h>
 // project
 #include "ba_solver/utils.hpp"
 
 namespace fyt::auto_aim {
 
 void VertexYaw::oplusImpl(const double *update) {
-  Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, 0, update[0])) *
-                       Sophus::SO3d::exp(Eigen::Vector3d(0, 0, _estimate));
+  Sophus::SO3 R_yaw = Sophus::SO3::exp(Eigen::Vector3d(0, 0, update[0])) *
+                       Sophus::SO3::exp(Eigen::Vector3d(0, 0, _estimate));
   _estimate = R_yaw.log()(2);
 }
 
-EdgeProjection::EdgeProjection(const Sophus::SO3d &R_camera_imu,
-                               const Sophus::SO3d &R_pitch,
+EdgeProjection::EdgeProjection(const Sophus::SO3 &R_camera_imu,
+                               const Sophus::SO3 &R_pitch,
                                const Eigen::Vector3d &t,
                                const Eigen::Matrix3d &K)
     : R_camera_imu_(R_camera_imu), R_pitch_(R_pitch), t_(t), K_(K) {}
@@ -26,8 +26,8 @@ EdgeProjection::EdgeProjection(const Sophus::SO3d &R_camera_imu,
 void EdgeProjection::computeError() {
   // Get the rotation
   double yaw = static_cast<VertexYaw *>(_vertices[0])->estimate();
-  Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, 0, yaw));
-  Sophus::SO3d R = R_camera_imu_ * R_yaw * R_pitch_;
+  Sophus::SO3 R_yaw = Sophus::SO3::exp(Eigen::Vector3d(0, 0, yaw));
+  Sophus::SO3 R = R_camera_imu_ * R_yaw * R_pitch_;
 
   // Get the 3D point
   Eigen::Vector3d p_3d =

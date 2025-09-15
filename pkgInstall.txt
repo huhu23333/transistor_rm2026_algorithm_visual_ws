@@ -1,3 +1,48 @@
 pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
 pip install numpy sysv-ipc opencv-python pyyaml
+
 sudo apt install libceres-dev
+
+
+- fmt库
+  ```bash
+  sudo apt install libfmt-dev
+  ```
+
+- cmake 3.24
+    cd ~
+    mkdir cmake && cd cmake
+    wget https://github.com/Kitware/CMake/releases/download/v3.24.1/cmake-3.24.1-linux-x86_64.tar.gz
+    tar -xvf ./cmake-3.24.1-linux-x86_64.tar.gz
+
+- Sophus库 (G2O库依赖)
+   ```bash
+   cd ~
+   git clone https://github.com/strasdat/Sophus
+   cd Sophus
+   git checkout a621ff
+修改sophus/so2.cpp
+  unit_complex_.real() = 1.;
+  unit_complex_.imag() = 0.;
+为
+  unit_complex_.real(1.);
+  unit_complex_.imag(0.);
+   mkdir build && cd build
+   ~/cmake/cmake-3.24.1-linux-x86_64/bin/cmake ..
+   make -j
+   sudo make install
+   ```
+- G2O库 (优化装甲板Yaw角度)
+    ```bash
+    cd ~
+    sudo apt install libeigen3-dev libspdlog-dev libsuitesparse-dev qtdeclarative5-dev qt5-qmake libqglviewer-dev-qt5
+    git clone https://github.com/RainerKuemmerle/g2o
+    cd g2o
+    mkdir build && cd build
+    ~/cmake/cmake-3.24.1-linux-x86_64/bin/cmake ..
+    make -j
+    sudo make install
+    ```
+    sudo vim /etc/ld.so.conf
+    /usr/local/lib
+    sudo ldconfig
