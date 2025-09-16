@@ -45,7 +45,7 @@ namespace fs = std::filesystem;
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
-//#define DEBUG_CODE // 定义后将在初始化结束后运行debug代码而不运行装甲板识别代码
+//#define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
 
 // 全局变量定义
 cv::Mat g_image;
@@ -274,7 +274,7 @@ public:
 
 private:
     void debug_code() {
-        while (true) {
+        /* while (true) {
             static double debug_time_count = 0.0;
             double debug_freq = 0.3;
             double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
@@ -296,7 +296,24 @@ private:
             auto start = std::chrono::steady_clock::now();
             std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
             debug_time_count += 0.033;
-        }
+        } */
+        std::thread([&]() {
+            double debug_time_count = 0.0;
+            while (true) {
+                auto start = std::chrono::steady_clock::now();
+
+                SerialData fakeSerialData;
+                fakeSerialData.bullet_velocity = 25.0;  // 子弹速度
+                fakeSerialData.bullet_angle = std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
+                fakeSerialData.gimbal_yaw = static_cast<int16_t>(std::cos(debug_time_count * 0.5 * (2*M_PI)) * 4095 / 180 * 15);       // 云台当前偏航角
+                fakeSerialData.color = 1;            // 敌方颜色(0:红色, 1:蓝色)
+
+                serialDataCallback(fakeSerialData);
+
+                std::this_thread::sleep_until(start + std::chrono::microseconds(10000));  // 大约10ms周期
+                debug_time_count += 0.01;
+            }
+        }).detach();
     }
 
     void serialDataCallback(const SerialData& msg) {
@@ -345,7 +362,7 @@ private:
         last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
         total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
 
-        ground_stable_point = cv::Point2f(-2000+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
+        ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
 
         rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
@@ -361,7 +378,7 @@ private:
                      const std::vector<ArmorResult>& classifyResults_forFourierPredict) {
         cv::Mat result = image.clone();
 
-        // 0. 绘制地面系不动点（DEBUG）
+        // 0. 绘制平面地面系不动点（DEBUG）
         cv::circle(result, ground_stable_point, 10, cv::Scalar(0, 255, 0), 2);
         /* cv::circle(result, cv::Point2f(1000, 1000) - ground_stable_point, 10, cv::Scalar(0, 255, 0), 2);
         for (const auto& res : classifyResults) {
@@ -370,7 +387,17 @@ private:
                         res.corners[(i+1)%4] - ground_stable_point + cv::Point2f(500, 500), 
                         cv::Scalar(0, 255, 0), 2);
             }    
-        } */
+        } */                       
+        // 绘制3D面系不动点
+        cv::Point3f test_point_pos;
+        std::vector<float> rest_frame_test_point = {0, 1000, 0};
+        std::vector<float> cam_normal_test_point = rest_frame_ -> getPositionInCamNormal(rest_frame_test_point[0], rest_frame_test_point[1], rest_frame_test_point[2]);
+        std::vector<float> pnp_pos_test_point = rest_frame_ -> normalToPnpResultFrame(cam_normal_test_point[0], cam_normal_test_point[1], cam_normal_test_point[2]);
+        test_point_pos.x = pnp_pos_test_point[0];
+        test_point_pos.y = pnp_pos_test_point[1];
+        test_point_pos.z = pnp_pos_test_point[2];
+        cv::Point2f test_point_pos_pixel = armor_solver_->project3DToPixel(test_point_pos);
+        cv::circle(result, test_point_pos_pixel, 8, cv::Scalar(255, 0, 255), 2);
 
         // 1. 绘制灯条（绿色）
         for (const auto& light : lights) {
