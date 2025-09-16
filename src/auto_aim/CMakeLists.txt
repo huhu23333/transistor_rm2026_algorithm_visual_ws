@@ -37,9 +37,6 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 # 查找 MvCameraControl 库
 find_library(MVCAMERA_LIB MvCameraControl PATHS /opt/MVS/lib/64)
 
-set(Sophus_INCLUDE_DIRS "/usr/local/include")
-set(Sophus_LIBS "/usr/local/lib/libSophus.so")
-
 # 设置包含目录
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
@@ -49,7 +46,6 @@ include_directories(
     /opt/ros/humble/include/cv_bridge
     ${sensor_msgs_INCLUDE_DIRS}
     ${cv_bridge_INCLUDE_DIRS}
-    ${Sophus_INCLUDE_DIRS}
 )
 
 # 添加装甲板检测相关的库
@@ -110,7 +106,7 @@ target_link_libraries(armor_detector
     g2o_types_sba
     g2o_solver_dense
     cxsparse
-    Sophus
+    Sophus::Sophus
     fmt::fmt
 )
 

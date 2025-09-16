@@ -12,7 +12,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <opencv2/core.hpp>
-#include <sophus/so3.h>
+#include <sophus/so3.hpp>
 #include <std_msgs/msg/float32.hpp>
 // g2o
 #include <g2o/core/base_multi_edge.h>

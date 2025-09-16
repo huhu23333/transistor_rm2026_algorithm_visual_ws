@@ -10,8 +10,8 @@
 // 3rd party
 #include <Eigen/Core>
 #include <opencv2/core/eigen.hpp>
-#include <sophus/se3.h>
-#include <sophus/so3.h>
+#include <sophus/se3.hpp>
+#include <sophus/so3.hpp>
 // project
 #include "ba_solver/graph_optimizer.hpp" 
 #include "ba_solver/utils.hpp" 
@@ -48,7 +48,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
 
   // Essential coordinate system transformation
   Eigen::Matrix3d R_imu_armor = R_imu_camera * R_camera_armor;
-  Sophus::SO3 R_camera_imu = Sophus::SO3(R_imu_camera.transpose()); 
+  Sophus::SO3d R_camera_imu = Sophus::SO3d(R_imu_camera.transpose()); 
 
   // Compute the initial yaw from rotation matrix
   double initial_armor_yaw;
@@ -63,7 +63,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   // Get the pitch angle of the armor
   double armor_pitch =
       armor.number == 6 ? -0.2617994 : 0.2617994; //
-  Sophus::SO3 R_pitch = Sophus::SO3::exp(Eigen::Vector3d(0, armor_pitch, 0));
+  Sophus::SO3d R_pitch = Sophus::SO3d::exp(Eigen::Vector3d(0, armor_pitch, 0));
 
   // Get the 3D points of the armor
   const auto armor_size =
@@ -113,7 +113,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
     return R_camera_armor;
   }
 
-  Sophus::SO3 R_yaw = Sophus::SO3::exp(Eigen::Vector3d(0, 0, yaw_optimized));
+  Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, 0, yaw_optimized));
    RCLCPP_INFO(logger_b, "Yaw angle is valid after optimization");
   return (R_camera_imu * R_yaw * R_pitch).matrix();
 }
