@@ -24,7 +24,7 @@ std::vector<float> RestFrame::getCamPosition() {
 }
 
 std::vector<float> RestFrame::pnpResultToNormalFrame(float x_pnp, float y_pnp, float z_pnp) { // 转为xyz向右向前向上
-    std::vector<float> result = {-x_pnp, z_pnp, -y_pnp};
+    std::vector<float> result = {x_pnp, z_pnp, -y_pnp};
     return result;
 }
 
@@ -38,8 +38,8 @@ std::vector<float> RestFrame::getPositionInRestFrame(float x_cam_normal, float y
     float y_temp2 = y_temp1 * std::cos(camera_pitch) - z_temp1 * std::sin(camera_pitch);
     float z_temp2 = z_temp1 * std::cos(camera_pitch) + y_temp1 * std::sin(camera_pitch);
     // yaw
-    float x_temp3 = x_temp2 * std::cos(camera_yaw) + y_temp2 * std::sin(camera_yaw);
-    float y_temp3 = y_temp2 * std::cos(camera_yaw) - x_temp2 * std::sin(camera_yaw);
+    float x_temp3 = x_temp2 * std::cos(camera_yaw) - y_temp2 * std::sin(camera_yaw);
+    float y_temp3 = y_temp2 * std::cos(camera_yaw) + x_temp2 * std::sin(camera_yaw);
     float z_temp3 = z_temp2;
     // 平移
     float x_global = x_temp3 + camera_x;
@@ -56,8 +56,8 @@ std::vector<float> RestFrame::getPositionInCamNormal(float x_global, float y_glo
     float y_temp1 = y_global - camera_y;
     float z_temp1 = z_global - camera_z;
     // yaw
-    float x_temp2 = x_temp1 * std::cos(-camera_yaw) + y_temp1 * std::sin(-camera_yaw);
-    float y_temp2 = y_temp1 * std::cos(-camera_yaw) - x_temp1 * std::sin(-camera_yaw);
+    float x_temp2 = x_temp1 * std::cos(-camera_yaw) - y_temp1 * std::sin(-camera_yaw);
+    float y_temp2 = y_temp1 * std::cos(-camera_yaw) + x_temp1 * std::sin(-camera_yaw);
     float z_temp2 = z_temp1;
     // pitch
     float x_temp3 = x_temp2;
@@ -73,6 +73,6 @@ std::vector<float> RestFrame::getPositionInCamNormal(float x_global, float y_glo
 }
 
 std::vector<float> RestFrame::normalToPnpResultFrame(float x_cam_normal, float y_cam_normal, float z_cam_normal) {
-    std::vector<float> result = {-x_cam_normal, -z_cam_normal, y_cam_normal};
+    std::vector<float> result = {x_cam_normal, -z_cam_normal, y_cam_normal};
     return result;
 }
