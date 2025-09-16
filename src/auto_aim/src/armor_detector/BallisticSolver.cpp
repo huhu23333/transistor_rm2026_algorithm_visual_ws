@@ -27,7 +27,7 @@ BallisticInfo calcBallisticAngle(float x_camera, float y_camera, float z_camera,
     z_camera = (z_camera + deltaz_camera) / 1000.0f; // 向前
 
     // 3. 转弧度
-    float pitch_rad = cur_pitch * M_PI / 180.0f;
+    float pitch_rad = cur_pitch;
 
     float x_standard = x_camera;                                               // 向右
     float y_standard = z_camera*sin(pitch_rad) - y_camera*cos(pitch_rad);       // 向上
@@ -51,19 +51,17 @@ BallisticInfo calcBallisticAngle(float x_camera, float y_camera, float z_camera,
     float tan_angle2 = (numerator_part1 - sqrt(numerator_part2_square)) / denominator;
     
     // 计算两个可能的pitch角
-    float angle1 = atan(tan_angle1);
-    float angle2 = atan(tan_angle2);
+    float pitch_rad1 = atan(tan_angle1);
+    float pitch_rad2 = atan(tan_angle2);
 
     // 选择较小的仰角
-    angle1 = angle1 * 180.0f / M_PI;
-    angle2 = angle2 * 180.0f / M_PI;
-    float final_pitch = abs(angle1 - cur_pitch) < abs(angle2 - cur_pitch) ? angle1 : angle2;
+    float final_pitch_rad = abs(pitch_rad1 - cur_pitch) < abs(pitch_rad2 - cur_pitch) ? pitch_rad1 : pitch_rad2;
     
-    final_pitch += 1.0;  // 角度补偿 TODO
+    //final_pitch_rad += 1.0 * M_PI / 180.0f;  // 角度补偿 TODO
 
     // 5. 计算需要转动的角度
-    result.pitch_angle = (final_pitch - cur_pitch) * M_PI / 180;
-    result.yaw_angle = target_yaw;
+    result.delta_pitch_rad = final_pitch_rad - cur_pitch;
+    result.target_yaw_rad = target_yaw;
     
     result.valid = true;
     return result;

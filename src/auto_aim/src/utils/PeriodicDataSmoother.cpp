@@ -78,6 +78,10 @@ bool PeriodicDataSmoother::isUpper(int time_index, double compare_threshold) con
     return (a1_ * omega * std::cos(omega * t) + b1_ * omega * std::sin(omega * t)) / std::sqrt(a1_ * a1_ + b1_ * b1_) > compare_threshold;
 }
 
+double PeriodicDataSmoother::getA0() const {
+    return a0_;
+}
+
 void PeriodicDataSmoother::clearHistory() {
     history_.clear();
     point_count_ = 0;

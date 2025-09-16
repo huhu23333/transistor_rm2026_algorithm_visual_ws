@@ -30,6 +30,9 @@ public:
 
     // 计算相位是否为正半周期
     bool isUpper(int time_index, double compare_threshold = 0.0) const;
+
+    // 获取a0
+    double getA0() const;
     
     // 清除历史数据
     void clearHistory();

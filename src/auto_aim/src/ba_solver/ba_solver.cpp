@@ -109,12 +109,12 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   double yaw_optimized = v_yaw->estimate();
 
   if (std::isnan(yaw_optimized)) {
-    RCLCPP_INFO(logger_b, "Yaw angle is nan after optimization");
+    RCLCPP_DEBUG(logger_b, "Yaw angle is nan after optimization");
     return R_camera_armor;
   }
 
   Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, 0, yaw_optimized));
-   RCLCPP_INFO(logger_b, "Yaw angle is valid after optimization");
+   RCLCPP_DEBUG(logger_b, "Yaw angle is valid after optimization");
   return (R_camera_imu * R_yaw * R_pitch).matrix();
 }
 

@@ -77,7 +77,7 @@
 //     x0(8) = r;
 
 //     ekf_->setState(x0);
-//     RCLCPP_INFO(rclcpp::get_logger("armor_detect_node"), "Tracker RESET!");
+//     RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET!");
 // }
 
 // Tracker::State Tracker::predict() {
@@ -105,7 +105,7 @@
 //         detect_count_++;
 //         if (detect_count_ > tracking_thres_) {
 //             state = TRACKING;
-//             RCLCPP_INFO(rclcpp::get_logger("armor_detect_node"), "Tracker stable: TRACKING");
+//             RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker stable: TRACKING");
 //         }
 //     } else if (state == TEMP_LOST) state = TRACKING;
 //     return state_vec;
@@ -188,7 +188,7 @@ void Tracker::reset(const Measurement& z) {
     // 速度初始化为0
     
     ekf_->setState(x0);
-    RCLCPP_INFO(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with 6D model!");
+    RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with 6D model!");
 }
 
 Tracker::State Tracker::predict() {
@@ -213,7 +213,7 @@ Tracker::State Tracker::update(const Measurement& z) {
         detect_count_++;
         if (detect_count_ > tracking_thres_) {
             state = TRACKING;
-            RCLCPP_INFO(rclcpp::get_logger("armor_detect_node"), "Tracker stable: TRACKING");
+            RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker stable: TRACKING");
         }
     } else if (state == TEMP_LOST) state = TRACKING;
     return state_vec;
@@ -268,5 +268,5 @@ void Tracker::guideState(const Measurement& z) {
     lost_count_ = 0;
     detect_count_ = 0; // 可以顺便重置，以防万一
     state = TRACKING; // 恢复状态
-    RCLCPP_INFO(rclcpp::get_logger("armor_detect_node"), "Tracker state guided back to TRACKING.");
+    RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker state guided back to TRACKING.");
 }

@@ -41,7 +41,7 @@
 namespace fs = std::filesystem;
 
 
-#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
@@ -694,10 +694,10 @@ private:
                         );
                         
 
-                        RCLCPP_INFO(this->get_logger(), "yaw: %.2f" , aim.yaw );
-                        RCLCPP_INFO(this->get_logger(), "distance: %.2f" , aim.distance );
-                        RCLCPP_INFO(this->get_logger(), "position: (%.2f, %.2f, %.2f)" , aim.position.x, aim.position.y, aim.position.z);
-                        RCLCPP_INFO(this->get_logger(), "Future armor pos: (%.2f, %.2f, %.2f)",
+                        RCLCPP_DEBUG(this->get_logger(), "yaw: %.2f" , aim.yaw );
+                        RCLCPP_DEBUG(this->get_logger(), "distance: %.2f" , aim.distance );
+                        RCLCPP_DEBUG(this->get_logger(), "position: (%.2f, %.2f, %.2f)" , aim.position.x, aim.position.y, aim.position.z);
+                        RCLCPP_DEBUG(this->get_logger(), "Future armor pos: (%.2f, %.2f, %.2f)",
                                     predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
 
                         bool fire_flag = true;            
@@ -745,7 +745,7 @@ private:
                         } else {
                             fire_data_smoother_ -> addPoint(0.0);
                         }
-                        fire_flag = fire_data_smoother_ -> isUpper(0, 0.2);
+                        fire_flag = fire_data_smoother_ -> isUpper(0, 0.2) || fire_data_smoother_ -> getA0() > 0.8;
 #endif
 
                         // 转换回pnp相机坐标系
@@ -757,6 +757,8 @@ private:
                         predicted_aim_pos.z = pnp_aim_pos_pred[2];
 
                         // 弹道解算
+                        RCLCPP_INFO(this->get_logger(), "aim pos: (%.2f, %.2f, %.2f)",
+                                    predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
                         BallisticInfo ballistic_result = calcBallisticAngle(
                             predicted_aim_pos.x, 
                             predicted_aim_pos.y, 
@@ -773,7 +775,7 @@ private:
                             // RCLCPP_INFO(this->get_logger(), "Target detected, publishing command");
                             has_valid_target_ = true;
 
-                            pitch_integration += ballistic_result.pitch_angle * 0.03;
+                            pitch_integration += ballistic_result.delta_pitch_rad * 0.03;
 
                             if (pitch_integration > 0.3) {
                                 pitch_integration = 0.3;
@@ -783,8 +785,8 @@ private:
                             }
                             
                             // 发布云台控制命令
-                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.pitch_angle * 0.5 + pitch_integration; // PI控制
-                            float command_yaw = ballistic_result.yaw_angle;
+                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.5 + pitch_integration; // PI控制
+                            float command_yaw = ballistic_result.target_yaw_rad;
                             serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
 
                             RCLCPP_DEBUG(this->get_logger(),

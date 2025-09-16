@@ -7,8 +7,8 @@
 
 // 结构体声明
 struct BallisticInfo {
-    float pitch_angle;  // pitch需要转动的角度
-    float yaw_angle;    // yaw最终的角度（逆时针为正）
+    float delta_pitch_rad;  // pitch需要转动的角度
+    float target_yaw_rad;    // yaw最终的角度（逆时针为正）
     bool valid;
 };
 

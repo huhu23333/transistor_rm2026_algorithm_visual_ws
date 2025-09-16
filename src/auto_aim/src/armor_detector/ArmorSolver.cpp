@@ -107,10 +107,10 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
 
         if (solve_success) {
 
-            RCLCPP_INFO(logger_p, "solvePnP success");
+            RCLCPP_DEBUG(logger_p, "solvePnP success");
 
             result.yaw = getYawFromRvec(rvec); // <<--- 计算并填充yaw
-            RCLCPP_INFO(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
+            RCLCPP_DEBUG(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
              
             //转化为ba需要的参数
             cv::Mat rmat;
@@ -120,9 +120,9 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             // 现打印ba优化之前的yaw
 
             auto rpy_before = ba_ -> rotationMatrixToRPY(R);
-            RCLCPP_INFO(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
-            RCLCPP_INFO(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
-            RCLCPP_INFO(logger_p, "roll before ba: %.2f" , rpy_before[2]);
+            RCLCPP_DEBUG(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
+            RCLCPP_DEBUG(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
+            RCLCPP_DEBUG(logger_p, "roll before ba: %.2f" , rpy_before[2]);
 
             Eigen::Vector3d t = fyt::utils::cvToEigen(tvec);
 

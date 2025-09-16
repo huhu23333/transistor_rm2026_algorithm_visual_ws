@@ -102,28 +102,28 @@ public:
       std::stringstream ss_p, ss_h, ss_r, ss_s;
 
       ss_p << P_pri;
-      // RCLCPP_INFO(logger, "----------- EKF DEBUG INFO (Pre-Inverse) -----------");
-      // RCLCPP_INFO(logger, "P_pri (Predicted Covariance):\n%s", ss_p.str().c_str());
+      // RCLCPP_DEBUG(logger, "----------- EKF DEBUG INFO (Pre-Inverse) -----------");
+      // RCLCPP_DEBUG(logger, "P_pri (Predicted Covariance):\n%s", ss_p.str().c_str());
 
       ss_h << H;
-      // RCLCPP_INFO(logger, "H (Measurement Jacobian):\n%s", ss_h.str().c_str());
+      // RCLCPP_DEBUG(logger, "H (Measurement Jacobian):\n%s", ss_h.str().c_str());
 
       ss_r << R;
-      // RCLCPP_INFO(logger, "R (Measurement Noise):\n%s", ss_r.str().c_str());
+      // RCLCPP_DEBUG(logger, "R (Measurement Noise):\n%s", ss_r.str().c_str());
 
       // 计算并打印即将被求逆的矩阵 S
       MatrixZZ S = H * P_pri * H.transpose() + R;
       ss_s << S;
-      // RCLCPP_INFO(logger, "S (Matrix to be inverted):\n%s", ss_s.str().c_str());
+      // RCLCPP_DEBUG(logger, "S (Matrix to be inverted):\n%s", ss_s.str().c_str());
 
       // 计算并打印 S 的行列式
       double detS = S.determinant();
-      // RCLCPP_INFO(logger, "Determinant of S: %e", detS); // 使用 %e 科学计数法打印
+      // RCLCPP_DEBUG(logger, "Determinant of S: %e", detS); // 使用 %e 科学计数法打印
       
       if (std::abs(detS) < 1e-9) {
           RCLCPP_ERROR(logger, "CRITICAL: Determinant is close to zero! Matrix inversion will fail.");
       }
-      // RCLCPP_INFO(logger, "----------------------------------------------------");
+      // RCLCPP_DEBUG(logger, "----------------------------------------------------");
       // ======================= 新增的ROS2日志调试代码 END =======================
 
       
