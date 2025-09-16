@@ -132,7 +132,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             
             // 填充所有的result
             result.valid = true;
-            result.yaw = rpy[2]; // <<--- 填充yaw
+            //result.yaw = rpy[2]; // <<--- 填充yaw
             result.position = cv::Point3f(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
             result.rvec = rvec.clone(); // <<--- 填充rvec
 

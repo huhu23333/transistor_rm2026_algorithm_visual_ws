@@ -581,8 +581,7 @@ private:
                 );
                 if (it != classifyResults.end()) {
                     auto best_result = *it;
-                    AimResult aim = armor_solver_->solveArmor(best_result, last_pitch_rad_, 
-        last_yaw_rad_);
+                    AimResult aim = armor_solver_->solveArmor(best_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
                     if (aim.valid) {
 
                         // // 连续化Yaw角
