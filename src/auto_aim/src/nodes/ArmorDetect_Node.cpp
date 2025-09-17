@@ -391,7 +391,7 @@ private:
         // 绘制3D面系不动点
         cv::Point3f test_point_pos;
         std::vector<float> rest_frame_test_point = {0, 1000, 0};
-        std::vector<float> cam_normal_test_point = rest_frame_ -> getPositionInCamNormal(rest_frame_test_point[0], rest_frame_test_point[1], rest_frame_test_point[2]);
+        std::vector<float> cam_normal_test_point = rest_frame_ -> getCamPositionFromWorld(rest_frame_test_point[0], rest_frame_test_point[1], rest_frame_test_point[2]);
         std::vector<float> pnp_pos_test_point = rest_frame_ -> normalToPnpResultFrame(cam_normal_test_point[0], cam_normal_test_point[1], cam_normal_test_point[2]);
         test_point_pos.x = pnp_pos_test_point[0];
         test_point_pos.y = pnp_pos_test_point[1];
@@ -567,7 +567,7 @@ private:
 #ifdef USE_PREDICTOR3D
                     // 转换回pnp相机坐标系
                     std::vector<float> rest_frame_aim_pos_pred = {predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z};
-                    std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_aim_pos_pred[0], rest_frame_aim_pos_pred[1], rest_frame_aim_pos_pred[2]);
+                    std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_aim_pos_pred[0], rest_frame_aim_pos_pred[1], rest_frame_aim_pos_pred[2]);
                     std::vector<float> pnp_aim_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_aim_pos_pred[0], cam_normal_aim_pos_pred[1], cam_normal_aim_pos_pred[2]);
                     predicted_aim_pos.x = pnp_aim_pos_pred[0];
                     predicted_aim_pos.y = pnp_aim_pos_pred[1];
@@ -576,7 +576,7 @@ private:
                     cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
                     // 转换回pnp相机坐标系
                     std::vector<float> rest_frame_armor_pos_pred = {predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z};
-                    std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
+                    std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
                     std::vector<float> pnp_armor_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_armor_pos_pred[0], cam_normal_armor_pos_pred[1], cam_normal_armor_pos_pred[2]);
                     predicted_armor_pos.x = pnp_armor_pos_pred[0];
                     predicted_armor_pos.y = pnp_armor_pos_pred[1];
@@ -670,7 +670,7 @@ private:
 
                         // 将pnp结果转换至静止坐标系以稳定预测
                         std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
-                        std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+                        std::vector<float> rest_frame_pos = rest_frame_ -> getWorldPositionFromCam(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
 
                         // ========== EKF 逻辑 (6D模型修改) ==========
 
@@ -737,11 +737,11 @@ private:
                         
                         // 测试静止坐标系
                         /* std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
-                        std::vector<float> rest_frame_pos = rest_frame_ -> getPositionInRestFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+                        std::vector<float> rest_frame_pos = rest_frame_ -> getWorldPositionFromCam(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
 
                         std::vector<float> rest_frame_pos_new = rest_frame_pos;
 
-                        std::vector<float> cam_normal_pos_new = rest_frame_ -> getPositionInCamNormal(rest_frame_pos_new[0], rest_frame_pos_new[1], rest_frame_pos_new[2]);
+                        std::vector<float> cam_normal_pos_new = rest_frame_ -> getCamPositionFromWorld(rest_frame_pos_new[0], rest_frame_pos_new[1], rest_frame_pos_new[2]);
                         std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]); */
 
                         // 测试3D位置预测器
@@ -760,7 +760,7 @@ private:
 
                         // 转换回pnp相机坐标系
                         std::vector<float> rest_frame_armor_pos_pred = {predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z};
-                        std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
+                        std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
                         std::vector<float> pnp_armor_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_armor_pos_pred[0], cam_normal_armor_pos_pred[1], cam_normal_armor_pos_pred[2]);
                         predicted_armor_pos.x = pnp_armor_pos_pred[0];
                         predicted_armor_pos.y = pnp_armor_pos_pred[1];
@@ -777,7 +777,7 @@ private:
 
                         // 转换回pnp相机坐标系
                         std::vector<float> rest_frame_aim_pos_pred = {predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z};
-                        std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getPositionInCamNormal(rest_frame_aim_pos_pred[0], rest_frame_aim_pos_pred[1], rest_frame_aim_pos_pred[2]);
+                        std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_aim_pos_pred[0], rest_frame_aim_pos_pred[1], rest_frame_aim_pos_pred[2]);
                         std::vector<float> pnp_aim_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_aim_pos_pred[0], cam_normal_aim_pos_pred[1], cam_normal_aim_pos_pred[2]);
                         predicted_aim_pos.x = pnp_aim_pos_pred[0];
                         predicted_aim_pos.y = pnp_aim_pos_pred[1];

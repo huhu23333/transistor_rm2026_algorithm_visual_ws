@@ -1,5 +1,6 @@
 // RestFrame.cpp
 #include "utils/RestFrame.h"
+#include <stdexcept>
 
 void RestFrame::updateCamOrientation(float yaw, float pitch, float roll) {
     camera_yaw = yaw;
@@ -14,65 +15,170 @@ void RestFrame::updateCamPosition(float x, float y, float z) {
 }
 
 std::vector<float> RestFrame::getCamOrientation() {
-    std::vector<float> result = {camera_yaw, camera_pitch, camera_roll};
-    return result;
+    return {camera_yaw, camera_pitch, camera_roll};
 }
 
 std::vector<float> RestFrame::getCamPosition() {
-    std::vector<float> result = {camera_x, camera_y, camera_z};
-    return result;
+    return {camera_x, camera_y, camera_z};
 }
 
-std::vector<float> RestFrame::pnpResultToNormalFrame(float x_pnp, float y_pnp, float z_pnp) { // 转为xyz向右向前向上
-    std::vector<float> result = {x_pnp, z_pnp, -y_pnp};
-    return result;
+std::vector<float> RestFrame::pnpResultToNormalFrame(float x_pnp, float y_pnp, float z_pnp) {
+    return {x_pnp, z_pnp, -y_pnp};
 }
 
-std::vector<float> RestFrame::getPositionInRestFrame(float x_cam_normal, float y_cam_normal, float z_cam_normal) {
-    // roll
-    float x_temp1 = x_cam_normal * std::cos(camera_roll) + z_cam_normal * std::sin(camera_roll);
-    float y_temp1 = y_cam_normal;
-    float z_temp1 = z_cam_normal * std::cos(camera_roll) - x_cam_normal * std::sin(camera_roll);
-    // pitch
-    float x_temp2 = x_temp1;
-    float y_temp2 = y_temp1 * std::cos(camera_pitch) - z_temp1 * std::sin(camera_pitch);
-    float z_temp2 = z_temp1 * std::cos(camera_pitch) + y_temp1 * std::sin(camera_pitch);
-    // yaw
-    float x_temp3 = x_temp2 * std::cos(camera_yaw) - y_temp2 * std::sin(camera_yaw);
-    float y_temp3 = y_temp2 * std::cos(camera_yaw) + x_temp2 * std::sin(camera_yaw);
-    float z_temp3 = z_temp2;
-    // 平移
-    float x_global = x_temp3 + camera_x;
-    float y_global = y_temp3 + camera_y;
-    float z_global = z_temp3 + camera_z;
+std::vector<float> RestFrame::getWorldPositionFromCam(float x_cam_normal, float y_cam_normal, float z_cam_normal) {
+    float cosY = std::cos(camera_yaw);
+    float sinY = std::sin(camera_yaw);
+    float cosP = std::cos(camera_pitch);
+    float sinP = std::sin(camera_pitch);
+    float cosR = std::cos(camera_roll);
+    float sinR = std::sin(camera_roll);
 
-    std::vector<float> result = {x_global, y_global, z_global};
-    return result;
+    // Apply roll, pitch, yaw rotations
+    float x_temp = x_cam_normal;
+    float y_temp = y_cam_normal;
+    float z_temp = z_cam_normal;
+
+    // Roll rotation
+    float x_roll = x_temp * cosR + z_temp * sinR;
+    float y_roll = y_temp;
+    float z_roll = z_temp * cosR - x_temp * sinR;
+
+    // Pitch rotation
+    float x_pitch = x_roll;
+    float y_pitch = y_roll * cosP - z_roll * sinP;
+    float z_pitch = z_roll * cosP + y_roll * sinP;
+
+    // Yaw rotation
+    float x_yaw = x_pitch * cosY - y_pitch * sinY;
+    float y_yaw = y_pitch * cosY + x_pitch * sinY;
+    float z_yaw = z_pitch;
+
+    // Translation
+    return {x_yaw + camera_x, y_yaw + camera_y, z_yaw + camera_z};
 }
 
-std::vector<float> RestFrame::getPositionInCamNormal(float x_global, float y_global, float z_global) {
-    // 平移
-    float x_temp1 = x_global - camera_x;
-    float y_temp1 = y_global - camera_y;
-    float z_temp1 = z_global - camera_z;
-    // yaw
-    float x_temp2 = x_temp1 * std::cos(-camera_yaw) - y_temp1 * std::sin(-camera_yaw);
-    float y_temp2 = y_temp1 * std::cos(-camera_yaw) + x_temp1 * std::sin(-camera_yaw);
-    float z_temp2 = z_temp1;
-    // pitch
-    float x_temp3 = x_temp2;
-    float y_temp3 = y_temp2 * std::cos(-camera_pitch) - z_temp2 * std::sin(-camera_pitch);
-    float z_temp3 = z_temp2 * std::cos(-camera_pitch) + y_temp2 * std::sin(-camera_pitch);
-    // roll
-    float x_cam_normal = x_temp3 * std::cos(-camera_roll) + z_temp3 * std::sin(-camera_roll);
-    float y_cam_normal = y_temp3;
-    float z_cam_normal = z_temp3 * std::cos(-camera_roll) - x_temp3 * std::sin(-camera_roll);
-    
-    std::vector<float> result = {x_cam_normal, y_cam_normal, z_cam_normal};
-    return result;
+std::vector<float> RestFrame::getCamPositionFromWorld(float x_global, float y_global, float z_global) {
+    // Translation
+    float x_temp = x_global - camera_x;
+    float y_temp = y_global - camera_y;
+    float z_temp = z_global - camera_z;
+
+    float cosY = std::cos(-camera_yaw);
+    float sinY = std::sin(-camera_yaw);
+    float cosP = std::cos(-camera_pitch);
+    float sinP = std::sin(-camera_pitch);
+    float cosR = std::cos(-camera_roll);
+    float sinR = std::sin(-camera_roll);
+
+    // Inverse yaw rotation
+    float x_yaw = x_temp * cosY - y_temp * sinY;
+    float y_yaw = y_temp * cosY + x_temp * sinY;
+    float z_yaw = z_temp;
+
+    // Inverse pitch rotation
+    float x_pitch = x_yaw;
+    float y_pitch = y_yaw * cosP - z_yaw * sinP;
+    float z_pitch = z_yaw * cosP + y_yaw * sinP;
+
+    // Inverse roll rotation
+    float x_roll = x_pitch * cosR + z_pitch * sinR;
+    float y_roll = y_pitch;
+    float z_roll = z_pitch * cosR - x_pitch * sinR;
+
+    return {x_roll, y_roll, z_roll};
 }
 
 std::vector<float> RestFrame::normalToPnpResultFrame(float x_cam_normal, float y_cam_normal, float z_cam_normal) {
-    std::vector<float> result = {x_cam_normal, -z_cam_normal, y_cam_normal};
+    return {x_cam_normal, -z_cam_normal, y_cam_normal};
+}
+
+std::vector<std::vector<float>> RestFrame::eulerToRotationMatrix(float yaw, float pitch, float roll) {
+    float cy = std::cos(yaw);
+    float sy = std::sin(yaw);
+    float cp = std::cos(pitch);
+    float sp = std::sin(pitch);
+    float cr = std::cos(roll);
+    float sr = std::sin(roll);
+
+    return {
+        {cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr},
+        {sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr},
+        {-sp, cp * sr, cp * cr}
+    };
+}
+
+std::vector<std::vector<float>> RestFrame::multiplyRotationMatrixAndMatrix(
+    const std::vector<std::vector<float>>& A, 
+    const std::vector<std::vector<float>>& B) 
+{
+    if (A.size() != 3 || B.size() != 3 || A[0].size() != 3 || B[0].size() != 3) {
+        throw std::invalid_argument("Matrices must be 3x3");
+    }
+
+    std::vector<std::vector<float>> result(3, std::vector<float>(3, 0.0f));
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            for (int k = 0; k < 3; ++k) {
+                result[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
     return result;
+}
+
+std::vector<float> RestFrame::getWorldEulerAnglesFromCam(float yaw_cam, float pitch_cam, float roll_cam) {
+    auto camRotationMatrix = eulerToRotationMatrix(camera_yaw, camera_pitch, camera_roll);
+    auto objectRotationMatrix = eulerToRotationMatrix(yaw_cam, pitch_cam, roll_cam);
+    auto worldRotationMatrix = multiplyRotationMatrixAndMatrix(camRotationMatrix, objectRotationMatrix);
+
+    // Extract Euler angles from rotation matrix
+    float sy = std::sqrt(worldRotationMatrix[0][0] * worldRotationMatrix[0][0] + worldRotationMatrix[1][0] * worldRotationMatrix[1][0]);
+    bool singular = sy < 1e-6;
+
+    float yaw_world, pitch_world, roll_world;
+    if (!singular) {
+        yaw_world = std::atan2(worldRotationMatrix[1][0], worldRotationMatrix[0][0]);
+        pitch_world = std::atan2(-worldRotationMatrix[2][0], sy);
+        roll_world = std::atan2(worldRotationMatrix[2][1], worldRotationMatrix[2][2]);
+    } else {
+        // Handle gimbal lock
+        yaw_world = std::atan2(-worldRotationMatrix[0][1], worldRotationMatrix[1][1]);
+        pitch_world = std::atan2(-worldRotationMatrix[2][0], sy);
+        roll_world = 0;
+    }
+
+    return {yaw_world, pitch_world, roll_world};
+}
+
+std::vector<float> RestFrame::getCamEulerAnglesFromWorld(float yaw_world, float pitch_world, float roll_world) {
+    auto camRotationMatrix = eulerToRotationMatrix(camera_yaw, camera_pitch, camera_roll);
+    // Compute inverse of camera rotation matrix (transpose)
+    std::vector<std::vector<float>> camRotationMatrixInv(3, std::vector<float>(3));
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            camRotationMatrixInv[i][j] = camRotationMatrix[j][i];
+        }
+    }
+
+    auto objectRotationMatrix = eulerToRotationMatrix(yaw_world, pitch_world, roll_world);
+    auto camRotationResult = multiplyRotationMatrixAndMatrix(camRotationMatrixInv, objectRotationMatrix);
+
+    // Extract Euler angles from rotation matrix
+    float sy = std::sqrt(camRotationResult[0][0] * camRotationResult[0][0] + camRotationResult[1][0] * camRotationResult[1][0]);
+    bool singular = sy < 1e-6;
+
+    float yaw_cam, pitch_cam, roll_cam;
+    if (!singular) {
+        yaw_cam = std::atan2(camRotationResult[1][0], camRotationResult[0][0]);
+        pitch_cam = std::atan2(-camRotationResult[2][0], sy);
+        roll_cam = std::atan2(camRotationResult[2][1], camRotationResult[2][2]);
+    } else {
+        // Handle gimbal lock
+        yaw_cam = std::atan2(-camRotationResult[0][1], camRotationResult[1][1]);
+        pitch_cam = std::atan2(-camRotationResult[2][0], sy);
+        roll_cam = 0;
+    }
+
+    return {yaw_cam, pitch_cam, roll_cam};
 }
