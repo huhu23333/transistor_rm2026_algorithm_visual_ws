@@ -6,8 +6,8 @@
 #include "armor_detector/ArmorDetector.h"
 #include "armor_detector/ArmorClassifier.h"
 #include "armor_detector/ArmorSolver.h"
+//#include "armor_detector/ArmorAngleKalman.h"
 
-#include "EKF/ArmorAngleKalman.h"
 #include "EKF/Tracker.h"
 #include <angles/angles.h>
 
@@ -44,7 +44,7 @@ namespace fs = std::filesystem;
 #define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
-//#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
+#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
 //#define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
 
 // 全局变量定义
@@ -225,7 +225,7 @@ public:
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
         classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, this);
         armor_solver_ = std::make_shared<ArmorSolver>(config_file_ptr, this);
-        angle_kalman_ = std::make_shared<ArmorAngleKalman>();
+        ballistic_solver_ = std::make_shared<BallisticSolver>(config_file_ptr, this);
 
         trans_pred_ = std::make_shared<Trans2DPredTo3DClass>(config_file_ptr);
 
@@ -784,9 +784,9 @@ private:
                         predicted_aim_pos.z = pnp_aim_pos_pred[2];
 
                         // 弹道解算
-                        RCLCPP_INFO(this->get_logger(), "aim pos: (%.2f, %.2f, %.2f)",
+                        RCLCPP_DEBUG(this->get_logger(), "aim pos: (%.2f, %.2f, %.2f)",
                                     predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
-                        BallisticInfo ballistic_result = calcBallisticAngle(
+                        BallisticInfo ballistic_result = ballistic_solver_ -> calcBallisticAngle(
                             predicted_aim_pos.x, 
                             predicted_aim_pos.y, 
                             predicted_aim_pos.z,
@@ -898,7 +898,7 @@ private:
     std::shared_ptr<ArmorDetector> armor_detector_;
     std::shared_ptr<ArmorSolver> armor_solver_;
     std::shared_ptr<ArmorClassifier> classifier_;
-    std::shared_ptr<ArmorAngleKalman> angle_kalman_;
+    std::shared_ptr<BallisticSolver> ballistic_solver_;
 
     std::shared_ptr<VideoInput> video_input_;
     std::shared_ptr<ImagesInput> images_input_;

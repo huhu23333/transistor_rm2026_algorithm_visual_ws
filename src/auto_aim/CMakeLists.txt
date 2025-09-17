@@ -72,7 +72,6 @@ add_library(armor_detector SHARED
     src/utils/PositionPredictor3D.cpp
     src/utils/PeriodicDataSmoother.cpp
     # EKF
-    src/EKF/ArmorAngleKalman.cpp
     src/EKF/Tracker.cpp
     # ba solver
     src/ba_solver/ba_solver.cpp
