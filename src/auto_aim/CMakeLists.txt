@@ -56,24 +56,24 @@ add_library(armor_detector SHARED
     src/armor_detector/ArmorClassifier.cpp
     src/armor_detector/ArmorTracker.cpp
     src/armor_detector/ArmorSolver.cpp
-    src/armor_detector/ArmorAngleKalman.cpp
     src/armor_detector/BallisticSolver.cpp
     src/camera/cameraConnect.cpp  # 添加这一行
     src/test_codes/VideoInput.cpp
     src/test_codes/ImagesInput.cpp
     src/test_codes/PositionPredictor.cpp
     src/test_codes/PredictionTrans.cpp
+    src/test_codes/DataVisualizer.cpp
     src/utils/FrameRateCounter.cpp
     src/utils/UnwarpUtils.cpp
     src/utils/SharedMemoryTorch.cpp
     src/utils/Com.cpp
     src/utils/CRC.cpp
-    src/armor_detector/Tracker.cpp
     src/utils/RestFrame.cpp
     src/utils/PositionPredictor3D.cpp
-    src/test_codes/DataVisualizer.cpp
     src/utils/PeriodicDataSmoother.cpp
-
+    # EKF
+    src/EKF/ArmorAngleKalman.cpp
+    src/EKF/Tracker.cpp
     # ba solver
     src/ba_solver/ba_solver.cpp
     src/ba_solver/graph_optimizer.cpp
