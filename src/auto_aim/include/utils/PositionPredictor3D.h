@@ -50,6 +50,9 @@ public:
     // 获取傅里叶拟合的周期
     int getFourierPeriod() const;
 
+    // 获取平均位置
+    cv::Vec3f getAveragePosition() const;
+
 private:
     // 一维序列线性拟合
     struct LinearFitResult {

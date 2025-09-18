@@ -347,6 +347,18 @@ int PositionPredictor3D::getFourierPeriod() const {
     return fourier_fit_.period;
 }
 
+cv::Vec3f PositionPredictor3D::getAveragePosition() const {
+    if (history_.empty()) {
+        return cv::Vec3f(0.0f, 0.0f, 0.0f);
+    }
+    if (!linear_fitted_) {
+        // 未拟合，返回最近的值
+        const auto& last_point = history_.back();
+        return cv::Vec3f(last_point.x, last_point.y, last_point.z);
+    }
+    return cv::Vec3f(linear_fit_x_.b, linear_fit_y_.b, linear_fit_z_.b);
+}
+
 // 私有方法实现
 PositionPredictor3D::LinearFitResult PositionPredictor3D::fitLinearComponent(
     const std::vector<float>& y, int point_count, int steps) const 

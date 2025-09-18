@@ -559,8 +559,9 @@ private:
                 	predictor3d -> clearHistory(); 
                     fire_data_smoother_ -> clearHistory();
                 } else {
-                    cv::Point3f predicted_aim_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
-                	predictor3d -> addPoint(predicted_aim_pos);
+                    cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
+                    cv::Point3f predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_nowIndex];
+                	predictor3d -> addPoint(predicted_armor_pos);
                 	if (predictor3dPrediction_nowIndex < predictor3dArmorPredictions.size()-1) {
                 	    predictor3dPrediction_nowIndex += 1;
                 	}
@@ -573,7 +574,6 @@ private:
                     predicted_aim_pos.y = pnp_aim_pos_pred[1];
                     predicted_aim_pos.z = pnp_aim_pos_pred[2];
 
-                    cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
                     // 转换回pnp相机坐标系
                     std::vector<float> rest_frame_armor_pos_pred = {predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z};
                     std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
@@ -747,7 +747,7 @@ private:
                         // 测试3D位置预测器
                         predictor3d -> addPoint(cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]));
                         predictor3d -> fitFourier(predictor3d_fit_step, predictor3d_fourier_fit_order);
-                        predictor3dCenterPredictions = predictor3d -> predictLinear(predictor3d_predict_step); // predictFourier | predictLinear
+                        predictor3dCenterPredictions = std::vector<cv::Point3f>(predictor3d_predict_step, cv::Point3f(predictor3d -> getAveragePosition())); //predictor3d -> predictLinear(predictor3d_predict_step); // predictFourier | predictLinear
                         predictor3dArmorPredictions = predictor3d -> predictFourier(predictor3d_predict_step); // predictFourier | predictLinear
                         predictor3dPrediction_nowIndex = 0;
                         size_t predictor3dPrediction_indexToAim = std::min(predictor3d_predict_step-1, (int)(total_delay * fps_counter->fps())); // total_delay
