@@ -27,6 +27,21 @@ std::vector<float> RestFrame::pnpResultToNormalFrame(float x_pnp, float y_pnp, f
 }
 
 std::vector<float> RestFrame::getWorldPositionFromCam(float x_cam_normal, float y_cam_normal, float z_cam_normal) {
+    // 使用旋转矩阵方法
+    auto R = eulerToRotationMatrix(camera_yaw, camera_pitch, camera_roll);
+    std::vector<float> v = {x_cam_normal, y_cam_normal, z_cam_normal};
+    std::vector<float> v_rotated(3, 0.0f);
+    
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            v_rotated[i] += R[i][j] * v[j];
+        }
+    }
+    
+    return {v_rotated[0] + camera_x, v_rotated[1] + camera_y, v_rotated[2] + camera_z};
+    
+    /*
+    // 原始代码保留
     float cosY = std::cos(camera_yaw);
     float sinY = std::sin(camera_yaw);
     float cosP = std::cos(camera_pitch);
@@ -56,9 +71,26 @@ std::vector<float> RestFrame::getWorldPositionFromCam(float x_cam_normal, float 
 
     // Translation
     return {x_yaw + camera_x, y_yaw + camera_y, z_yaw + camera_z};
+    */
 }
 
 std::vector<float> RestFrame::getCamPositionFromWorld(float x_global, float y_global, float z_global) {
+    // 使用旋转矩阵方法
+    auto R = eulerToRotationMatrix(camera_yaw, camera_pitch, camera_roll);
+    std::vector<float> v = {x_global - camera_x, y_global - camera_y, z_global - camera_z};
+    std::vector<float> v_rotated(3, 0.0f);
+    
+    // 使用旋转矩阵的转置（逆）
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            v_rotated[i] += R[j][i] * v[j]; // 转置矩阵
+        }
+    }
+    
+    return {v_rotated[0], v_rotated[1], v_rotated[2]};
+    
+    /*
+    // 原始代码保留
     // Translation
     float x_temp = x_global - camera_x;
     float y_temp = y_global - camera_y;
@@ -87,6 +119,7 @@ std::vector<float> RestFrame::getCamPositionFromWorld(float x_global, float y_gl
     float z_roll = z_pitch * cosR - x_pitch * sinR;
 
     return {x_roll, y_roll, z_roll};
+    */
 }
 
 std::vector<float> RestFrame::normalToPnpResultFrame(float x_cam_normal, float y_cam_normal, float z_cam_normal) {
@@ -102,9 +135,12 @@ std::vector<std::vector<float>> RestFrame::eulerToRotationMatrix(float yaw, floa
     float sr = std::sin(roll);
 
     return {
-        {cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr},
+        {cy * cr - sy * sp * sr, - sy * cp, cy * sr + sy * sp * cr},
+        {sy * cr + cy * sp * sr, cy * cp, sy * sr - cy * sp * cr},
+        {- cp * sr, sp, cp * cr}
+        /* {cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr},
         {sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr},
-        {-sp, cp * sr, cp * cr}
+        {-sp, cp * sr, cp * cr} */
     };
 }
 

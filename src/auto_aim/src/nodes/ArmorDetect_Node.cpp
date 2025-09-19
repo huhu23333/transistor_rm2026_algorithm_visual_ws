@@ -744,7 +744,7 @@ private:
                         std::vector<float> cam_normal_pos_new = rest_frame_ -> getCamPositionFromWorld(rest_frame_pos_new[0], rest_frame_pos_new[1], rest_frame_pos_new[2]);
                         std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]); */
 
-                        // 测试3D位置预测器
+                        // 3D位置预测器
                         predictor3d -> addPoint(cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]));
                         predictor3d -> fitFourier(predictor3d_fit_step, predictor3d_fourier_fit_order);
                         predictor3dCenterPredictions = std::vector<cv::Point3f>(predictor3d_predict_step, cv::Point3f(predictor3d -> getAveragePosition())); //predictor3d -> predictLinear(predictor3d_predict_step); // predictFourier | predictLinear
