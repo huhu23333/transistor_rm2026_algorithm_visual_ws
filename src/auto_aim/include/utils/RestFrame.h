@@ -33,6 +33,9 @@ private:
     float camera_x;
     float camera_y;
     float camera_z;
+    
+    // 添加辅助函数
+    std::vector<float> rotationMatrixToEuler(const std::vector<std::vector<float>>& R);
 };
 
 #endif // REST_FRAME_H

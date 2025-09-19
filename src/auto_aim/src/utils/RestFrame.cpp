@@ -2,6 +2,10 @@
 #include "utils/RestFrame.h"
 #include <stdexcept>
 
+// 坐标系定义(NormalFrame)：
+// x：向右，y：向前，z：向上
+// yaw：绕z轴 从上方看逆时针 x轴转向y轴，pitch：绕x轴 抬头 y轴转向z轴，roll：绕y轴 从画面看顺时针 z轴转向x轴
+
 void RestFrame::updateCamOrientation(float yaw, float pitch, float roll) {
     camera_yaw = yaw;
     camera_pitch = pitch;
@@ -162,59 +166,68 @@ std::vector<std::vector<float>> RestFrame::multiplyRotationMatrixAndMatrix(
     }
     return result;
 }
+std::vector<float> RestFrame::rotationMatrixToEuler(const std::vector<std::vector<float>>& R) {
+    // 检查矩阵尺寸
+    if (R.size() != 3 || R[0].size() != 3 || R[1].size() != 3 || R[2].size() != 3) {
+        throw std::invalid_argument("Input matrix must be 3x3");
+    }
+    
+    // 提取矩阵元素
+    float M00 = R[0][0];
+    float M01 = R[0][1];
+    float M02 = R[0][2];
+    float M10 = R[1][0];
+    float M11 = R[1][1];
+    float M12 = R[1][2];
+    float M20 = R[2][0];
+    float M21 = R[2][1];
+    float M22 = R[2][2];
+    
+    float yaw, pitch, roll;
+    
+    // 计算pitch from M21
+    pitch = std::asin(M21);
+    
+    // 检查万向节死锁（cos(pitch)是否接近零）
+    const float epsilon = 1e-6;
+    if (std::fabs(std::cos(pitch)) > epsilon) {
+        // 正常情况
+        yaw = std::atan2(-M01, M11);
+        roll = std::atan2(-M20, M22);
+    } else {
+        // 万向节死锁处理
+        roll = 0.0f;
+        yaw = std::atan2(M10, M00);
+    }
+    
+    // 返回欧拉角向量 [yaw, pitch, roll]
+    return {yaw, pitch, roll};
+}
 
+// 修正后的函数
 std::vector<float> RestFrame::getWorldEulerAnglesFromCam(float yaw_cam, float pitch_cam, float roll_cam) {
     auto camRotationMatrix = eulerToRotationMatrix(camera_yaw, camera_pitch, camera_roll);
     auto objectRotationMatrix = eulerToRotationMatrix(yaw_cam, pitch_cam, roll_cam);
     auto worldRotationMatrix = multiplyRotationMatrixAndMatrix(camRotationMatrix, objectRotationMatrix);
-
-    // Extract Euler angles from rotation matrix
-    float sy = std::sqrt(worldRotationMatrix[0][0] * worldRotationMatrix[0][0] + worldRotationMatrix[1][0] * worldRotationMatrix[1][0]);
-    bool singular = sy < 1e-6;
-
-    float yaw_world, pitch_world, roll_world;
-    if (!singular) {
-        yaw_world = std::atan2(worldRotationMatrix[1][0], worldRotationMatrix[0][0]);
-        pitch_world = std::atan2(-worldRotationMatrix[2][0], sy);
-        roll_world = std::atan2(worldRotationMatrix[2][1], worldRotationMatrix[2][2]);
-    } else {
-        // Handle gimbal lock
-        yaw_world = std::atan2(-worldRotationMatrix[0][1], worldRotationMatrix[1][1]);
-        pitch_world = std::atan2(-worldRotationMatrix[2][0], sy);
-        roll_world = 0;
-    }
-
-    return {yaw_world, pitch_world, roll_world};
+    
+    // 使用正确的欧拉角提取方法
+    return rotationMatrixToEuler(worldRotationMatrix);
 }
 
+// 修正后的函数
 std::vector<float> RestFrame::getCamEulerAnglesFromWorld(float yaw_world, float pitch_world, float roll_world) {
     auto camRotationMatrix = eulerToRotationMatrix(camera_yaw, camera_pitch, camera_roll);
-    // Compute inverse of camera rotation matrix (transpose)
+    // 计算相机旋转矩阵的逆（转置）
     std::vector<std::vector<float>> camRotationMatrixInv(3, std::vector<float>(3));
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
             camRotationMatrixInv[i][j] = camRotationMatrix[j][i];
         }
     }
-
+    
     auto objectRotationMatrix = eulerToRotationMatrix(yaw_world, pitch_world, roll_world);
     auto camRotationResult = multiplyRotationMatrixAndMatrix(camRotationMatrixInv, objectRotationMatrix);
-
-    // Extract Euler angles from rotation matrix
-    float sy = std::sqrt(camRotationResult[0][0] * camRotationResult[0][0] + camRotationResult[1][0] * camRotationResult[1][0]);
-    bool singular = sy < 1e-6;
-
-    float yaw_cam, pitch_cam, roll_cam;
-    if (!singular) {
-        yaw_cam = std::atan2(camRotationResult[1][0], camRotationResult[0][0]);
-        pitch_cam = std::atan2(-camRotationResult[2][0], sy);
-        roll_cam = std::atan2(camRotationResult[2][1], camRotationResult[2][2]);
-    } else {
-        // Handle gimbal lock
-        yaw_cam = std::atan2(-camRotationResult[0][1], camRotationResult[1][1]);
-        pitch_cam = std::atan2(-camRotationResult[2][0], sy);
-        roll_cam = 0;
-    }
-
-    return {yaw_cam, pitch_cam, roll_cam};
+    
+    // 使用正确的欧拉角提取方法
+    return rotationMatrixToEuler(camRotationResult);
 }
