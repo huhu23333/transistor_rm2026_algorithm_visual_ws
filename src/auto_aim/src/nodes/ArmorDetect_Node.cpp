@@ -352,12 +352,12 @@ private:
         now_serial_infos.last_yaw_rad_ = last_yaw_rad_;
         now_serial_infos.total_yaw_rad_ = total_yaw_rad_;
         now_serial_infos.push_time = current_time;
-        serial_infos_delay.push(now_serial_infos);
-        while (serial_infos_delay.size() > 1 && 
-               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - serial_infos_delay.front().push_time).count() > serial_delay_time) {
-            serial_infos_delay.pop();
+        serial_infos_delay_.push(now_serial_infos);
+        while (serial_infos_delay_.size() > 1 && 
+               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - serial_infos_delay_.front().push_time).count() > serial_delay_time) {
+            serial_infos_delay_.pop();
         }
-        DelayInfos delayed_serial_infos = serial_infos_delay.front();
+        DelayInfos delayed_serial_infos = serial_infos_delay_.front();
         last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
         last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
         total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
@@ -559,6 +559,9 @@ private:
                 	predictor3d -> clearHistory(); 
                     fire_data_smoother_ -> clearHistory();
                 } else {
+                    serial_communication_->sendData(last_command_pitch_, last_command_yaw_, false);
+                    cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
+                    
                     cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
                     cv::Point3f predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_nowIndex];
                 	predictor3d -> addPoint(predicted_armor_pos);
@@ -814,6 +817,8 @@ private:
                             // 发布云台控制命令
                             float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.5 + pitch_integration; // PI控制
                             float command_yaw = ballistic_result.target_yaw_rad;
+                            last_command_pitch_ = command_pitch;
+                            last_command_yaw_ = command_yaw;
                             serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
 
                             RCLCPP_DEBUG(this->get_logger(),
@@ -826,14 +831,26 @@ private:
                             // 绘制瞄准预测点（黄色）
                             cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
                             cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
+
+                            // 计算并绘制瞄准时目标画面中心（天蓝色：未开火 | 红色：开火）
+                            cv::Point2f aim_yaw_pitch = cv::Point2f(ballistic_result.target_yaw_rad, last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad);
+                            cv::Point2f aim_yaw_pitch_pixel = cv::Point2f(
+                                frame.cols / 2 - aim_yaw_pitch.x * yaw_rad_to_x_pixel_ratio, 
+                                frame.rows / 2 - aim_yaw_pitch.y * pitch_rad_to_y_pixel_ratio);
+                            last_aim_yaw_pitch_ = aim_yaw_pitch;
+                            last_aim_yaw_pitch_pixel_ = aim_yaw_pitch_pixel;
+                            if (fire_flag) {
+                                cv::circle(frame, aim_yaw_pitch_pixel, 8, cv::Scalar(0, 0, 255), 2);
+                            } else {
+                                cv::circle(frame, aim_yaw_pitch_pixel, 8, cv::Scalar(255, 255, 0), 2);
+                            }
 #ifdef USE_PREDICTOR3D
                             cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
-                            // 绘制装甲板预测点（蓝色：开火 | 红色：未开火）
+                            // 绘制装甲板预测点（蓝色）
+                            cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
                             if (fire_flag) {
-                                cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(0, 0, 255), 2);
                                 oscilloscope_fire_ -> addDataPoint(1.0);
                             } else {
-                                cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
                                 oscilloscope_fire_ -> addDataPoint(0.0);
                             }
                             //oscilloscope_fire_ -> addDataPoint(fire_data_smoother_ -> smooth(0));
@@ -928,7 +945,7 @@ private:
         float total_yaw_rad_;
         std::chrono::steady_clock::time_point push_time;
     };
-    std::queue<DelayInfos> serial_infos_delay;
+    std::queue<DelayInfos> serial_infos_delay_;
     float serial_delay_time;
     bool has_valid_target_;
     std::string enemy_color_;
@@ -958,6 +975,10 @@ private:
     int predictor3d_predict_step;
     int predictor3d_fourier_fit_order;
     float predictor3d_fire_distance;
+    cv::Point2f last_aim_yaw_pitch_;
+    cv::Point2f last_aim_yaw_pitch_pixel_;
+    float last_command_pitch_;
+    float last_command_yaw_;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
