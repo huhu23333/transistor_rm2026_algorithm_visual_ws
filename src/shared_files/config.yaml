@@ -49,7 +49,7 @@ delta_z_ : 142.5 #  181.30f  114.34f
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 
-video_relative_path : "InputVideo/robosoul.mp4" # 使用视频输入时的视频路径
+video_relative_path : "InputVideo/outpost5_5m.mp4" # 使用视频输入时的视频路径
 images_relative_path : "InputImages" # 使用图片输入时的图片文件夹路径
 
 frame_rate : 30.0
@@ -60,7 +60,7 @@ pitch_rad_to_y_pixel_ratio : 1350.0
 
 reset_com_time : 1500.0 # ms
 
-predictor3d_fit_step : 300
+predictor3d_fit_step : 90
 predictor3d_predict_step : 30
 predictor3d_fourier_fit_order : 5
 

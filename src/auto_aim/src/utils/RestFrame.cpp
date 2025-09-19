@@ -30,6 +30,10 @@ std::vector<float> RestFrame::pnpResultToNormalFrame(float x_pnp, float y_pnp, f
     return {x_pnp, z_pnp, -y_pnp};
 }
 
+std::vector<float> RestFrame::normalToPnpResultFrame(float x_cam_normal, float y_cam_normal, float z_cam_normal) {
+    return {x_cam_normal, -z_cam_normal, y_cam_normal};
+}
+
 std::vector<float> RestFrame::getWorldPositionFromCam(float x_cam_normal, float y_cam_normal, float z_cam_normal) {
     // 使用旋转矩阵方法
     auto R = eulerToRotationMatrix(camera_yaw, camera_pitch, camera_roll);
@@ -126,10 +130,6 @@ std::vector<float> RestFrame::getCamPositionFromWorld(float x_global, float y_gl
     */
 }
 
-std::vector<float> RestFrame::normalToPnpResultFrame(float x_cam_normal, float y_cam_normal, float z_cam_normal) {
-    return {x_cam_normal, -z_cam_normal, y_cam_normal};
-}
-
 std::vector<std::vector<float>> RestFrame::eulerToRotationMatrix(float yaw, float pitch, float roll) {
     float cy = std::cos(yaw);
     float sy = std::sin(yaw);
@@ -148,24 +148,6 @@ std::vector<std::vector<float>> RestFrame::eulerToRotationMatrix(float yaw, floa
     };
 }
 
-std::vector<std::vector<float>> RestFrame::multiplyRotationMatrixAndMatrix(
-    const std::vector<std::vector<float>>& A, 
-    const std::vector<std::vector<float>>& B) 
-{
-    if (A.size() != 3 || B.size() != 3 || A[0].size() != 3 || B[0].size() != 3) {
-        throw std::invalid_argument("Matrices must be 3x3");
-    }
-
-    std::vector<std::vector<float>> result(3, std::vector<float>(3, 0.0f));
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            for (int k = 0; k < 3; ++k) {
-                result[i][j] += A[i][k] * B[k][j];
-            }
-        }
-    }
-    return result;
-}
 std::vector<float> RestFrame::rotationMatrixToEuler(const std::vector<std::vector<float>>& R) {
     // 检查矩阵尺寸
     if (R.size() != 3 || R[0].size() != 3 || R[1].size() != 3 || R[2].size() != 3) {
@@ -204,11 +186,30 @@ std::vector<float> RestFrame::rotationMatrixToEuler(const std::vector<std::vecto
     return {yaw, pitch, roll};
 }
 
+std::vector<std::vector<float>> RestFrame::multiplyMatrixAndMatrix(
+    const std::vector<std::vector<float>>& A, 
+    const std::vector<std::vector<float>>& B) 
+{
+    if (A.size() != 3 || B.size() != 3 || A[0].size() != 3 || B[0].size() != 3) {
+        throw std::invalid_argument("Matrices must be 3x3");
+    }
+
+    std::vector<std::vector<float>> result(3, std::vector<float>(3, 0.0f));
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            for (int k = 0; k < 3; ++k) {
+                result[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+    return result;
+}
+
 // 修正后的函数
 std::vector<float> RestFrame::getWorldEulerAnglesFromCam(float yaw_cam, float pitch_cam, float roll_cam) {
     auto camRotationMatrix = eulerToRotationMatrix(camera_yaw, camera_pitch, camera_roll);
     auto objectRotationMatrix = eulerToRotationMatrix(yaw_cam, pitch_cam, roll_cam);
-    auto worldRotationMatrix = multiplyRotationMatrixAndMatrix(camRotationMatrix, objectRotationMatrix);
+    auto worldRotationMatrix = multiplyMatrixAndMatrix(camRotationMatrix, objectRotationMatrix);
     
     // 使用正确的欧拉角提取方法
     return rotationMatrixToEuler(worldRotationMatrix);
@@ -226,7 +227,7 @@ std::vector<float> RestFrame::getCamEulerAnglesFromWorld(float yaw_world, float 
     }
     
     auto objectRotationMatrix = eulerToRotationMatrix(yaw_world, pitch_world, roll_world);
-    auto camRotationResult = multiplyRotationMatrixAndMatrix(camRotationMatrixInv, objectRotationMatrix);
+    auto camRotationResult = multiplyMatrixAndMatrix(camRotationMatrixInv, objectRotationMatrix);
     
     // 使用正确的欧拉角提取方法
     return rotationMatrixToEuler(camRotationResult);

@@ -12,17 +12,16 @@ public:
     
     void updateCamOrientation(float yaw, float pitch, float roll);
     void updateCamPosition(float x, float y, float z);
+
     std::vector<float> getCamOrientation();
     std::vector<float> getCamPosition();
+
     std::vector<float> pnpResultToNormalFrame(float x_pnp, float y_pnp, float z_pnp);
-    std::vector<float> getWorldPositionFromCam(float x_cam_normal, float y_cam_normal, float z_cam_normal);
-    std::vector<float> getCamPositionFromWorld(float x_global, float y_global, float z_global);
     std::vector<float> normalToPnpResultFrame(float x_cam_normal, float y_cam_normal, float z_cam_normal);
 
-    std::vector<std::vector<float>> eulerToRotationMatrix(float yaw, float pitch, float roll);
-    std::vector<std::vector<float>> multiplyRotationMatrixAndMatrix(
-        const std::vector<std::vector<float>>& A, 
-        const std::vector<std::vector<float>>& B);
+    std::vector<float> getWorldPositionFromCam(float x_cam_normal, float y_cam_normal, float z_cam_normal);
+    std::vector<float> getCamPositionFromWorld(float x_global, float y_global, float z_global);
+
     std::vector<float> getWorldEulerAnglesFromCam(float yaw_cam, float pitch_cam, float roll_cam);
     std::vector<float> getCamEulerAnglesFromWorld(float yaw_world, float pitch_world, float roll_world);
 
@@ -35,7 +34,11 @@ private:
     float camera_z;
     
     // 添加辅助函数
+    std::vector<std::vector<float>> eulerToRotationMatrix(float yaw, float pitch, float roll);
     std::vector<float> rotationMatrixToEuler(const std::vector<std::vector<float>>& R);
+    std::vector<std::vector<float>> multiplyMatrixAndMatrix(
+        const std::vector<std::vector<float>>& A, 
+        const std::vector<std::vector<float>>& B);
 };
 
 #endif // REST_FRAME_H
