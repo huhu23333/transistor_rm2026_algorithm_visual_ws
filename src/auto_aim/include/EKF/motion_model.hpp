@@ -57,54 +57,57 @@
 
 // #endif // ARMOR_SOLVER_MOTION_MODEL_HPP_
 
-#ifndef ARMOR_SOLVER_MOTION_MODEL_HPP_
-#define ARMOR_SOLVER_MOTION_MODEL_HPP_
 
-#include "extended_kalman_filter.hpp" // 继续使用您的EKF头文件
-#include <ceres/jet.h>
 
-// 新模型：状态维数 N_x = 6, 测量维数 N_z = 3
-constexpr int N_x = 6;
-constexpr int N_z = 3;
 
-// 状态向量定义: 直接描述装甲板
-// 0: 装甲板位置 x (xa)
-// 1: 装甲板速度 x (v_xa)
-// 2: 装甲板位置 y (ya)
-// 3: 装甲板速度 y (v_ya)
-// 4: 装甲板位置 z (za)
-// 5: 装甲板速度 z (v_za)
-struct Predict {
-    double dt;
-    explicit Predict(double t) : dt(t) {}
+// #ifndef ARMOR_SOLVER_MOTION_MODEL_HPP_
+// #define ARMOR_SOLVER_MOTION_MODEL_HPP_
 
-    template <typename T>
-    void operator()(const T x_in[N_x], T x_out[N_x]) const {
-        // 匀速运动模型
-        x_out[0] = x_in[0] + x_in[1] * dt; // x' = x + vx * dt
-        x_out[2] = x_in[2] + x_in[3] * dt; // y' = y + vy * dt
-        x_out[4] = x_in[4] + x_in[5] * dt; // z' = z + vz * dt
+// #include "extended_kalman_filter.hpp" // 继续使用您的EKF头文件
+// #include <ceres/jet.h>
+
+// // 新模型：状态维数 N_x = 6, 测量维数 N_z = 3
+// constexpr int N_x = 6;
+// constexpr int N_z = 3;
+
+// // 状态向量定义: 直接描述装甲板
+// // 0: 装甲板位置 x (xa)
+// // 1: 装甲板速度 x (v_xa)
+// // 2: 装甲板位置 y (ya)
+// // 3: 装甲板速度 y (v_ya)
+// // 4: 装甲板位置 z (za)
+// // 5: 装甲板速度 z (v_za)
+// struct Predict {
+//     double dt;
+//     explicit Predict(double t) : dt(t) {}
+
+//     template <typename T>
+//     void operator()(const T x_in[N_x], T x_out[N_x]) const {
+//         // 匀速运动模型
+//         x_out[0] = x_in[0] + x_in[1] * dt; // x' = x + vx * dt
+//         x_out[2] = x_in[2] + x_in[3] * dt; // y' = y + vy * dt
+//         x_out[4] = x_in[4] + x_in[5] * dt; // z' = z + vz * dt
         
-        // 速度假设不变
-        x_out[1] = x_in[1]; // vx
-        x_out[3] = x_in[3]; // vy
-        x_out[5] = x_in[5]; // vz
-    }
-};
+//         // 速度假设不变
+//         x_out[1] = x_in[1]; // vx
+//         x_out[3] = x_in[3]; // vy
+//         x_out[5] = x_in[5]; // vz
+//     }
+// };
 
-struct Measure {
-    template <typename T>
-    void operator()(const T x_in[N_x], T z_out[N_z]) const {
-        // 测量即为状态中的位置
-        z_out[0] = x_in[0]; // z_x = x
-        z_out[1] = x_in[2]; // z_y = y
-        z_out[2] = x_in[4]; // z_z = z
-    }
-};
+// struct Measure {
+//     template <typename T>
+//     void operator()(const T x_in[N_x], T z_out[N_z]) const {
+//         // 测量即为状态中的位置
+//         z_out[0] = x_in[0]; // z_x = x
+//         z_out[1] = x_in[2]; // z_y = y
+//         z_out[2] = x_in[4]; // z_z = z
+//     }
+// };
 
-using RobotEKF = ExtendedKalmanFilter<N_x, N_z, Predict, Measure>;
+// using RobotEKF = ExtendedKalmanFilter<N_x, N_z, Predict, Measure>;
 
-#endif // ARMOR_SOLVER_MOTION_MODEL_HPP_
+// #endif // ARMOR_SOLVER_MOTION_MODEL_HPP_
 
 
 
@@ -157,9 +160,9 @@ struct Measure {
         T yaw = x_in[6], r = x_in[8];
 
         // 从机器人中心状态，反解出装甲板的位置
-        z_out[0] = xc - r * ceres::cos(yaw); // xa
-        z_out[1] = yc;                       // ya (简化模型，假设装甲板和中心等高)
-        z_out[2] = zc - r * ceres::sin(yaw); // za
+        z_out[0] = xc - r * ceres::cos(yaw); // xa = xc - r*cos(yaw)
+        z_out[1] = yc + r * ceres::sin(yaw); // ya
+        z_out[2] = zc;                       // za
         z_out[3] = yaw;                      // yaw_a
     }
 };
