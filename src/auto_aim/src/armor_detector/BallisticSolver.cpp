@@ -46,7 +46,7 @@ BallisticSolver::CalcPitchInfo BallisticSolver::calcTargetPitch(float horizontal
 
 BallisticSolver::SimulateTrajectoryInfo BallisticSolver::simulateTrajectory(
     double v_bullet, double pitch_rad, double horizontal_distance,
-    double MAX_FLIGHT_TIME, double DT, double MIN_HEIGHT) {
+    double max_flight_time, double dt, double min_height) {
     
     double g = 9.8;
     uint32_t time_step = 0;
@@ -62,10 +62,10 @@ BallisticSolver::SimulateTrajectoryInfo BallisticSolver::simulateTrajectory(
     double pos_y = 0;
     double vel_x = v_bullet * std::cos(pitch_rad);
     double vel_y = v_bullet * std::sin(pitch_rad);
-    while (time_step * DT <= MAX_FLIGHT_TIME && pos_y >= MIN_HEIGHT) {
+    while (time_step * dt <= max_flight_time && pos_y >= min_height) {
         // 更新位置
-        pos_x += vel_x * DT;
-        pos_y += vel_y * DT;
+        pos_x += vel_x * dt;
+        pos_y += vel_y * dt;
 
         if (vel_x < 0.1) {
             break;
@@ -85,8 +85,8 @@ BallisticSolver::SimulateTrajectoryInfo BallisticSolver::simulateTrajectory(
         double drag_accel_x = drag_force * vel_x / (ballisticParams.bullet_mass * vel);
         double drag_accel_y = drag_force * vel_y / (ballisticParams.bullet_mass * vel);
         // 更新速度（考虑空气阻力和重力）
-        vel_x -= drag_accel_x * DT;
-        vel_y -= (g + drag_accel_y) * DT;
+        vel_x -= drag_accel_x * dt;
+        vel_y -= (g + drag_accel_y) * dt;
 
         time_step += 1;
     }
@@ -101,49 +101,67 @@ BallisticSolver::CalcPitchInfo BallisticSolver::calcTargetPitchWithAirResistance
     CalcPitchInfo result;
     result.valid = false;
 
+    float min_pitch = -60 * M_PI / 180;
+    float mid_pitch = 80 * M_PI / 180;
     float max_pitch = 89 * M_PI / 180;
-    float min_pitch = -80 * M_PI / 180;
-    int start_check_n = 64;
+    int start_check_n_low = 48;
+    int start_check_n_high = 16;
     int max_refine_times = 10;
     float tolerance = 1e-3;
 
-    double MAX_FLIGHT_TIME = 5.0f;
-    double DT = 1e-3;
-    double MIN_HEIGHT = -100.0f;
+    double max_flight_time = 5.0f;
+    double dt = 1e-3;
+    double min_height = -100.0f;
 
-    // 初始计算均匀n个点的[pitch-目标距离处y]对应关系
-    std::vector<TrajectoryInfo> start_check_results(start_check_n);
-    for (int start_check_index = 0; start_check_index < start_check_n; start_check_index += 1) {
-        float pitch_rad = min_pitch + (max_pitch - min_pitch) * (static_cast<float>(start_check_index) / (static_cast<float>(start_check_n) - 1.0));
+    // 初始计算n_low+n_high个点的[pitch-目标距离处y]对应关系
+    // 角度较小时（min_pitch ~ mid_pitch）使用角度均匀分布
+    // 角度较大时（mid_pitch ~ max_pitch）使用正切值均匀分布
+    float mid_aimed_h_at_1 = std::tan(mid_pitch);
+    float max_aimed_h_at_1 = std::tan(max_pitch);
+    std::vector<TrajectoryInfo> start_check_results(start_check_n_low + start_check_n_high);
+    for (int start_check_index = 0; start_check_index < start_check_n_low + start_check_n_high; start_check_index += 1) {
+        float pitch_rad = 0.0;
+        if (start_check_index < start_check_n_low) {
+            pitch_rad = min_pitch + (mid_pitch - min_pitch) * (static_cast<float>(start_check_index) / static_cast<float>(start_check_n_low));
+        } else {
+            float aimed_h_at_1 = mid_aimed_h_at_1 + 
+                                (max_aimed_h_at_1 - mid_aimed_h_at_1) * 
+                                (static_cast<float>(start_check_index - start_check_n_low) / 
+                                (static_cast<float>(start_check_n_high) - 1.0));
+            pitch_rad = std::atan(aimed_h_at_1);
+        }
         SimulateTrajectoryInfo simulate_result = simulateTrajectory(v_bullet, pitch_rad, horizontal_distance,
-                                                                    MAX_FLIGHT_TIME, DT, MIN_HEIGHT);
+                                                                    max_flight_time, dt, min_height);
         start_check_results[start_check_index].pitch = pitch_rad;
         if (simulate_result.valid) {
             start_check_results[start_check_index].hit_height = simulate_result.hit_height;
         } else {
             if (start_check_index == 0) {
-                start_check_results[start_check_index].hit_height = MIN_HEIGHT;
+                start_check_results[start_check_index].hit_height = min_height;
             } else {
                 start_check_results[start_check_index].hit_height = start_check_results[start_check_index - 1].hit_height;
             }
         }
     }
+    for (TrajectoryInfo& trajectory_info : start_check_results) {
+        RCLCPP_INFO(node->get_logger(), "%f ,%f", trajectory_info.pitch, trajectory_info.hit_height);
+    }
     // 查找所有与目标高度差距符号转变的位置
     std::vector<RefineInfo> refine_infos;
-    for (int start_check_index = 1; start_check_index < start_check_n; start_check_index += 1) {
-        TrajectoryInfo trajectoryInfo1 = start_check_results[start_check_index-1];
-        TrajectoryInfo trajectoryInfo2 = start_check_results[start_check_index];
-        if ((trajectoryInfo1.hit_height < vertical_height) && (trajectoryInfo2.hit_height >= vertical_height)) {
+    for (int start_check_index = 1; start_check_index < start_check_n_low + start_check_n_high; start_check_index += 1) {
+        TrajectoryInfo trajectory_info1 = start_check_results[start_check_index-1];
+        TrajectoryInfo trajectory_info2 = start_check_results[start_check_index];
+        if ((trajectory_info1.hit_height < vertical_height) && (trajectory_info2.hit_height >= vertical_height)) {
             RefineInfo refine_info;
-            refine_info.lower_pitch_trajectory = trajectoryInfo1;
-            refine_info.upper_pitch_trajectory = trajectoryInfo2;
+            refine_info.lower_pitch_trajectory = trajectory_info1;
+            refine_info.upper_pitch_trajectory = trajectory_info2;
             refine_info.rising = true;
             refine_info.valid = true;
             refine_infos.push_back(refine_info);
-        } else if ((trajectoryInfo1.hit_height >= vertical_height) && (trajectoryInfo2.hit_height < vertical_height)) {
+        } else if ((trajectory_info1.hit_height >= vertical_height) && (trajectory_info2.hit_height < vertical_height)) {
             RefineInfo refine_info;
-            refine_info.lower_pitch_trajectory = trajectoryInfo1;
-            refine_info.upper_pitch_trajectory = trajectoryInfo2;
+            refine_info.lower_pitch_trajectory = trajectory_info1;
+            refine_info.upper_pitch_trajectory = trajectory_info2;
             refine_info.rising = false;
             refine_info.valid = true;
             refine_infos.push_back(refine_info);
@@ -162,7 +180,7 @@ BallisticSolver::CalcPitchInfo BallisticSolver::calcTargetPitchWithAirResistance
         while (refine_step < max_refine_times) {
             pitch_mid = (pitch_lower + pitch_upper) / 2;
             SimulateTrajectoryInfo simulate_result = simulateTrajectory(v_bullet, pitch_mid, horizontal_distance,
-                                                                        MAX_FLIGHT_TIME, DT, MIN_HEIGHT);
+                                                                        max_flight_time, dt, min_height);
             if (!simulate_result.valid) {
                 break;
             }
