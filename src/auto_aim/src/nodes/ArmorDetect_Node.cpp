@@ -882,7 +882,7 @@ private:
                     
                 }
             }
-            //drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
+            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
 #ifdef USE_PREDICTOR3D
             oscilloscope_fire_ -> update();
             oscilloscope_fire_ -> putText("period:"+std::to_string(predictor3d->getFourierPeriod()), cv::Point2f(500, 20), cv::Scalar(0, 255, 0), 0.7);

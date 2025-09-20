@@ -32,6 +32,8 @@ struct AimResult {
 
     double yaw;           // 装甲板Yaw角
     cv::Mat rvec;        // 装甲板旋转向量
+
+    std::vector<double> normal_euler_angles; // RestFrame中定义的坐标系下的欧拉角
 };
 
 struct Armor {

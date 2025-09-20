@@ -20,6 +20,7 @@
 #include "ba_solver/ba_solver.hpp"
 #include "ba_solver/utils.hpp"
 
+#include <Eigen/Geometry> // For Quaternion and rotation matrix math
 
 
 double getYawFromRvec(const cv::Mat& rvec) {
@@ -35,8 +36,31 @@ double getYawFromRvec(const cv::Mat& rvec) {
                                      std::pow(rmat.at<double>(1, 0), 2)));
     return yaw;
 }
-class ArmorSolver {
 
+std::vector<double> getNormalYawPitchRollFromRvec(const cv::Mat& rvec) {
+    std::vector<double> result = {0.0, 0.0, 0.0};
+    if (rvec.empty()) return result;
+    cv::Mat rmat;
+    cv::Rodrigues(rvec, rmat); // 从旋转向量得到旋转矩阵
+
+    // 此处获得的欧拉角为RestFrame中定义的坐标系的欧拉角，即：
+    // x：向右，y：向前，z：向上
+    // yaw：绕z轴 从上方看逆时针 x轴转向y轴，pitch：绕x轴 抬头 y轴转向z轴，roll：绕y轴 从画面看顺时针 z轴转向x轴
+    double yaw, pitch, roll;
+    pitch = std::asin(-rmat.at<double>(1, 2));
+    const float epsilon = 1e-6;
+    if (std::abs(std::cos(pitch)) > epsilon) {
+        yaw = std::atan2(-rmat.at<double>(0, 2), rmat.at<double>(2, 2));
+        roll = std::atan2(rmat.at<double>(1, 0), rmat.at<double>(1, 1));
+    } else {
+        roll = 0.0f;
+        yaw = std::atan2(rmat.at<double>(2, 0), rmat.at<double>(0, 0));
+    }
+    result = {yaw, pitch, roll};
+    return result;
+}
+
+class ArmorSolver {
     
 public:
     ArmorSolver(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node)

@@ -1,6 +1,5 @@
 // ArmorSolver.cpp
 #include "armor_detector/ArmorSolver.h"
-#include <Eigen/Geometry> // For Quaternion and rotation matrix math
 
 void ArmorSolver::initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) {
     const YAML::Node& camera_matrix_Node = (*config_file_ptr)["camera_matrix"];
@@ -111,6 +110,10 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
 
             result.yaw = getYawFromRvec(rvec); // <<--- 计算并填充yaw
             RCLCPP_DEBUG(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
+
+            result.normal_euler_angles = getNormalYawPitchRollFromRvec(rvec);
+            RCLCPP_INFO(logger_p, "NormalYawPitchRoll: (%.2f, %.2f, %.2f)", 
+                result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
              
             //转化为ba需要的参数
             cv::Mat rmat;
