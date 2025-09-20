@@ -94,7 +94,7 @@ BallisticSolver::SimulateTrajectoryInfo BallisticSolver::simulateTrajectory(
     return result;
 }
 
-cv::Point3d BallisticSolver::calcNearestPoint(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet) {
+cv::Point3d BallisticSolver::calcNearestPointWithAirResistance(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet) {
     double max_flight_time = 5.0f;
     double dt = 1e-3;
     double min_height = -100.0f;

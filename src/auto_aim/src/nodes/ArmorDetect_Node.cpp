@@ -766,7 +766,7 @@ private:
 
                         // 计算弹道最近点并绘制（大紫色圈）
                         std::vector<float> cam_position = rest_frame_ -> getCamPosition();
-                        cv::Point3f bullet_nearest_point = ballistic_solver_ -> calcNearestPoint( // todo
+                        cv::Point3f bullet_nearest_point = ballistic_solver_ -> calcNearestPointWithAirResistance( // todo
                             rest_frame_pos_Point3f / 1000, {cam_position[0], cam_position[1], cam_position[2]}, last_aim_yaw_pitch_, bullet_velocity_) * 1000;
                         std::vector<float> cam_normal_bullet_nearest_point = rest_frame_ -> getCamPositionFromWorld(bullet_nearest_point.x, bullet_nearest_point.y, bullet_nearest_point.z);
                         std::vector<float> pnp_bullet_nearest_point = rest_frame_ -> normalToPnpResultFrame(cam_normal_bullet_nearest_point[0], cam_normal_bullet_nearest_point[1], cam_normal_bullet_nearest_point[2]);
