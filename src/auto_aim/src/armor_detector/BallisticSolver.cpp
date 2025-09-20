@@ -67,17 +67,18 @@ BallisticSolver::SimulateTrajectoryInfo BallisticSolver::simulateTrajectory(
         pos_x += vel_x * dt;
         pos_y += vel_y * dt;
 
-        if (vel_x < 0.1) {
+        // 计算当前速度大小
+        double vel = std::sqrt(vel_x * vel_x + vel_y * vel_y);
+        if (vel < 0.1) {
             break;
         }
+        
         if (pos_x >= horizontal_distance) {
             result.hit_height = pos_y - (pos_x - horizontal_distance) * (vel_y / vel_x);
             result.valid = true;
             break;
         }
 
-        // 计算当前速度大小
-        double vel = std::sqrt(vel_x * vel_x + vel_y * vel_y);
         // 计算空气阻力（与速度平方成正比，方向与速度相反）
         double drag_force = 0.5 * ballisticParams.drag_coeff * ballisticParams.air_density * 
                            cross_section_area * vel * vel;
