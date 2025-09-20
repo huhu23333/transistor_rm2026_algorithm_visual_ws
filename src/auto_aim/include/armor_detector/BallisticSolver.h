@@ -67,6 +67,14 @@ private:
     CalcPitchInfo calcTargetPitchWithAirResistance(float horizontal_distance, float vertical_height, float v_bullet);
     SimulateTrajectoryInfo simulateTrajectory(double v_bullet, double pitch_rad, double horizontal_distance,
                                               double MAX_FLIGHT_TIME, double DT, double MIN_HEIGHT);
+
+    // 新增辅助函数：计算加速度（用于Runge-Kutta）
+    struct State {
+        double x, y, z;  // 位置
+        double vx, vy, vz; // 速度
+    };
+    State computeAcceleration(const State& state, double drag_coeff, double air_density, 
+                             double cross_section_area, double bullet_mass, double g);
 };
 
 #endif // BALLISTIC_SOLVER_H

@@ -44,13 +44,146 @@ BallisticSolver::CalcPitchInfo BallisticSolver::calcTargetPitch(float horizontal
     return result;
 }
 
+// BallisticSolver::SimulateTrajectoryInfo BallisticSolver::simulateTrajectory(
+//     double v_bullet, double pitch_rad, double horizontal_distance,
+//     double max_flight_time, double dt, double min_height) {
+    
+//     double g = 9.8;
+//     uint32_t time_step = 0;
+
+//     SimulateTrajectoryInfo result;
+//     result.valid = false;
+
+//     // 计算弹丸截面积
+//     double bullet_radius = ballisticParams.bullet_diameter / 2.0;
+//     double cross_section_area = M_PI * bullet_radius * bullet_radius;
+
+//     double pos_x = 0;
+//     double pos_y = 0;
+//     double vel_x = v_bullet * std::cos(pitch_rad);
+//     double vel_y = v_bullet * std::sin(pitch_rad);
+//     while (time_step * dt <= max_flight_time && pos_y >= min_height) {
+//         // 更新位置
+//         pos_x += vel_x * dt;
+//         pos_y += vel_y * dt;
+
+//         // 计算当前速度大小
+//         double vel = std::sqrt(vel_x * vel_x + vel_y * vel_y);
+//         if (vel < 0.1) {
+//             break;
+//         }
+        
+//         if (pos_x >= horizontal_distance) {
+//             result.hit_height = pos_y - (pos_x - horizontal_distance) * (vel_y / vel_x);
+//             result.valid = true;
+//             break;
+//         }
+
+//         // 计算空气阻力（与速度平方成正比，方向与速度相反）
+//         double drag_force = 0.5 * ballisticParams.drag_coeff * ballisticParams.air_density * 
+//                            cross_section_area * vel * vel;
+//         // 计算阻力加速度分量
+//         double drag_accel_x = drag_force * vel_x / (ballisticParams.bullet_mass * vel);
+//         double drag_accel_y = drag_force * vel_y / (ballisticParams.bullet_mass * vel);
+//         // 更新速度（考虑空气阻力和重力）
+//         vel_x -= drag_accel_x * dt;
+//         vel_y -= (g + drag_accel_y) * dt;
+
+//         time_step += 1;
+//     }
+
+//     return result;
+// }
+
+// cv::Point3d BallisticSolver::calcNearestPointWithAirResistance(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet) {
+//     double max_flight_time = 5.0f;
+//     double dt = 1e-3;
+//     double min_height = -100.0f;
+
+//     double g = 9.8;
+//     uint32_t time_step = 0;
+
+//     cv::Point3d nearest_point = self_pos;
+//     double min_target_dist = cv::norm(target_pos - self_pos);
+
+//     // 计算弹丸截面积
+//     double bullet_radius = ballisticParams.bullet_diameter / 2.0;
+//     double cross_section_area = M_PI * bullet_radius * bullet_radius;
+
+//     cv::Point3d bullet_pos = self_pos;
+//     cv::Point3d bullet_vel;
+//     bullet_vel.x = v_bullet * std::cos(aim_yaw_pitch.y) * (-std::sin(aim_yaw_pitch.x));
+//     bullet_vel.y = v_bullet * std::cos(aim_yaw_pitch.y) * std::cos(aim_yaw_pitch.x);
+//     bullet_vel.z = v_bullet * std::sin(aim_yaw_pitch.y);
+//     while (time_step * dt <= max_flight_time && bullet_pos.z >= min_height) {
+//         // 更新位置
+//         bullet_pos += bullet_vel * dt;
+
+//         double target_dist = cv::norm(target_pos - bullet_pos);
+//         if (target_dist < min_target_dist) {
+//             nearest_point = bullet_pos;
+//             min_target_dist = target_dist;
+//         }
+
+//         // 计算当前速度大小
+//         double vel = cv::norm(bullet_vel);
+//         if (vel < 0.1) {
+//             break;
+//         }
+
+//         // 计算空气阻力（与速度平方成正比，方向与速度相反）
+//         double drag_force = 0.5 * ballisticParams.drag_coeff * ballisticParams.air_density * 
+//                            cross_section_area * vel * vel;
+//         // 计算阻力加速度分量
+//         double drag_accel = drag_force / ballisticParams.bullet_mass;
+//         cv::Point3d drag_accel_xyz = drag_accel * bullet_vel / vel;
+//         // 更新速度（考虑空气阻力和重力）
+//         bullet_vel -= drag_accel_xyz * dt;
+//         bullet_vel.z -= g * dt;
+
+//         time_step += 1;
+//     }
+
+//     return nearest_point;
+// }
+
+// 新增辅助函数实现
+BallisticSolver::State BallisticSolver::computeAcceleration(const State& state, double drag_coeff, 
+                                                          double air_density, double cross_section_area, 
+                                                          double bullet_mass, double g) {
+    State acceleration;
+    double vel = sqrt(state.vx*state.vx + state.vy*state.vy + state.vz*state.vz);
+    
+    if (vel < 1e-6) {
+        acceleration.vx = 0;
+        acceleration.vy = 0;
+        acceleration.vz = -g;
+        return acceleration;
+    }
+    
+    // 计算空气阻力（与速度平方成正比，方向与速度相反）
+    double drag_force = 0.5 * drag_coeff * air_density * cross_section_area * vel * vel;
+    double drag_accel = drag_force / bullet_mass;
+    
+    // 阻力加速度分量
+    acceleration.vx = -drag_accel * state.vx / vel;
+    acceleration.vy = -drag_accel * state.vy / vel;
+    acceleration.vz = -g - drag_accel * state.vz / vel;
+    
+    // 位置导数就是速度
+    acceleration.x = state.vx;
+    acceleration.y = state.vy;
+    acceleration.z = state.vz;
+    
+    return acceleration;
+}
+
+// 修改simulateTrajectory函数
 BallisticSolver::SimulateTrajectoryInfo BallisticSolver::simulateTrajectory(
     double v_bullet, double pitch_rad, double horizontal_distance,
     double max_flight_time, double dt, double min_height) {
     
     double g = 9.8;
-    uint32_t time_step = 0;
-
     SimulateTrajectoryInfo result;
     result.valid = false;
 
@@ -58,50 +191,86 @@ BallisticSolver::SimulateTrajectoryInfo BallisticSolver::simulateTrajectory(
     double bullet_radius = ballisticParams.bullet_diameter / 2.0;
     double cross_section_area = M_PI * bullet_radius * bullet_radius;
 
-    double pos_x = 0;
-    double pos_y = 0;
-    double vel_x = v_bullet * std::cos(pitch_rad);
-    double vel_y = v_bullet * std::sin(pitch_rad);
-    while (time_step * dt <= max_flight_time && pos_y >= min_height) {
-        // 更新位置
-        pos_x += vel_x * dt;
-        pos_y += vel_y * dt;
+    // 初始化状态
+    State state;
+    state.x = 0;
+    state.y = 0;
+    state.z = 0;
+    state.vx = v_bullet * std::cos(pitch_rad);
+    state.vz = v_bullet * std::sin(pitch_rad);
+    state.vy = 0;
 
-        // 计算当前速度大小
-        double vel = std::sqrt(vel_x * vel_x + vel_y * vel_y);
-        if (vel < 0.1) {
-            break;
-        }
+    double time = 0;
+    while (time <= max_flight_time && state.z >= min_height) {
+        // 四阶Runge-Kutta法
+        State k1 = computeAcceleration(state, ballisticParams.drag_coeff, ballisticParams.air_density,
+                                     cross_section_area, ballisticParams.bullet_mass, g);
         
-        if (pos_x >= horizontal_distance) {
-            result.hit_height = pos_y - (pos_x - horizontal_distance) * (vel_y / vel_x);
+        State state2;
+        state2.x = state.x + 0.5 * dt * k1.x;
+        state2.y = state.y + 0.5 * dt * k1.y;
+        state2.z = state.z + 0.5 * dt * k1.z;
+        state2.vx = state.vx + 0.5 * dt * k1.vx;
+        state2.vy = state.vy + 0.5 * dt * k1.vy;
+        state2.vz = state.vz + 0.5 * dt * k1.vz;
+        State k2 = computeAcceleration(state2, ballisticParams.drag_coeff, ballisticParams.air_density,
+                                     cross_section_area, ballisticParams.bullet_mass, g);
+        
+        State state3;
+        state3.x = state.x + 0.5 * dt * k2.x;
+        state3.y = state.y + 0.5 * dt * k2.y;
+        state3.z = state.z + 0.5 * dt * k2.z;
+        state3.vx = state.vx + 0.5 * dt * k2.vx;
+        state3.vy = state.vy + 0.5 * dt * k2.vy;
+        state3.vz = state.vz + 0.5 * dt * k2.vz;
+        State k3 = computeAcceleration(state3, ballisticParams.drag_coeff, ballisticParams.air_density,
+                                     cross_section_area, ballisticParams.bullet_mass, g);
+        
+        State state4;
+        state4.x = state.x + dt * k3.x;
+        state4.y = state.y + dt * k3.y;
+        state4.z = state.z + dt * k3.z;
+        state4.vx = state.vx + dt * k3.vx;
+        state4.vy = state.vy + dt * k3.vy;
+        state4.vz = state.vz + dt * k3.vz;
+        State k4 = computeAcceleration(state4, ballisticParams.drag_coeff, ballisticParams.air_density,
+                                     cross_section_area, ballisticParams.bullet_mass, g);
+        
+        // 更新状态
+        state.x += dt * (k1.x + 2*k2.x + 2*k3.x + k4.x) / 6.0;
+        state.y += dt * (k1.y + 2*k2.y + 2*k3.y + k4.y) / 6.0;
+        state.z += dt * (k1.z + 2*k2.z + 2*k3.z + k4.z) / 6.0;
+        state.vx += dt * (k1.vx + 2*k2.vx + 2*k3.vx + k4.vx) / 6.0;
+        state.vy += dt * (k1.vy + 2*k2.vy + 2*k3.vy + k4.vy) / 6.0;
+        state.vz += dt * (k1.vz + 2*k2.vz + 2*k3.vz + k4.vz) / 6.0;
+        
+        time += dt;
+        
+        if (state.x >= horizontal_distance) {
+            // 线性插值得到精确的命中高度
+            double alpha = (horizontal_distance - (state.x - dt * (k1.x + 2*k2.x + 2*k3.x + k4.x) / 6.0)) / 
+                          (state.x - (state.x - dt * (k1.x + 2*k2.x + 2*k3.x + k4.x) / 6.0));
+            result.hit_height = (state.z - dt * (k1.z + 2*k2.z + 2*k3.z + k4.z) / 6.0) + 
+                               alpha * (state.z - (state.z - dt * (k1.z + 2*k2.z + 2*k3.z + k4.z) / 6.0));
             result.valid = true;
             break;
         }
-
-        // 计算空气阻力（与速度平方成正比，方向与速度相反）
-        double drag_force = 0.5 * ballisticParams.drag_coeff * ballisticParams.air_density * 
-                           cross_section_area * vel * vel;
-        // 计算阻力加速度分量
-        double drag_accel_x = drag_force * vel_x / (ballisticParams.bullet_mass * vel);
-        double drag_accel_y = drag_force * vel_y / (ballisticParams.bullet_mass * vel);
-        // 更新速度（考虑空气阻力和重力）
-        vel_x -= drag_accel_x * dt;
-        vel_y -= (g + drag_accel_y) * dt;
-
-        time_step += 1;
+        
+        if (sqrt(state.vx*state.vx + state.vy*state.vy + state.vz*state.vz) < 0.1) {
+            break;
+        }
     }
 
     return result;
 }
 
-cv::Point3d BallisticSolver::calcNearestPointWithAirResistance(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet) {
+// 修改calcNearestPointWithAirResistance函数
+cv::Point3d BallisticSolver::calcNearestPointWithAirResistance(cv::Point3d target_pos, cv::Point3d self_pos, 
+                                                              cv::Point2d aim_yaw_pitch, float v_bullet) {
     double max_flight_time = 5.0f;
     double dt = 1e-3;
     double min_height = -100.0f;
-
     double g = 9.8;
-    uint32_t time_step = 0;
 
     cv::Point3d nearest_point = self_pos;
     double min_target_dist = cv::norm(target_pos - self_pos);
@@ -110,38 +279,72 @@ cv::Point3d BallisticSolver::calcNearestPointWithAirResistance(cv::Point3d targe
     double bullet_radius = ballisticParams.bullet_diameter / 2.0;
     double cross_section_area = M_PI * bullet_radius * bullet_radius;
 
-    cv::Point3d bullet_pos = self_pos;
-    cv::Point3d bullet_vel;
-    bullet_vel.x = v_bullet * std::cos(aim_yaw_pitch.y) * (-std::sin(aim_yaw_pitch.x));
-    bullet_vel.y = v_bullet * std::cos(aim_yaw_pitch.y) * std::cos(aim_yaw_pitch.x);
-    bullet_vel.z = v_bullet * std::sin(aim_yaw_pitch.y);
-    while (time_step * dt <= max_flight_time && bullet_pos.z >= min_height) {
-        // 更新位置
-        bullet_pos += bullet_vel * dt;
+    // 初始化状态
+    State state;
+    state.x = self_pos.x;
+    state.y = self_pos.y;
+    state.z = self_pos.z;
+    state.vx = v_bullet * std::cos(aim_yaw_pitch.y) * (-std::sin(aim_yaw_pitch.x));
+    state.vy = v_bullet * std::cos(aim_yaw_pitch.y) * std::cos(aim_yaw_pitch.x);
+    state.vz = v_bullet * std::sin(aim_yaw_pitch.y);
 
-        double target_dist = cv::norm(target_pos - bullet_pos);
+    double time = 0;
+    while (time <= max_flight_time && state.z >= min_height) {
+        // 四阶Runge-Kutta法
+        State k1 = computeAcceleration(state, ballisticParams.drag_coeff, ballisticParams.air_density,
+                                     cross_section_area, ballisticParams.bullet_mass, g);
+        
+        State state2;
+        state2.x = state.x + 0.5 * dt * k1.x;
+        state2.y = state.y + 0.5 * dt * k1.y;
+        state2.z = state.z + 0.5 * dt * k1.z;
+        state2.vx = state.vx + 0.5 * dt * k1.vx;
+        state2.vy = state.vy + 0.5 * dt * k1.vy;
+        state2.vz = state.vz + 0.5 * dt * k1.vz;
+        State k2 = computeAcceleration(state2, ballisticParams.drag_coeff, ballisticParams.air_density,
+                                     cross_section_area, ballisticParams.bullet_mass, g);
+        
+        State state3;
+        state3.x = state.x + 0.5 * dt * k2.x;
+        state3.y = state.y + 0.5 * dt * k2.y;
+        state3.z = state.z + 0.5 * dt * k2.z;
+        state3.vx = state.vx + 0.5 * dt * k2.vx;
+        state3.vy = state.vy + 0.5 * dt * k2.vy;
+        state3.vz = state.vz + 0.5 * dt * k2.vz;
+        State k3 = computeAcceleration(state3, ballisticParams.drag_coeff, ballisticParams.air_density,
+                                     cross_section_area, ballisticParams.bullet_mass, g);
+        
+        State state4;
+        state4.x = state.x + dt * k3.x;
+        state4.y = state.y + dt * k3.y;
+        state4.z = state.z + dt * k3.z;
+        state4.vx = state.vx + dt * k3.vx;
+        state4.vy = state.vy + dt * k3.vy;
+        state4.vz = state.vz + dt * k3.vz;
+        State k4 = computeAcceleration(state4, ballisticParams.drag_coeff, ballisticParams.air_density,
+                                     cross_section_area, ballisticParams.bullet_mass, g);
+        
+        // 更新状态
+        state.x += dt * (k1.x + 2*k2.x + 2*k3.x + k4.x) / 6.0;
+        state.y += dt * (k1.y + 2*k2.y + 2*k3.y + k4.y) / 6.0;
+        state.z += dt * (k1.z + 2*k2.z + 2*k3.z + k4.z) / 6.0;
+        state.vx += dt * (k1.vx + 2*k2.vx + 2*k3.vx + k4.vx) / 6.0;
+        state.vy += dt * (k1.vy + 2*k2.vy + 2*k3.vy + k4.vy) / 6.0;
+        state.vz += dt * (k1.vz + 2*k2.vz + 2*k3.vz + k4.vz) / 6.0;
+        
+        time += dt;
+        
+        // 计算当前点到目标的距离
+        cv::Point3d current_pos(state.x, state.y, state.z);
+        double target_dist = cv::norm(target_pos - current_pos);
         if (target_dist < min_target_dist) {
-            nearest_point = bullet_pos;
+            nearest_point = current_pos;
             min_target_dist = target_dist;
         }
-
-        // 计算当前速度大小
-        double vel = cv::norm(bullet_vel);
-        if (vel < 0.1) {
+        
+        if (sqrt(state.vx*state.vx + state.vy*state.vy + state.vz*state.vz) < 0.1) {
             break;
         }
-
-        // 计算空气阻力（与速度平方成正比，方向与速度相反）
-        double drag_force = 0.5 * ballisticParams.drag_coeff * ballisticParams.air_density * 
-                           cross_section_area * vel * vel;
-        // 计算阻力加速度分量
-        double drag_accel = drag_force / ballisticParams.bullet_mass;
-        cv::Point3d drag_accel_xyz = drag_accel * bullet_vel / vel;
-        // 更新速度（考虑空气阻力和重力）
-        bullet_vel -= drag_accel_xyz * dt;
-        bullet_vel.z -= g * dt;
-
-        time_step += 1;
     }
 
     return nearest_point;
