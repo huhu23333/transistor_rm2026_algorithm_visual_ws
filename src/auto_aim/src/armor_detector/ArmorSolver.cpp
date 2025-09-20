@@ -112,7 +112,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             RCLCPP_DEBUG(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
 
             result.normal_euler_angles = getNormalYawPitchRollFromRvec(rvec);
-            RCLCPP_INFO(logger_p, "NormalYawPitchRoll: (%.2f, %.2f, %.2f)", 
+            RCLCPP_DEBUG(logger_p, "NormalYawPitchRoll: (%.2f, %.2f, %.2f)", 
                 result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
              
             //转化为ba需要的参数

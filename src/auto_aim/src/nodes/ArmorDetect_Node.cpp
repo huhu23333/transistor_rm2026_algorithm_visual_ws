@@ -685,6 +685,9 @@ private:
                         // 将pnp结果转换至静止坐标系以稳定预测
                         std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
                         std::vector<float> rest_frame_pos = rest_frame_ -> getWorldPositionFromCam(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+                        std::vector<float> rest_frame_euler_angles = rest_frame_ -> getWorldEulerAnglesFromCam(
+                            aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]
+                        );
 
                         // ========== EKF 逻辑 (6D模型修改) ==========
 
