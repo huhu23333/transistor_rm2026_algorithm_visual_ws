@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <yaml-cpp/yaml.h>
 #include <rclcpp/rclcpp.hpp>
+#include <opencv2/opencv.hpp>
 
 // 结构体声明
 struct BallisticInfo {
@@ -23,6 +24,8 @@ public:
     // 函数声明
     BallisticInfo calcBallisticAngle(float x, float y, float z, float deltax, float deltay, float deltaz, 
                                     float v_bullet, float cur_pitch, float cur_yaw);
+
+    cv::Point3d calcNearestPoint(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet);
                                     
 private:
     

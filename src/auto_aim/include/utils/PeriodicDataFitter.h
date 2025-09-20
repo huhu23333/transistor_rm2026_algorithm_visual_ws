@@ -1,6 +1,6 @@
-// PeriodicDataSmoother.h
-#ifndef PERIODIC_DATA_SMOOTHER_H
-#define PERIODIC_DATA_SMOOTHER_H
+// PeriodicDataFitter.h
+#ifndef PERIODIC_DATA_FITTER_H
+#define PERIODIC_DATA_FITTER_H
 
 #include <vector>
 #include <cmath>
@@ -8,10 +8,10 @@
 #include <stdexcept>
 #include <iostream>
 
-class PeriodicDataSmoother {
+class PeriodicDataFitter {
 public:
     // 构造函数，指定最大历史步数
-    PeriodicDataSmoother(int max_history = 100);
+    PeriodicDataFitter(int max_history = 100);
     
     // 添加新的数据点
     void addPoint(double point);
@@ -60,4 +60,4 @@ private:
     mutable bool coefficients_dirty_ = true; // 标记系数是否需要重新计算
 };
 
-#endif // PERIODIC_DATA_SMOOTHER_H
+#endif // PERIODIC_DATA_FITTER_H

@@ -94,6 +94,58 @@ BallisticSolver::SimulateTrajectoryInfo BallisticSolver::simulateTrajectory(
     return result;
 }
 
+cv::Point3d BallisticSolver::calcNearestPoint(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet) {
+    double max_flight_time = 5.0f;
+    double dt = 1e-3;
+    double min_height = -100.0f;
+
+    double g = 9.8;
+    uint32_t time_step = 0;
+
+    cv::Point3d nearest_point = self_pos;
+    double min_target_dist = cv::norm(target_pos - self_pos);
+
+    // 计算弹丸截面积
+    double bullet_radius = ballisticParams.bullet_diameter / 2.0;
+    double cross_section_area = M_PI * bullet_radius * bullet_radius;
+
+    cv::Point3d bullet_pos = self_pos;
+    cv::Point3d bullet_vel;
+    bullet_vel.x = v_bullet * std::cos(aim_yaw_pitch.y) * (-std::sin(aim_yaw_pitch.x));
+    bullet_vel.y = v_bullet * std::cos(aim_yaw_pitch.y) * std::cos(aim_yaw_pitch.x);
+    bullet_vel.z = v_bullet * std::sin(aim_yaw_pitch.y);
+    while (time_step * dt <= max_flight_time && bullet_pos.z >= min_height) {
+        // 更新位置
+        bullet_pos += bullet_vel * dt;
+
+        double target_dist = cv::norm(target_pos - bullet_pos);
+        if (target_dist < min_target_dist) {
+            nearest_point = bullet_pos;
+            min_target_dist = target_dist;
+        }
+
+        // 计算当前速度大小
+        double vel = cv::norm(bullet_vel);
+        if (vel < 0.1) {
+            break;
+        }
+
+        // 计算空气阻力（与速度平方成正比，方向与速度相反）
+        double drag_force = 0.5 * ballisticParams.drag_coeff * ballisticParams.air_density * 
+                           cross_section_area * vel * vel;
+        // 计算阻力加速度分量
+        double drag_accel = drag_force / ballisticParams.bullet_mass;
+        cv::Point3d drag_accel_xyz = drag_accel * bullet_vel / vel;
+        // 更新速度（考虑空气阻力和重力）
+        bullet_vel -= drag_accel_xyz * dt;
+        bullet_vel.z -= g * dt;
+
+        time_step += 1;
+    }
+
+    return nearest_point;
+}
+
 // 使用该方法可能无法算出较高的弹道
 BallisticSolver::CalcPitchInfo BallisticSolver::calcTargetPitchWithAirResistance(
     float horizontal_distance, float vertical_height, float v_bullet) {

@@ -64,7 +64,9 @@ predictor3d_fit_step : 90
 predictor3d_predict_step : 30
 predictor3d_fourier_fit_order : 5
 
-predictor3d_fire_distance : 135.0
+predictor3d_fire_distance : 135.0 # 135.0
+
+pred_fire_data_smooth_factor : 0.4
 
 # Params.h 参数设置
 min_light_height : 8 # 8

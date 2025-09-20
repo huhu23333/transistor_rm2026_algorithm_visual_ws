@@ -36,7 +36,8 @@
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
 #include "test_codes/DataVisualizer.h"
-#include "utils/PeriodicDataSmoother.h"
+#include "utils/PeriodicDataFitter.h"
+#include "utils/SimpleDataFilter.h"
 
 namespace fs = std::filesystem;
 
@@ -241,8 +242,11 @@ public:
         oscilloscope_fire_ -> setScale(1.0);
         oscilloscope_fire_ -> setOffset(-0.5);
 
-        fire_data_smoother_ = std::make_shared<PeriodicDataSmoother>(predictor3d_fit_step);
-        fire_data_smoother_ -> setPeriod(1);
+        fire_data_fitter_ = std::make_shared<PeriodicDataFitter>(predictor3d_fit_step);
+        fire_data_fitter_ -> setPeriod(1);
+        pred_fire_data_filter_ = std::make_shared<SimpleDataFilter>(1);
+        pred_fire_data_filter_ -> setExponentialAlpha((*config_file_ptr)["pred_fire_data_smooth_factor"].as<float>());
+        pred_fire_data_filter_ -> addPoint(0.0);
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
@@ -552,16 +556,23 @@ private:
                     tracker_->predict();
                 }
 
+                bool fire_flag = false;
             	if (
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
                 	serial_communication_->sendData(0, 0, false);
                 	pitch_integration = 0; // 积分项重置
                 	predictor3d -> clearHistory(); 
-                    fire_data_smoother_ -> clearHistory();
+                    fire_data_fitter_ -> clearHistory();
+                    pred_fire_data_filter_ -> clearHistory();
                 } else {
-                    serial_communication_->sendData(last_command_pitch_, last_command_yaw_, false);
-                    cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
-                    
+                    pred_fire_data_filter_ -> addPoint(0.0);
+                    fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
+                    serial_communication_->sendData(last_command_pitch_, last_command_yaw_, fire_flag);
+                    if (fire_flag) {
+                        cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(0, 0, 255), 2);
+                    } else {
+                        cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
+                    }
                     cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
                     cv::Point3f predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_nowIndex];
                 	predictor3d -> addPoint(predicted_armor_pos);
@@ -591,12 +602,12 @@ private:
                     cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                     cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
 
-                    fire_data_smoother_ -> setPeriod(predictor3d->getFourierPeriod());
-                    fire_data_smoother_ -> addPoint(0.0);
+                    fire_data_fitter_ -> setPeriod(predictor3d->getFourierPeriod());
+                    fire_data_fitter_ -> addPoint(0.0);
 #endif
                 }
 #ifdef USE_PREDICTOR3D
-                oscilloscope_fire_ -> addDataPoint(0.0);
+                oscilloscope_fire_ -> addDataPoint(fire_flag);
 #endif
             } 
             
@@ -748,18 +759,32 @@ private:
                         std::vector<float> pnp_pos_new = rest_frame_ -> normalToPnpResultFrame(cam_normal_pos_new[0], cam_normal_pos_new[1], cam_normal_pos_new[2]); */
 
                         // 3D位置预测器
-                        predictor3d -> addPoint(cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]));
+                        cv::Point3f rest_frame_pos_Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]);
+                        predictor3d -> addPoint(rest_frame_pos_Point3f);
                         predictor3d -> fitFourier(predictor3d_fit_step, predictor3d_fourier_fit_order);
                         predictor3dCenterPredictions = std::vector<cv::Point3f>(predictor3d_predict_step, cv::Point3f(predictor3d -> getAveragePosition())); //predictor3d -> predictLinear(predictor3d_predict_step); // predictFourier | predictLinear
                         predictor3dArmorPredictions = predictor3d -> predictFourier(predictor3d_predict_step); // predictFourier | predictLinear
                         predictor3dPrediction_nowIndex = 0;
                         size_t predictor3dPrediction_indexToAim = std::min(predictor3d_predict_step-1, (int)(total_delay * fps_counter->fps())); // total_delay
 #ifdef USE_PREDICTOR3D
-                        predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_indexToAim];
+                        predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_indexToAim]; // todo
 
-                        cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_indexToAim];
+                        cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_indexToAim]; // todo
 
-                        bool armor_near_flag = cv::norm(predicted_aim_pos - predicted_armor_pos) < predictor3d_fire_distance;
+                        // 计算弹道最近点并绘制（大紫色圈）
+                        std::vector<float> cam_position = rest_frame_ -> getCamPosition();
+                        cv::Point3f bullet_nearest_point = ballistic_solver_ -> calcNearestPoint( // todo
+                            rest_frame_pos_Point3f / 1000, {cam_position[0], cam_position[1], cam_position[2]}, last_aim_yaw_pitch_, bullet_velocity_) * 1000;
+                        std::vector<float> cam_normal_bullet_nearest_point = rest_frame_ -> getCamPositionFromWorld(bullet_nearest_point.x, bullet_nearest_point.y, bullet_nearest_point.z);
+                        std::vector<float> pnp_bullet_nearest_point = rest_frame_ -> normalToPnpResultFrame(cam_normal_bullet_nearest_point[0], cam_normal_bullet_nearest_point[1], cam_normal_bullet_nearest_point[2]);
+                        cv::Point2f bullet_nearest_point_pixel = armor_solver_->project3DToPixel({pnp_bullet_nearest_point[0], pnp_bullet_nearest_point[1], pnp_bullet_nearest_point[2]});
+                        cv::circle(frame, bullet_nearest_point_pixel, 15, cv::Scalar(255, 0, 255), 2);
+                        RCLCPP_DEBUG(this->get_logger(), "bullet_nearest_point: (%.2f, %.2f, %.2f)",
+                                    bullet_nearest_point.x, bullet_nearest_point.y, bullet_nearest_point.z);
+
+                        bool armor_near_flag = cv::norm(bullet_nearest_point - rest_frame_pos_Point3f) < predictor3d_fire_distance; // todo
+
+                        //oscilloscope_fire_ -> addDataPoint(cv::norm(bullet_nearest_point - predicted_armor_pos)/400);
 
                         // 转换回pnp相机坐标系
                         std::vector<float> rest_frame_armor_pos_pred = {predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z};
@@ -769,13 +794,11 @@ private:
                         predicted_armor_pos.y = pnp_armor_pos_pred[1];
                         predicted_armor_pos.z = pnp_armor_pos_pred[2];
 
-                        fire_data_smoother_ -> setPeriod(predictor3d->getFourierPeriod());
-                        if (armor_near_flag) {
-                            fire_data_smoother_ -> addPoint(1.0);
-                        } else {
-                            fire_data_smoother_ -> addPoint(0.0);
-                        }
-                        fire_flag = fire_data_smoother_ -> isUpper(0, 0.2) || fire_data_smoother_ -> getA0() > 0.8;
+                        fire_data_fitter_ -> setPeriod(predictor3d->getFourierPeriod());
+                        fire_data_fitter_ -> addPoint(armor_near_flag);
+                        pred_fire_data_filter_ -> addPoint(fire_data_fitter_ -> isUpper(predictor3dPrediction_indexToAim, 0.1) || fire_data_fitter_ -> getA0() > 0.8);
+                        fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
+                        //oscilloscope_fire_ -> addDataPoint(pred_fire_data_filter_ -> getExponentialValue());
 #endif
 
                         // 转换回pnp相机坐标系
@@ -848,13 +871,9 @@ private:
                             cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                             // 绘制装甲板预测点（蓝色）
                             cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
-                            if (fire_flag) {
-                                oscilloscope_fire_ -> addDataPoint(1.0);
-                            } else {
-                                oscilloscope_fire_ -> addDataPoint(0.0);
-                            }
-                            //oscilloscope_fire_ -> addDataPoint(fire_data_smoother_ -> smooth(0));
-                            //oscilloscope_fire_ -> addDataPoint(fire_data_smoother_ -> isRising(0));
+                            oscilloscope_fire_ -> addDataPoint(fire_flag);
+                            //oscilloscope_fire_ -> addDataPoint(fire_data_fitter_ -> smooth(0));
+                            //oscilloscope_fire_ -> addDataPoint(fire_data_fitter_ -> isRising(0));
 #endif
                         }
                     }
@@ -924,7 +943,8 @@ private:
     std::shared_ptr<Trans2DPredTo3DClass> trans_pred_;
     std::shared_ptr<RestFrame> rest_frame_;
     std::shared_ptr<Oscilloscope> oscilloscope_fire_;
-    std::shared_ptr<PeriodicDataSmoother> fire_data_smoother_;
+    std::shared_ptr<PeriodicDataFitter> fire_data_fitter_;
+    std::shared_ptr<SimpleDataFilter> pred_fire_data_filter_;
     
     float bullet_velocity_;
     float current_pitch_;

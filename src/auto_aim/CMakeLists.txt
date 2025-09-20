@@ -70,7 +70,8 @@ add_library(armor_detector SHARED
     src/utils/CRC.cpp
     src/utils/RestFrame.cpp
     src/utils/PositionPredictor3D.cpp
-    src/utils/PeriodicDataSmoother.cpp
+    src/utils/PeriodicDataFitter.cpp
+    src/utils/SimpleDataFilter.cpp
     # EKF
     src/EKF/Tracker.cpp
     # ba solver
