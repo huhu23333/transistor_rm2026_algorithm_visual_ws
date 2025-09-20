@@ -21,10 +21,6 @@ sudo apt install libceres-dev
    git clone https://github.com/strasdat/Sophus
    cd Sophus
 修改CMakeLists.txt
-在
-if(NOT DEFINED SOPHUS_MASTER_PROJECT)
-前添加
-set(SOPHUS_MASTER_PROJECT ON)
 修改
 option(BUILD_SOPHUS_TESTS "Build tests." ON)
 为
