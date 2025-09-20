@@ -42,7 +42,7 @@
 namespace fs = std::filesystem;
 
 
-#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
@@ -278,7 +278,7 @@ public:
 
 private:
     void debug_code() {
-        /* while (true) {
+        while (true) {
             static double debug_time_count = 0.0;
             double debug_freq = 0.3;
             double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
@@ -300,8 +300,8 @@ private:
             auto start = std::chrono::steady_clock::now();
             std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
             debug_time_count += 0.033;
-        } */
-        std::thread([&]() {
+        }
+        /* std::thread([&]() {
             double debug_time_count = 0.0;
             while (true) {
                 auto start = std::chrono::steady_clock::now();
@@ -317,7 +317,7 @@ private:
                 std::this_thread::sleep_until(start + std::chrono::microseconds(10000));  // 大约10ms周期
                 debug_time_count += 0.01;
             }
-        }).detach();
+        }).detach(); */
     }
 
     void serialDataCallback(const SerialData& msg) {
@@ -858,8 +858,8 @@ private:
                             // 计算并绘制瞄准时目标画面中心（天蓝色：未开火 | 红色：开火）
                             cv::Point2f aim_yaw_pitch = cv::Point2f(ballistic_result.target_yaw_rad, last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad);
                             cv::Point2f aim_yaw_pitch_pixel = cv::Point2f(
-                                frame.cols / 2 - aim_yaw_pitch.x * yaw_rad_to_x_pixel_ratio, 
-                                frame.rows / 2 - aim_yaw_pitch.y * pitch_rad_to_y_pixel_ratio);
+                                frame.cols / 2 - (aim_yaw_pitch.x - last_yaw_rad_delayed_) * yaw_rad_to_x_pixel_ratio, 
+                                frame.rows / 2 - (aim_yaw_pitch.y - last_pitch_rad_delayed_) * pitch_rad_to_y_pixel_ratio);
                             last_aim_yaw_pitch_ = aim_yaw_pitch;
                             last_aim_yaw_pitch_pixel_ = aim_yaw_pitch_pixel;
                             if (fire_flag) {
@@ -867,6 +867,8 @@ private:
                             } else {
                                 cv::circle(frame, aim_yaw_pitch_pixel, 8, cv::Scalar(255, 255, 0), 2);
                             }
+                            RCLCPP_DEBUG(this->get_logger(), "aim center yaw pitch: (%.2f, %.2f)",
+                                    aim_yaw_pitch.x, aim_yaw_pitch.y);
 #ifdef USE_PREDICTOR3D
                             cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                             // 绘制装甲板预测点（蓝色）
@@ -880,7 +882,7 @@ private:
                     
                 }
             }
-            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
+            //drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
 #ifdef USE_PREDICTOR3D
             oscilloscope_fire_ -> update();
             oscilloscope_fire_ -> putText("period:"+std::to_string(predictor3d->getFourierPeriod()), cv::Point2f(500, 20), cv::Scalar(0, 255, 0), 0.7);
