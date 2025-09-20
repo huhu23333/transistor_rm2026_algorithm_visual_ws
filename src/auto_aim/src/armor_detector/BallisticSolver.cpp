@@ -143,9 +143,9 @@ BallisticSolver::CalcPitchInfo BallisticSolver::calcTargetPitchWithAirResistance
             }
         }
     }
-    for (TrajectoryInfo& trajectory_info : start_check_results) {
+    /* for (TrajectoryInfo& trajectory_info : start_check_results) {
         RCLCPP_INFO(node->get_logger(), "%f ,%f", trajectory_info.pitch, trajectory_info.hit_height);
-    }
+    } */
     // 查找所有与目标高度差距符号转变的位置
     std::vector<RefineInfo> refine_infos;
     for (int start_check_index = 1; start_check_index < start_check_n_low + start_check_n_high; start_check_index += 1) {
