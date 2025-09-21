@@ -160,8 +160,8 @@ struct Measure {
         T yaw = x_in[6], r = x_in[8];
 
         // 从机器人中心状态，反解出装甲板的位置
-        z_out[0] = xc - r * ceres::cos(yaw); // xa = xc - r*cos(yaw)
-        z_out[1] = yc + r * ceres::sin(yaw); // ya
+        z_out[0] = xc - r * ceres::sin(yaw); // xa
+        z_out[1] = yc + r * ceres::cos(yaw); // ya
         z_out[2] = zc;                       // za
         z_out[3] = yaw;                      // yaw_a
     }

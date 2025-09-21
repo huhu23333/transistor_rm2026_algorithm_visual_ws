@@ -630,12 +630,12 @@ private:
                             aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]
                         );
 
-                        // ========== EKF 逻辑 (9D模型修改) ==========
-                        RCLCPP_INFO(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
+                        // ========== EKF 9D ==========
+                        RCLCPP_INFO(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.normal_euler_angles[1]*180/M_PI);
 
                         // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                         Tracker::Measurement z;
-                        z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw;
+                        z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.normal_euler_angles[1]; // 只用yaw角
 
                         // 2. EKF 状态机逻辑
                         if (tracker_->state == Tracker::LOST) {

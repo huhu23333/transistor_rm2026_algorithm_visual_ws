@@ -17,22 +17,22 @@
 #   p0_init_val: 10.0
 
 ekf_params:
-  sigma2_q_x: 8.0e13     # 过程噪声，从一个较大的值开始调
-  sigma2_q_y: 0.5e13
-  sigma2_q_z: 1.0e13
-  sigma2_q_yaw: 100.0   # Yaw角加速度过程噪声
-  sigma2_q_r: 800.0     # 半径变化过程噪声
+  sigma2_q_x: 8.0e3     # 过程噪声，从一个较大的值开始调
+  sigma2_q_y: 0.5e3
+  sigma2_q_z: 1.0e3
+  sigma2_q_yaw: 1000.0   # Yaw角加速度过程噪声
+  sigma2_q_r: 8000.0     # 半径变化过程噪声
   
   # 测量噪声
-  r_x_coeff: 1.0e-1
-  r_y_coeff: 3.0e-1
-  r_z_coeff: 1.0e-1
-  r_yaw_val: 0.02
+  r_x_coeff: 1.0e-3
+  r_y_coeff: 3.0e-3
+  r_z_coeff: 1.0e-3
+  r_yaw_val: 0.002
 
   # 初始不确定性
   p0_init_val: 10.0
 # 其他参数...
-RESET_DISTANCE_THRESHOLD : 8.0e32 # 单位：mm
+RESET_DISTANCE_THRESHOLD : 800.0 # 单位：mm
 
 # SharedMemoryTorch参数
 SHM_KEY : 0x1234
