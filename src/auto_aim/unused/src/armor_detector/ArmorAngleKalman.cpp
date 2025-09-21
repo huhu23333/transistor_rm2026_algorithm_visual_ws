@@ -1,5 +1,5 @@
 // ArmorAngleKalman.cpp 修改实现
-#include "EKF/ArmorAngleKalman.h"
+#include "armor_detector/ArmorAngleKalman.h"
 
 ArmorAngleKalman::ArmorAngleKalman(float dt) : dt_(dt) {
     // 状态变量: [x, y, z, vx, vy, vz]

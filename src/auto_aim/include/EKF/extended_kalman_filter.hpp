@@ -74,6 +74,9 @@ public:
       P_pri = F * P_post * F.transpose() + Q;
       x_post = x_pri;
 
+      P_pri = 0.5 * (P_pri + P_pri.transpose()).eval();
+      P_post = 0.5 * (P_post + P_post.transpose()).eval();
+
       return x_pri;
   }
   MatrixX1 getState() const noexcept { return x_post; }
@@ -99,10 +102,25 @@ public:
       auto logger = rclcpp::get_logger("ekf_debug_logger");
 
       // 创建一个字符串流来格式化矩阵
-      std::stringstream ss_p_pri, ss_h, ss_r, ss_s, ss_k, ss_p_post;
+      std::stringstream ss_z, ss_x_pri, ss_F, ss_Q, ss_z_pri, ss_p_pri, ss_h, ss_r, ss_s, ss_k, ss_p_post, ss_x_post;
+      RCLCPP_INFO(logger, "----------- EKF DEBUG INFO -----------");
+
+      ss_z << z;
+      RCLCPP_INFO(logger, "z:\n%s", ss_z.str().c_str());
+
+      ss_x_pri << x_pri;
+      RCLCPP_INFO(logger, "x_pri:\n%s", ss_x_pri.str().c_str());
+
+      ss_F << F;
+      RCLCPP_INFO(logger, "F:\n%s", ss_F.str().c_str());
+
+      ss_Q << Q;
+      RCLCPP_INFO(logger, "Q:\n%s", ss_Q.str().c_str());
+
+      ss_z_pri << z_pri;
+      RCLCPP_INFO(logger, "z_pri:\n%s", ss_z_pri.str().c_str());
 
       ss_p_pri << P_pri;
-      RCLCPP_INFO(logger, "----------- EKF DEBUG INFO -----------");
       RCLCPP_INFO(logger, "P_pri (Predicted Covariance):\n%s", ss_p_pri.str().c_str());
 
       ss_h << H;
@@ -126,8 +144,33 @@ public:
       // ======================= ROS2 日志调试代码 END =======================
 
       
-      // 计算卡尔曼增益
-      K = P_pri * H.transpose() * S.inverse();
+
+      // 计算卡尔曼增益// 替换这行:
+      // K = P_pri * H.transpose() * S.inverse();
+      // 使用SVD分解求解 K = P_pri * H.transpose() * S^{-1}
+      Eigen::JacobiSVD<MatrixZZ> svd(S, Eigen::ComputeFullU | Eigen::ComputeFullV);
+      // 获取奇异值
+      Eigen::VectorXd svals = svd.singularValues();
+      // 设置一个奇异值阈值，小于此值的奇异值将被置零（避免数值溢出）
+      double threshold = 1e-6 * svals(0); // 例如，最大奇异值的1e-6倍
+      // 构造奇异值矩阵的逆
+      Eigen::MatrixXd Sinv = MatrixZZ::Zero();
+      for (int i = 0; i < svals.size(); ++i) {
+          if (svals(i) > threshold) {
+              Sinv(i, i) = 1.0 / svals(i);
+          } else {
+              // 奇异值太小，置零忽略它（或者可以设置一个很小的值）
+              Sinv(i, i) = 0.0;
+              RCLCPP_WARN(logger, "Small singular value detected and truncated: %e", svals(i));
+          }
+      }
+      // 计算 S 的伪逆
+      MatrixZZ robust_S_inverse = svd.matrixV() * Sinv * svd.matrixU().transpose();
+      // 然后计算卡尔曼增益
+      K = P_pri * H.transpose() * robust_S_inverse;
+
+
+
       // ++++++++++++++++ 新增打印卡尔曼增益 K ++++++++++++++++
       ss_k << K;
       RCLCPP_INFO(logger, "K (Kalman Gain):\n%s", ss_k.str().c_str());
@@ -140,6 +183,10 @@ public:
       // ++++++++++++++++ 新增打印后验协方差 P_post ++++++++++++++++
       ss_p_post << P_post;
       RCLCPP_INFO(logger, "P_post (Updated Covariance):\n%s", ss_p_post.str().c_str());
+
+      ss_x_post << x_post;
+      RCLCPP_INFO(logger, "x_post :\n%s", ss_x_post.str().c_str());
+
       RCLCPP_INFO(logger, "--------------------------------------\n");
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
       
@@ -147,6 +194,9 @@ public:
       // K = P_pri * H.transpose() * (H * P_pri * H.transpose() + R).inverse();
       // x_post = x_post + K * (z - z_pri);
       // P_post = (MatrixXX::Identity() - K * H) * P_pri;
+
+      P_pri = 0.5 * (P_pri + P_pri.transpose()).eval();
+      P_post = 0.5 * (P_post + P_post.transpose()).eval();
     
       return x_post;
   }
