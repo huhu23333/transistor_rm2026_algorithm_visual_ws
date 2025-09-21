@@ -45,7 +45,7 @@ namespace fs = std::filesystem;
 #define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
-//#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
+#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
 //#define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
 
 // 全局变量定义
@@ -241,11 +241,19 @@ public:
         oscilloscope_fire_ -> setScale(1.0);
         oscilloscope_fire_ -> setOffset(-0.5);
 
+        oscilloscope_common_ = std::make_shared<Oscilloscope>(640, 120, "Common Debug Oscilloscope");
+        oscilloscope_common_ -> setScale(1.0);
+        oscilloscope_common_ -> setOffset(-0.5);
+
         fire_data_fitter_ = std::make_shared<PeriodicDataFitter>(predictor3d_fit_step);
         fire_data_fitter_ -> setPeriod(1);
         pred_fire_data_filter_ = std::make_shared<SimpleDataFilter>(1);
         pred_fire_data_filter_ -> setExponentialAlpha((*config_file_ptr)["pred_fire_data_smooth_factor"].as<float>());
         pred_fire_data_filter_ -> addPoint(0.0);
+
+        armor_distance_filter_ = std::make_shared<SimpleDataFilter>(1);
+        armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
+        armor_distance_filter_ -> addPoint(0.0);
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
@@ -623,6 +631,11 @@ private:
                     auto best_result = *it;
                     AimResult aim = armor_solver_->solveArmor(best_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
                     if (aim.valid) {
+                        // 查看并滤波z轴距离轴数据
+                        armor_distance_filter_ -> addPoint(aim.position.z);
+                        aim.position.z = armor_distance_filter_ -> getExponentialValue();
+                        oscilloscope_common_ -> addDataPoint(aim.position.z / 6000);
+
                         // 将pnp结果转换至静止坐标系以稳定预测
                         std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
                         std::vector<float> rest_frame_pos = rest_frame_ -> getWorldPositionFromCam(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
@@ -771,7 +784,7 @@ private:
 
                         // 计算弹道最近点并绘制（大紫色圈）
                         std::vector<float> cam_position = rest_frame_ -> getCamPosition();
-                        cv::Point3f bullet_nearest_point = ballistic_solver_ -> calcNearestPoint( // todo
+                        cv::Point3f bullet_nearest_point = ballistic_solver_ -> calcNearestPointWithAirResistance( // todo
                             rest_frame_pos_Point3f / 1000, {cam_position[0], cam_position[1], cam_position[2]}, last_aim_yaw_pitch_, bullet_velocity_) * 1000;
                         std::vector<float> cam_normal_bullet_nearest_point = rest_frame_ -> getCamPositionFromWorld(bullet_nearest_point.x, bullet_nearest_point.y, bullet_nearest_point.z);
                         std::vector<float> pnp_bullet_nearest_point = rest_frame_ -> normalToPnpResultFrame(cam_normal_bullet_nearest_point[0], cam_normal_bullet_nearest_point[1], cam_normal_bullet_nearest_point[2]);
@@ -886,6 +899,8 @@ private:
             oscilloscope_fire_ -> putText("period:"+std::to_string(predictor3d->getFourierPeriod()), cv::Point2f(500, 20), cv::Scalar(0, 255, 0), 0.7);
             oscilloscope_fire_ -> show();
 #endif
+            oscilloscope_common_ -> update();
+            oscilloscope_common_ -> show();
 
             //计算帧率
             fps_counter->tick();
@@ -945,6 +960,9 @@ private:
     std::shared_ptr<Oscilloscope> oscilloscope_fire_;
     std::shared_ptr<PeriodicDataFitter> fire_data_fitter_;
     std::shared_ptr<SimpleDataFilter> pred_fire_data_filter_;
+    
+    std::shared_ptr<Oscilloscope> oscilloscope_common_;
+    std::shared_ptr<SimpleDataFilter> armor_distance_filter_;
     
     float bullet_velocity_;
     float current_pitch_;

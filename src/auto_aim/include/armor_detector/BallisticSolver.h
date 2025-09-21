@@ -9,6 +9,8 @@
 #include <yaml-cpp/yaml.h>
 #include <rclcpp/rclcpp.hpp>
 #include <opencv2/opencv.hpp>
+#include <thread>
+#include <execution>
 
 // 结构体声明
 struct BallisticInfo {
@@ -25,7 +27,7 @@ public:
     BallisticInfo calcBallisticAngle(float x, float y, float z, float deltax, float deltay, float deltaz, 
                                     float v_bullet, float cur_pitch, float cur_yaw);
 
-    cv::Point3d calcNearestPoint(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet);
+    cv::Point3d calcNearestPointWithAirResistance(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet);
                                     
 private:
     
@@ -67,6 +69,23 @@ private:
     CalcPitchInfo calcTargetPitchWithAirResistance(float horizontal_distance, float vertical_height, float v_bullet);
     SimulateTrajectoryInfo simulateTrajectory(double v_bullet, double pitch_rad, double horizontal_distance,
                                               double MAX_FLIGHT_TIME, double DT, double MIN_HEIGHT);
+
+    // 新增辅助函数：计算加速度（用于Runge-Kutta）
+    struct State {
+        double x, y, z;  // 位置
+        double vx, vy, vz; // 速度
+    };
+    State computeAcceleration(const State& state, double drag_coeff, double air_density, 
+                             double cross_section_area, double bullet_mass, double g);
+
+    struct alignas(64) StartCheckThreadInfo { // 64字节对齐
+        int thread_index;
+        float pitch;
+    };
+    struct alignas(64) RefineThreadInfo { // 64字节对齐
+        int thread_index;
+        RefineInfo refine_info;
+    };
 };
 
 #endif // BALLISTIC_SOLVER_H
