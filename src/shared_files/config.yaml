@@ -20,13 +20,13 @@ ekf_params:
   sigma2_q_x: 8.0e3     # 过程噪声，从一个较大的值开始调
   sigma2_q_y: 0.5e3
   sigma2_q_z: 1.0e3
-  sigma2_q_yaw: 1000.0   # Yaw角加速度过程噪声
-  sigma2_q_r: 8000.0     # 半径变化过程噪声
-  
+  sigma2_q_yaw: 1.0e3   # Yaw角加速度过程噪声
+  sigma2_q_r: 8.0e3     # 半径变化过程噪声
+
   # 测量噪声
-  r_x_coeff: 1.0e-3
-  r_y_coeff: 3.0e-3
-  r_z_coeff: 1.0e-3
+  r_x_coeff: 1.0e-1
+  r_y_coeff: 3.0e-1
+  r_z_coeff: 1.0e-1
   r_yaw_val: 0.002
 
   # 初始不确定性

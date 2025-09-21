@@ -42,7 +42,7 @@
 namespace fs = std::filesystem;
 
 
-//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 //#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
@@ -631,11 +631,12 @@ private:
                         );
 
                         // ========== EKF 9D ==========
-                        RCLCPP_INFO(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.normal_euler_angles[1]*180/M_PI);
-
                         // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                         Tracker::Measurement z;
                         z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.normal_euler_angles[1]; // 只用yaw角
+
+                         RCLCPP_INFO(this->get_logger(), "EKF Pre-prediction (Measurement): x=%.3f, y=%.3f, z=%.3f, yaw=%.3f",
+                                    z(0), z(1), z(2), z(3));
 
                         // 2. EKF 状态机逻辑
                         if (tracker_->state == Tracker::LOST) {
@@ -678,6 +679,10 @@ private:
                             future_yc + future_r * cos(future_yaw),
                             future_zc 
                         );
+
+                         RCLCPP_INFO(this->get_logger(), "EKF Post-prediction (Target):  x=%.3f, y=%.3f, z=%.3f",
+                                    predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
+                        
                         
                         // // ========== EKF 逻辑 (6D模型修改) ==========
 

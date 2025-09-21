@@ -94,43 +94,59 @@ public:
       }
 
       R = update_R(z);
-      // ======================= 新增的ROS2日志调试代码 START =======================
+      // ======================= ROS2 日志调试代码 START =======================
       // 获取一个全局的logger实例来进行打印
       auto logger = rclcpp::get_logger("ekf_debug_logger");
 
       // 创建一个字符串流来格式化矩阵
-      std::stringstream ss_p, ss_h, ss_r, ss_s;
+      std::stringstream ss_p_pri, ss_h, ss_r, ss_s, ss_k, ss_p_post;
 
-      ss_p << P_pri;
-      // RCLCPP_DEBUG(logger, "----------- EKF DEBUG INFO (Pre-Inverse) -----------");
-      // RCLCPP_DEBUG(logger, "P_pri (Predicted Covariance):\n%s", ss_p.str().c_str());
+      ss_p_pri << P_pri;
+      RCLCPP_INFO(logger, "----------- EKF DEBUG INFO -----------");
+      RCLCPP_INFO(logger, "P_pri (Predicted Covariance):\n%s", ss_p_pri.str().c_str());
 
       ss_h << H;
-      // RCLCPP_DEBUG(logger, "H (Measurement Jacobian):\n%s", ss_h.str().c_str());
+      RCLCPP_INFO(logger, "H (Measurement Jacobian):\n%s", ss_h.str().c_str());
 
       ss_r << R;
-      // RCLCPP_DEBUG(logger, "R (Measurement Noise):\n%s", ss_r.str().c_str());
+      RCLCPP_INFO(logger, "R (Measurement Noise):\n%s", ss_r.str().c_str());
 
       // 计算并打印即将被求逆的矩阵 S
       MatrixZZ S = H * P_pri * H.transpose() + R;
       ss_s << S;
-      // RCLCPP_DEBUG(logger, "S (Matrix to be inverted):\n%s", ss_s.str().c_str());
+      RCLCPP_INFO(logger, "S (Innovation Covariance):\n%s", ss_s.str().c_str());
 
       // 计算并打印 S 的行列式
       double detS = S.determinant();
-      // RCLCPP_DEBUG(logger, "Determinant of S: %e", detS); // 使用 %e 科学计数法打印
+      RCLCPP_INFO(logger, "Determinant of S: %e", detS); // 使用 %e 科学计数法打印
       
       if (std::abs(detS) < 1e-9) {
           RCLCPP_ERROR(logger, "CRITICAL: Determinant is close to zero! Matrix inversion will fail.");
       }
-      // RCLCPP_DEBUG(logger, "----------------------------------------------------");
-      // ======================= 新增的ROS2日志调试代码 END =======================
+      // ======================= ROS2 日志调试代码 END =======================
 
       
       // 计算卡尔曼增益
-      K = P_pri * H.transpose() * (H * P_pri * H.transpose() + R).inverse();
+      K = P_pri * H.transpose() * S.inverse();
+      // ++++++++++++++++ 新增打印卡尔曼增益 K ++++++++++++++++
+      ss_k << K;
+      RCLCPP_INFO(logger, "K (Kalman Gain):\n%s", ss_k.str().c_str());
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+
       x_post = x_post + K * (z - z_pri);
-      P_post = (MatrixXX::Identity() - K * H) * P_pri;
+      //P_post = (MatrixXX::Identity() - K * H) * P_pri;
+      MatrixXX I_KH = MatrixXX::Identity() - K * H;
+      P_post = I_KH * P_pri * I_KH.transpose() + K * R * K.transpose();
+      // ++++++++++++++++ 新增打印后验协方差 P_post ++++++++++++++++
+      ss_p_post << P_post;
+      RCLCPP_INFO(logger, "P_post (Updated Covariance):\n%s", ss_p_post.str().c_str());
+      RCLCPP_INFO(logger, "--------------------------------------\n");
+      // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      
+      // // 计算卡尔曼增益
+      // K = P_pri * H.transpose() * (H * P_pri * H.transpose() + R).inverse();
+      // x_post = x_post + K * (z - z_pri);
+      // P_post = (MatrixXX::Identity() - K * H) * P_pri;
     
       return x_post;
   }

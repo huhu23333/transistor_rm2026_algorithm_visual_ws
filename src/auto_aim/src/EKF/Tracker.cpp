@@ -318,11 +318,11 @@ Tracker::Tracker(double dt, const EKFParams& params) : dt_(dt), state(LOST) {
         double r_yaw = params.r_yaw;
 
         // 动态噪声模型：x和z的测量不确定性随距离增大
-        double dist = sqrt(z[0]*z[0] + z[2]*z[2]);
+        double dist = sqrt(z[0]*z[0] + z[1]*z[1]);
         R << r_x * dist, 0, 0, 0,
              0, r_y * dist, 0, 0,
              0, 0, r_z * dist, 0,
-             0, 0, 0, r_yaw;
+             0, 0, 0, r_yaw * dist;
         return R;
     };
 
