@@ -73,6 +73,8 @@ predictor3d_fire_distance : 135.0 # 135.0
 
 pred_fire_data_smooth_factor : 0.4
 
+armor_distance_smooth_factor : 0.05
+
 # Params.h 参数设置
 min_light_height : 8 # 8
 light_slope_offset : 30
