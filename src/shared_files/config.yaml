@@ -71,7 +71,7 @@ predictor3d_fourier_fit_order : 5
 
 predictor3d_fire_distance : 135.0 # 135.0
 
-pred_fire_data_smooth_factor : 0.4
+pred_fire_data_smooth_factor : 0.2
 
 armor_distance_smooth_factor : 0.05
 

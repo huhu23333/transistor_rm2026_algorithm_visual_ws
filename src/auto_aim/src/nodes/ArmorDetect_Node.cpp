@@ -677,7 +677,7 @@ private:
                         constexpr float image_latency = 0.013f;
                         constexpr float comm_latency  = 0.010f;
                         float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                        float extra_time = 0.100f;
+                        float extra_time = 0.000f;
                         float total_delay = image_latency + comm_latency + bullet_time + extra_time;
 
                         // 获取提前预测后的机器人中心状态
@@ -802,7 +802,7 @@ private:
 
                         fire_data_fitter_ -> setPeriod(predictor3d->getFourierPeriod());
                         fire_data_fitter_ -> addPoint(armor_near_flag);
-                        pred_fire_data_filter_ -> addPoint(fire_data_fitter_ -> isUpper(predictor3dPrediction_indexToAim, 0.1) || fire_data_fitter_ -> getA0() > 0.8);
+                        pred_fire_data_filter_ -> addPoint(fire_data_fitter_ -> isUpper(predictor3dPrediction_indexToAim, 0.0) || fire_data_fitter_ -> getA0() > 0.8);
                         fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
                         //oscilloscope_fire_ -> addDataPoint(pred_fire_data_filter_ -> getExponentialValue());
 #endif
