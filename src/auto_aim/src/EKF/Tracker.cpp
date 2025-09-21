@@ -210,8 +210,8 @@ void Tracker::reset(const Measurement& z) {
     double r_init = 200.0; 
     
     // 根据Measure函数的反函数来计算中心初始位置
-    double xc = xa + r_init * sin(yaw);
-    double yc = ya - r_init * cos(yaw); // 简化模型，高度相同
+    double xc = xa - r_init * sin(yaw);
+    double yc = ya + r_init * cos(yaw); // 简化模型，高度相同
     double zc = za ;
     
     x0(0) = xc;
@@ -232,7 +232,7 @@ Tracker::State Tracker::predict() {
         else state = TEMP_LOST;
     } else if (state == DETECTING) {
         lost_count_++;
-        if (lost_count_ > lost_thres_ / 2) state = LOST;
+        if (lost_count_ > lost_thres_DETECTING_) state = LOST;
     }
     return state_vec;
 }
@@ -256,13 +256,39 @@ Tracker::State Tracker::update(const Measurement& z) {
     return state_vec;
 }
 
+Tracker::State Tracker::adjust(const Measurement& z) {
+    auto state_vec = ekf_->getState();
+    state_vec(0) =  z(0);
+    state_vec(2) =  z(1);
+    state_vec(4) =  z(2);
+    state_vec(6) =  z(3);
+    ekf_->setState(state_vec);
+
+    state_vec = ekf_->update(z);
+    
+    // 对半径增加约束，防止发散
+    if (state_vec(8) < 120.0) state_vec(8) = 120.0; // 最小半径
+    else if (state_vec(8) > 400.0) state_vec(8) = 400.0; // 最大半径
+    ekf_->setState(state_vec);
+
+    lost_count_ = 0;
+    if (state == DETECTING) {
+        detect_count_++;
+        if (detect_count_ > tracking_thres_) {
+            state = TRACKING;
+            RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker stable: TRACKING");
+        }
+    } else if (state == TEMP_LOST) state = TRACKING;
+    return state_vec;
+}
+
 Tracker::State Tracker::getTargetState() const { return ekf_->getState(); }
 
 Eigen::Vector3d Tracker::getArmorPosition() const {
     State x = getTargetState();
     double xc=x(0), yc=x(2), zc=x(4), yaw=x(6), r=x(8);
     // 根据Measure函数计算装甲板位置
-    return {xc - r * sin(yaw), yc + r * cos(yaw), zc};
+    return {xc + r * sin(yaw), yc - r * cos(yaw), zc};
 }
 
 Tracker::State Tracker::predictAhead(double t_ahead) const {

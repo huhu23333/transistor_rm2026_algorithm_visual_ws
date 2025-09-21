@@ -180,7 +180,7 @@ std::vector<std::vector<ArmorResult>> ArmorTracker::afterProcess() {
     }
     // 输出
     for (size_t i = 0; i < tracked_armors.size(); ++i) {
-        if (tracked_armors[i].is_steady_tracked) {
+        if (tracked_armors[i].is_steady_tracked && tracked_armors[i].is_tracked_now) {
             results[0].emplace_back(tracked_armors[i].armor_last_seen, tracked_armors[i].number, tracked_armors[i].confidence, 
                 tracked_armors[i].is_tracked_now, tracked_armors[i].is_large, tracked_armors[i].not_slant, 
                 tracked_armors[i].predictions, tracked_armors[i].center_predicted, tracked_armors[i].is_steady_tracked);

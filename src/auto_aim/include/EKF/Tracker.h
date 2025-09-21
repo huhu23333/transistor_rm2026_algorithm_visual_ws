@@ -99,6 +99,7 @@ public:
 
     State predict();
     State update(const Measurement& z);
+    State adjust(const Measurement& z);
 
     // 获取当前滤波后的状态（机器人中心状态）
     State getTargetState() const;
@@ -112,8 +113,9 @@ public:
 private:
     std::unique_ptr<RobotEKF> ekf_; // EKF滤波器实例
     double dt_;                   // 时间步长
-    int tracking_thres_ = 5;      // 进入稳定追踪状态的帧数阈值
-    int lost_thres_ = 10;         // 判断为完全丢失的帧数阈值
+    int tracking_thres_ = 3;      // 进入稳定追踪状态的帧数阈值 // 5
+    int lost_thres_ = 30;         // 判断为完全丢失的帧数阈值 // 10
+    int lost_thres_DETECTING_ = 5;
     int detect_count_ = 0;        // 稳定追踪计数
     int lost_count_ = 0;          // 丢失计数
 };

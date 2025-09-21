@@ -103,40 +103,40 @@ public:
 
       // 创建一个字符串流来格式化矩阵
       std::stringstream ss_z, ss_x_pri, ss_F, ss_Q, ss_z_pri, ss_p_pri, ss_h, ss_r, ss_s, ss_k, ss_p_post, ss_x_post;
-      RCLCPP_INFO(logger, "----------- EKF DEBUG INFO -----------");
+      RCLCPP_DEBUG(logger, "----------- EKF DEBUG INFO -----------");
 
       ss_z << z;
-      RCLCPP_INFO(logger, "z:\n%s", ss_z.str().c_str());
+      RCLCPP_DEBUG(logger, "z:\n%s", ss_z.str().c_str());
 
       ss_x_pri << x_pri;
-      RCLCPP_INFO(logger, "x_pri:\n%s", ss_x_pri.str().c_str());
+      RCLCPP_DEBUG(logger, "x_pri:\n%s", ss_x_pri.str().c_str());
 
       ss_F << F;
-      RCLCPP_INFO(logger, "F:\n%s", ss_F.str().c_str());
+      RCLCPP_DEBUG(logger, "F:\n%s", ss_F.str().c_str());
 
       ss_Q << Q;
-      RCLCPP_INFO(logger, "Q:\n%s", ss_Q.str().c_str());
+      RCLCPP_DEBUG(logger, "Q:\n%s", ss_Q.str().c_str());
 
       ss_z_pri << z_pri;
-      RCLCPP_INFO(logger, "z_pri:\n%s", ss_z_pri.str().c_str());
+      RCLCPP_DEBUG(logger, "z_pri:\n%s", ss_z_pri.str().c_str());
 
       ss_p_pri << P_pri;
-      RCLCPP_INFO(logger, "P_pri (Predicted Covariance):\n%s", ss_p_pri.str().c_str());
+      RCLCPP_DEBUG(logger, "P_pri (Predicted Covariance):\n%s", ss_p_pri.str().c_str());
 
       ss_h << H;
-      RCLCPP_INFO(logger, "H (Measurement Jacobian):\n%s", ss_h.str().c_str());
+      RCLCPP_DEBUG(logger, "H (Measurement Jacobian):\n%s", ss_h.str().c_str());
 
       ss_r << R;
-      RCLCPP_INFO(logger, "R (Measurement Noise):\n%s", ss_r.str().c_str());
+      RCLCPP_DEBUG(logger, "R (Measurement Noise):\n%s", ss_r.str().c_str());
 
       // 计算并打印即将被求逆的矩阵 S
       MatrixZZ S = H * P_pri * H.transpose() + R;
       ss_s << S;
-      RCLCPP_INFO(logger, "S (Innovation Covariance):\n%s", ss_s.str().c_str());
+      RCLCPP_DEBUG(logger, "S (Innovation Covariance):\n%s", ss_s.str().c_str());
 
       // 计算并打印 S 的行列式
       double detS = S.determinant();
-      RCLCPP_INFO(logger, "Determinant of S: %e", detS); // 使用 %e 科学计数法打印
+      RCLCPP_DEBUG(logger, "Determinant of S: %e", detS); // 使用 %e 科学计数法打印
       
       if (std::abs(detS) < 1e-9) {
           RCLCPP_ERROR(logger, "CRITICAL: Determinant is close to zero! Matrix inversion will fail.");
@@ -173,7 +173,7 @@ public:
 
       // ++++++++++++++++ 新增打印卡尔曼增益 K ++++++++++++++++
       ss_k << K;
-      RCLCPP_INFO(logger, "K (Kalman Gain):\n%s", ss_k.str().c_str());
+      RCLCPP_DEBUG(logger, "K (Kalman Gain):\n%s", ss_k.str().c_str());
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
       x_post = x_post + K * (z - z_pri);
@@ -182,12 +182,14 @@ public:
       P_post = I_KH * P_pri * I_KH.transpose() + K * R * K.transpose();
       // ++++++++++++++++ 新增打印后验协方差 P_post ++++++++++++++++
       ss_p_post << P_post;
-      RCLCPP_INFO(logger, "P_post (Updated Covariance):\n%s", ss_p_post.str().c_str());
+      RCLCPP_DEBUG(logger, "P_post (Updated Covariance):\n%s", ss_p_post.str().c_str());
 
       ss_x_post << x_post;
       RCLCPP_INFO(logger, "x_post :\n%s", ss_x_post.str().c_str());
 
-      RCLCPP_INFO(logger, "--------------------------------------\n");
+      RCLCPP_INFO(logger, "z_yaw, x_yaw, x_v_yaw : %f, %f, %f", z(3), x_post(6), x_post(7));
+
+      RCLCPP_DEBUG(logger, "--------------------------------------\n");
       // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
       
       // // 计算卡尔曼增益

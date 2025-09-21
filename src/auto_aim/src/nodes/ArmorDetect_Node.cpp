@@ -101,7 +101,8 @@ public:
         delta_z_ = (*config_file_ptr)["delta_z_"].as<float>();
 
         RESET_DISTANCE_THRESHOLD = (*config_file_ptr)["RESET_DISTANCE_THRESHOLD"].as<float>(); 
-        MAX_LOST_TIME = (*config_file_ptr)["MAX_LOST_TIME"].as<float>(); 
+        ADJUST_DISTANCE_THRESHOLD = (*config_file_ptr)["ADJUST_DISTANCE_THRESHOLD"].as<float>(); 
+        ADJUST_LOST_TIME = (*config_file_ptr)["ADJUST_LOST_TIME"].as<float>(); 
 
         has_valid_target_ = false;
         enemy_color_ = (*config_file_ptr)["enemy_color"].as<std::string>();
@@ -619,7 +620,6 @@ private:
             } 
             
             if (!classifyResults.empty()) {
-                last_com_time = std::chrono::steady_clock::now();
                 // 选择最佳目标（置信度最高）
                 auto it = std::max_element(
                     classifyResults.begin(), classifyResults.end(),
@@ -660,14 +660,23 @@ private:
                             Eigen::Vector3d pred_armor_pos = tracker_->getArmorPosition();
                             double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2])).norm();
 
-                            if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
-                                if(best_result.number != current_target_id_) {
-                                    RCLCPP_WARN(this->get_logger(), "ID switched, resetting tracker.");
-                                } else {
-                                    RCLCPP_WARN(this->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
-                                }
+                            if(best_result.number != current_target_id_) {
+                                RCLCPP_WARN(this->get_logger(), "ID switched, resetting tracker.");
                                 tracker_->reset(z);
                                 current_target_id_ = best_result.number;
+                            } else if (position_diff > RESET_DISTANCE_THRESHOLD) {
+                                RCLCPP_WARN(this->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
+                                tracker_->reset(z);
+                                current_target_id_ = best_result.number;
+                            } else if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() 
+                                > ADJUST_LOST_TIME * 1000) {
+                                RCLCPP_WARN(this->get_logger(), "You are taking too long! adjust tracker.");
+                                tracker_->predict();
+                                tracker_->adjust(z);
+                            } else if (position_diff > ADJUST_DISTANCE_THRESHOLD) {
+                                RCLCPP_WARN(this->get_logger(), "Position jumped (%.f mm), adjust tracker.", position_diff);
+                                tracker_->predict();
+                                tracker_->adjust(z);
                             } else {
                                 tracker_->predict();
                                 tracker_->update(z);
@@ -688,8 +697,8 @@ private:
                         double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
                         double future_yaw = future_state(6), future_r = future_state(8);
                         cv::Point3f predicted_aim_pos(
-                            future_xc - future_r * sin(future_yaw),
-                            future_yc + future_r * cos(future_yaw),
+                            future_xc + future_r * sin(future_yaw),
+                            future_yc - future_r * cos(future_yaw),
                             future_zc 
                         );
 
@@ -854,6 +863,7 @@ private:
                             last_command_pitch_ = command_pitch;
                             last_command_yaw_ = command_yaw;
                             serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
+                            last_com_time = std::chrono::steady_clock::now();
 
                             RCLCPP_DEBUG(this->get_logger(),
                                 "Target %d: Position[%.2f, %.2f, %.2f] mm, "
@@ -937,9 +947,10 @@ private:
 
     // 配置参数
     // static constexpr float RESET_DISTANCE_THRESHOLD = 400.0f; // 单位：mm
-    // static constexpr float MAX_LOST_TIME = 0.5f;              // 单位：秒
+    // static constexpr float ADJUST_LOST_TIME = 0.5f;              // 单位：秒
     float RESET_DISTANCE_THRESHOLD; // 单位：mm
-    float MAX_LOST_TIME;              // 单位：秒
+    float ADJUST_DISTANCE_THRESHOLD;
+    float ADJUST_LOST_TIME;              // 单位：秒
     // 成员变量
     rclcpp::TimerBase::SharedPtr timer_;
     std::thread com_timer_thread_;
