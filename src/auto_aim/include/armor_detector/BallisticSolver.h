@@ -9,6 +9,8 @@
 #include <yaml-cpp/yaml.h>
 #include <rclcpp/rclcpp.hpp>
 #include <opencv2/opencv.hpp>
+#include <thread>
+#include <execution>
 
 // 结构体声明
 struct BallisticInfo {
@@ -75,6 +77,15 @@ private:
     };
     State computeAcceleration(const State& state, double drag_coeff, double air_density, 
                              double cross_section_area, double bullet_mass, double g);
+
+    struct alignas(64) StartCheckThreadInfo { // 64字节对齐
+        int thread_index;
+        float pitch;
+    };
+    struct alignas(64) RefineThreadInfo { // 64字节对齐
+        int thread_index;
+        RefineInfo refine_info;
+    };
 };
 
 #endif // BALLISTIC_SOLVER_H
