@@ -89,10 +89,10 @@ public:
     };
     // 注意顺序：左上开始逆时针
     return {
-        make(0, +w/2, +h/2),
-        make(0, +w/2, -h/2),
-        make(0, -w/2, -h/2),
-        make(0, -w/2, +h/2),
+        make(-w/2, -h/2, 0),
+        make(-w/2, h/2, 0),
+        make(w/2, h/2, 0),
+        make(w/2, -h/2, 0),
     };
 }
 

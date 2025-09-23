@@ -46,15 +46,19 @@ public:
   EdgeProjection(const Sophus::SO3d &R_camera_imu, const Sophus::SO3d &R_pitch,
                  const Eigen::Vector3d &t, const Eigen::Matrix3d &K);
   virtual void computeError() override;
-
   virtual bool read(std::istream &in) override { return true; }
   virtual bool write(std::ostream &out) const override { return true; }
+  
+  // 读出最近一次computeERROR中用到的“角点在相机系的3d坐标” （角点可视化点）
+  const Eigen::Vector2d& getLastUV() const {return last_uv_ ; }
+
 
 private:
   Sophus::SO3d R_camera_imu_;
   Sophus::SO3d R_pitch_;
   Eigen::Vector3d t_;
   Eigen::Matrix3d K_;
+  Eigen::Vector2d last_uv_{Eigen::Vector2d::Zero()};  // （角点可视化）
 };
 
 } // namespace fyt::auto_aim

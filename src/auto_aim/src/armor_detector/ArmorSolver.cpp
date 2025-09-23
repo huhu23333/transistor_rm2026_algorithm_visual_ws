@@ -100,7 +100,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
         };
 
         cv::Mat rvec, tvec;
-        bool solve_success = cv::solvePnP(armor_points_3d, armor.corners, 
+        bool solve_success = cv::solvePnP(armor_points_3d, armor_result.corners, 
                                         camera_matrix, dist_coeffs, 
                                         rvec, tvec, false, cv::SOLVEPNP_IPPE);
 
@@ -109,7 +109,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             RCLCPP_DEBUG(logger_p, "solvePnP success");
 
             result.yaw = getYawFromRvec(rvec); // <<--- 计算并填充yaw
-            RCLCPP_DEBUG(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
+            RCLCPP_INFO(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
 
             result.normal_euler_angles = getNormalYawPitchRollFromRvec(rvec);
             RCLCPP_DEBUG(logger_p, "NormalYawPitchRoll: (%.2f, %.2f, %.2f)", 
@@ -120,22 +120,29 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             cv::Rodrigues(rvec, rmat);
             Eigen::Matrix3d R = fyt::utils::cvToEigen(rmat);
 
-            // 现打印ba优化之前的yaw
-
+            // 现打印ba优化之前的参数
             auto rpy_before = ba_ -> rotationMatrixToRPY(R);
-            RCLCPP_DEBUG(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
-            RCLCPP_DEBUG(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
-            RCLCPP_DEBUG(logger_p, "roll before ba: %.2f" , rpy_before[2]);
+
+            RCLCPP_INFO(logger_p, "RPY before ba: (%.2f, %.2f, %.2f)" , rpy_before[2], rpy_before[0],rpy_before[1]);
+            // RCLCPP_INFO(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
+            // RCLCPP_INFO(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
+            // RCLCPP_INFO(logger_p, "roll before ba: %.2f" , rpy_before[2]);
 
             Eigen::Vector3d t = fyt::utils::cvToEigen(tvec);
 
             R = ba_-> solveBa(armor_result, t, R, R_imu_camera);
             // 将优化后的旋转矩阵转化为RPY
             auto rpy = ba_ -> rotationMatrixToRPY(R);
+
+            // 打印优化之后的参数
+            RCLCPP_INFO(logger_p, "RPY after ba: (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
+            // RCLCPP_INFO(logger_p, "pitch before ba: %.2f" , rpy[0]);
+            // RCLCPP_INFO(logger_p, "yaw before ba: %.2f" , rpy[1]);
+            // RCLCPP_INFO(logger_p, "roll before ba: %.2f" , rpy[2]);
             
             // 填充所有的result
             result.valid = true;
-            //result.yaw = rpy[2]; // <<--- 填充yaw
+            //result.yaw = rpy[2]; // <<--- 填充ba优化后的yaw
             result.position = cv::Point3f(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
             result.rvec = rvec.clone(); // <<--- 填充rvec
 

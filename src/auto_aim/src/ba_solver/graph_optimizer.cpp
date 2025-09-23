@@ -26,7 +26,8 @@ EdgeProjection::EdgeProjection(const Sophus::SO3d &R_camera_imu,
 void EdgeProjection::computeError() {
   // Get the rotation
   double yaw = static_cast<VertexYaw *>(_vertices[0])->estimate();
-  Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, 0, yaw));
+  // Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, 0, yaw));
+  Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, yaw, 0));    // 更改尝试11111111111111111111111111
   Sophus::SO3d R = R_camera_imu_ * R_yaw * R_pitch_;
 
   // Get the 3D point
@@ -36,12 +37,17 @@ void EdgeProjection::computeError() {
   // Get the observed 2D point
   Eigen::Vector2d obs(_measurement);
 
-  // Project the 3D point to the 2D point
-  Eigen::Vector3d p_2d = R * p_3d + t_;
-  p_2d = K_ * (p_2d / p_2d.z());
-
-  // Calculate the error
-  _error = obs - p_2d.head<2>();
+//  // Project the 3D point to the 2D point  
+//  Eigen::Vector3d p_2d = R * p_3d + t_;
+//  p_2d = K_ * (p_2d / p_2d.z());
+//  Calculate the error
+//  error = obs - p_2d.head<2>();
+   
+  // 代替上面的 g2o 内部真正用到的“角点在相机系 3D 坐标” （角点可视化）
+  Eigen::Vector3d p_cam = R * p_3d + t_;
+  const Eigen::Vector3d uvw = K_ * (p_cam / p_cam.z());
+  last_uv_ = uvw.head<2>();
+  _error = obs - last_uv_;
 }
 
 } // namespace fyt::auto_aim

@@ -42,9 +42,9 @@
 namespace fs = std::filesystem;
 
 
-#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
-//#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
-//#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
+// #define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+// #define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
+// #define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
 //#define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
 
@@ -629,6 +629,7 @@ private:
                         std::vector<float> rest_frame_euler_angles = rest_frame_ -> getWorldEulerAnglesFromCam(
                             aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]
                         );
+                        
 
                         // ========== EKF 逻辑 (9D模型修改) ==========
                         RCLCPP_INFO(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
