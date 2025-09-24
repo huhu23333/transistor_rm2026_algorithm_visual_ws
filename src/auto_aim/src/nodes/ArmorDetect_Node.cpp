@@ -42,7 +42,7 @@
 namespace fs = std::filesystem;
 
 
-#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
@@ -351,7 +351,7 @@ private:
         last_pitch_rad_ = current_pitch_;
         last_yaw_rad_ = current_yaw_;
 
-        RCLCPP_DEBUG(this->get_logger(), 
+        RCLCPP_INFO(this->get_logger(), 
             "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f",
             bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str(),
             yaw_circle_, total_yaw_rad_);
@@ -644,7 +644,7 @@ private:
                         );
 
                         // ========== EKF 逻辑 (9D模型修改) ==========
-                        RCLCPP_INFO(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
+                        RCLCPP_DEBUG(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
 
                         // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                         Tracker::Measurement z;
@@ -661,9 +661,9 @@ private:
 
                             if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
                                 if(best_result.number != current_target_id_) {
-                                    RCLCPP_WARN(this->get_logger(), "ID switched, resetting tracker.");
+                                    RCLCPP_DEBUG(this->get_logger(), "ID switched, resetting tracker.");
                                 } else {
-                                    RCLCPP_WARN(this->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
+                                    RCLCPP_DEBUG(this->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
                                 }
                                 tracker_->reset(z);
                                 current_target_id_ = best_result.number;
@@ -677,7 +677,7 @@ private:
                         constexpr float image_latency = 0.013f;
                         constexpr float comm_latency  = 0.010f;
                         float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                        float extra_time = 0.000f;
+                        float extra_time = 0.300f;
                         float total_delay = image_latency + comm_latency + bullet_time + extra_time;
 
                         // 获取提前预测后的机器人中心状态
@@ -888,7 +888,7 @@ private:
                     
                 }
             }
-            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
+            //drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
 #ifdef USE_PREDICTOR3D
             oscilloscope_fire_ -> update();
             oscilloscope_fire_ -> putText("period:"+std::to_string(predictor3d->getFourierPeriod()), cv::Point2f(500, 20), cv::Scalar(0, 255, 0), 0.7);
