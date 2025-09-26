@@ -1,4 +1,4 @@
-// PeriodicDataFitter.h
+// PeriodicDataPredictor.h
 #ifndef PERIODIC_DATA_FITTER_H
 #define PERIODIC_DATA_FITTER_H
 
@@ -8,10 +8,10 @@
 #include <stdexcept>
 #include <iostream>
 
-class PeriodicDataFitter {
+class PeriodicDataPredictor {
 public:
     // 构造函数，指定最大历史步数
-    PeriodicDataFitter(int max_history = 100);
+    PeriodicDataPredictor(int max_history = 100);
     
     // 添加新的数据点
     void addPoint(double point);

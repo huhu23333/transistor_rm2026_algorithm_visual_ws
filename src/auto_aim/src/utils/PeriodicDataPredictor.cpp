@@ -1,14 +1,14 @@
-// PeriodicDataFitter.cpp
-#include "utils/PeriodicDataFitter.h"
+// PeriodicDataPredictor.cpp
+#include "utils/PeriodicDataPredictor.h"
 
-PeriodicDataFitter::PeriodicDataFitter(int max_history) 
+PeriodicDataPredictor::PeriodicDataPredictor(int max_history) 
     : max_history_(max_history) {
     if (max_history <= 0) {
         throw std::invalid_argument("max_history must be positive");
     }
 }
 
-void PeriodicDataFitter::addPoint(double point) {
+void PeriodicDataPredictor::addPoint(double point) {
     history_.push_back(point);
     point_count_++;
     
@@ -20,7 +20,7 @@ void PeriodicDataFitter::addPoint(double point) {
     coefficients_dirty_ = true;
 }
 
-void PeriodicDataFitter::setPeriod(int period) {
+void PeriodicDataPredictor::setPeriod(int period) {
     if (period <= 0) {
         period_ = 1;
     }
@@ -28,11 +28,11 @@ void PeriodicDataFitter::setPeriod(int period) {
     coefficients_dirty_ = true;
 }
 
-int PeriodicDataFitter::getPeriod() const {
+int PeriodicDataPredictor::getPeriod() const {
     return period_;
 }
 
-double PeriodicDataFitter::smooth(int time_index) const {
+double PeriodicDataPredictor::smooth(int time_index) const {
     if (history_.empty()) {
         return 0.0;
     }
@@ -52,12 +52,12 @@ double PeriodicDataFitter::smooth(int time_index) const {
     return a0_ + a1_ * std::cos(2 * M_PI * t / period_) + b1_ * std::sin(2 * M_PI * t / period_);
 }
 
-bool PeriodicDataFitter::isRising(int time_index, double compare_threshold) const {
+bool PeriodicDataPredictor::isRising(int time_index, double compare_threshold) const {
     // 计算导数并判断是否大于0
     return computeDerivative(time_index) / std::sqrt(a1_ * a1_ + b1_ * b1_) > compare_threshold;
 }
 
-bool PeriodicDataFitter::isUpper(int time_index, double compare_threshold) const {
+bool PeriodicDataPredictor::isUpper(int time_index, double compare_threshold) const {
     // 计算相位是否为正半周期
     if (history_.empty() || period_ <= 0) {
         return 0.0;
@@ -78,21 +78,21 @@ bool PeriodicDataFitter::isUpper(int time_index, double compare_threshold) const
     return (a1_ * omega * std::cos(omega * t) + b1_ * omega * std::sin(omega * t)) / std::sqrt(a1_ * a1_ + b1_ * b1_) > compare_threshold;
 }
 
-double PeriodicDataFitter::getA0() const {
+double PeriodicDataPredictor::getA0() const {
     return a0_;
 }
 
-void PeriodicDataFitter::clearHistory() {
+void PeriodicDataPredictor::clearHistory() {
     history_.clear();
     point_count_ = 0;
     coefficients_dirty_ = true;
 }
 
-int PeriodicDataFitter::getPointCount() const {
+int PeriodicDataPredictor::getPointCount() const {
     return point_count_;
 }
 
-void PeriodicDataFitter::computeFourierCoefficients() const {
+void PeriodicDataPredictor::computeFourierCoefficients() const {
     if (history_.empty()) {
         a0_ = 0.0;
         a1_ = 0.0;
@@ -126,7 +126,7 @@ void PeriodicDataFitter::computeFourierCoefficients() const {
     coefficients_dirty_ = false;
 }
 
-double PeriodicDataFitter::computeDerivative(int time_index) const {
+double PeriodicDataPredictor::computeDerivative(int time_index) const {
     if (history_.empty() || period_ <= 0) {
         return 0.0;
     }

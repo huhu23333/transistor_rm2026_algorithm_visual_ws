@@ -36,7 +36,7 @@
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
 #include "test_codes/DataVisualizer.h"
-#include "utils/PeriodicDataFitter.h"
+#include "utils/PeriodicDataPredictor.h"
 #include "utils/SimpleDataFilter.h"
 
 namespace fs = std::filesystem;
@@ -245,15 +245,15 @@ public:
         oscilloscope_common_ -> setScale(1.0);
         oscilloscope_common_ -> setOffset(-0.5);
 
-        fire_data_fitter_ = std::make_shared<PeriodicDataFitter>(predictor3d_fit_step);
-        fire_data_fitter_ -> setPeriod(1);
+        fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(predictor3d_fit_step);
+        fire_data_predictor_ -> setPeriod(1);
         pred_fire_data_filter_ = std::make_shared<SimpleDataFilter>(1);
         pred_fire_data_filter_ -> setExponentialAlpha((*config_file_ptr)["pred_fire_data_smooth_factor"].as<float>());
         pred_fire_data_filter_ -> addPoint(0.0);
 
         armor_distance_filter_ = std::make_shared<SimpleDataFilter>(1);
         armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
-        armor_distance_filter_ -> addPoint(0.0);
+        //armor_distance_filter_ -> addPoint(0.0);
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
@@ -569,8 +569,9 @@ private:
                 	serial_communication_->sendData(0, 0, false);
                 	pitch_integration = 0; // 积分项重置
                 	predictor3d -> clearHistory(); 
-                    fire_data_fitter_ -> clearHistory();
+                    fire_data_predictor_ -> clearHistory();
                     pred_fire_data_filter_ -> clearHistory();
+                    armor_distance_filter_ -> clearHistory();
                 } else {
                     pred_fire_data_filter_ -> addPoint(0.0);
                     fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
@@ -609,8 +610,8 @@ private:
                     cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                     cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
 
-                    fire_data_fitter_ -> setPeriod(predictor3d->getFourierPeriod());
-                    fire_data_fitter_ -> addPoint(0.0);
+                    fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
+                    fire_data_predictor_ -> addPoint(0.0);
 #endif
                 }
 #ifdef USE_PREDICTOR3D
@@ -800,9 +801,9 @@ private:
                         predicted_armor_pos.y = pnp_armor_pos_pred[1];
                         predicted_armor_pos.z = pnp_armor_pos_pred[2];
 
-                        fire_data_fitter_ -> setPeriod(predictor3d->getFourierPeriod());
-                        fire_data_fitter_ -> addPoint(armor_near_flag);
-                        pred_fire_data_filter_ -> addPoint(fire_data_fitter_ -> isUpper(predictor3dPrediction_indexToAim, 0.0) || fire_data_fitter_ -> getA0() > 0.8);
+                        fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
+                        fire_data_predictor_ -> addPoint(armor_near_flag);
+                        pred_fire_data_filter_ -> addPoint(fire_data_predictor_ -> isUpper(predictor3dPrediction_indexToAim, 0.0) || fire_data_predictor_ -> getA0() > 0.8);
                         fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
                         //oscilloscope_fire_ -> addDataPoint(pred_fire_data_filter_ -> getExponentialValue());
 #endif
@@ -880,8 +881,8 @@ private:
                             // 绘制装甲板预测点（蓝色）
                             cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
                             oscilloscope_fire_ -> addDataPoint(fire_flag);
-                            //oscilloscope_fire_ -> addDataPoint(fire_data_fitter_ -> smooth(0));
-                            //oscilloscope_fire_ -> addDataPoint(fire_data_fitter_ -> isRising(0));
+                            //oscilloscope_fire_ -> addDataPoint(fire_data_predictor_ -> smooth(0));
+                            //oscilloscope_fire_ -> addDataPoint(fire_data_predictor_ -> isRising(0));
 #endif
                         }
                     }
@@ -953,7 +954,7 @@ private:
     std::shared_ptr<Trans2DPredTo3DClass> trans_pred_;
     std::shared_ptr<RestFrame> rest_frame_;
     std::shared_ptr<Oscilloscope> oscilloscope_fire_;
-    std::shared_ptr<PeriodicDataFitter> fire_data_fitter_;
+    std::shared_ptr<PeriodicDataPredictor> fire_data_predictor_;
     std::shared_ptr<SimpleDataFilter> pred_fire_data_filter_;
     
     std::shared_ptr<Oscilloscope> oscilloscope_common_;
