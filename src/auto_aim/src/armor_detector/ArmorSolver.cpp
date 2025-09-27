@@ -79,7 +79,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
     
     // 计算相机到水平系的旋转矩阵
     Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(0, last_pitch_rad_, last_yaw_rad_));
-    
+    RCLCPP_INFO(logger_p, "\ncamera yaw&pitch : (%.2f, %.2f)" , last_pitch_rad_, last_yaw_rad_);
 
     try {
         bool is_large_armor = armor_result.is_large;
@@ -123,7 +123,8 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             // 现打印ba优化之前的参数
             auto rpy_before = ba_ -> rotationMatrixToRPY(R);
 
-            RCLCPP_INFO(logger_p, "\nRPY PNP: (%.2f, %.2f, %.2f)" , result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
+            RCLCPP_DEBUG(logger_p, "\nRPY PNP: (%.2f, %.2f, %.2f)" , result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
+            RCLCPP_INFO(logger_p, "\nRPY PNP: (%.2f, %.2f, %.2f)" , rpy_before[0], rpy_before[1], rpy_before[2]);
             // RCLCPP_INFO(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
             // RCLCPP_INFO(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
             // RCLCPP_INFO(logger_p, "roll before ba: %.2f" , rpy_before[2]);

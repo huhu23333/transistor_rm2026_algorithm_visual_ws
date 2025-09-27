@@ -61,7 +61,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   double armor_pitch =
       armor.number == 6 ? -0.2617994 : 0.2617994; //
   // Sophus::SO3d R_pitch = Sophus::SO3d::exp(Eigen::Vector3d(0, armor_pitch, 0));
-  Sophus::SO3d R_pitch = Sophus::SO3d::exp(Eigen::Vector3d(-armor_pitch, 0, 0));            // 更改尝试11111111111111
+  Sophus::SO3d R_pitch = Sophus::SO3d::exp(Eigen::Vector3d(armor_pitch, 0, 0));            // 更改尝试11111111111111 ；这里的-1换到后面去了
 
 
   // Get the 3D points of the armor
@@ -114,7 +114,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   for (int i = 0; i < 4; ++i) {
     const auto& uv_pred = edges[i]->getLastUV();
     const auto& uv_obs  = armor.corners[i];
-    RCLCPP_INFO(logger_b, "[BEFORE] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
+    RCLCPP_DEBUG(logger_b, "[BEFORE] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
                 i, uv_pred.x(), uv_pred.y(), i, uv_obs.x, uv_obs.y);
   }
 
@@ -133,7 +133,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   for (int i = 0; i < 4; ++i) {
     const auto& uv_pred = edges[i]->getLastUV();
     const auto& uv_obs  = armor.corners[i];
-    RCLCPP_INFO(logger_b, "[AFTER ] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
+    RCLCPP_DEBUG(logger_b, "[AFTER ] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
                 i, uv_pred.x(), uv_pred.y(), i, uv_obs.x, uv_obs.y);
   }
 
