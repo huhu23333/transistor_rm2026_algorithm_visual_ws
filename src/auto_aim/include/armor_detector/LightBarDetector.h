@@ -33,9 +33,9 @@ public:
 
     /**
      * @brief 在输入图像中检测灯条
-     * @param images 输入图像vector
+     * @param images 输入图像
      */
-    void detectLights(const std::vector<cv::Mat>& images);
+    void detectLights(cv::Mat& images);
 
     /**
      * @brief 处理检测到的灯条（过滤和更新）

@@ -42,7 +42,7 @@
 namespace fs = std::filesystem;
 
 
-#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
@@ -547,7 +547,7 @@ private:
             std::vector<std::vector<ArmorResult>> classifyResults_expanded;
 
             // 检测灯条
-            light_detector_->detectLights({frame});
+            light_detector_->detectLights(frame);
             light_detector_->processLights();
             lights = light_detector_->getLights();
             
@@ -646,13 +646,14 @@ private:
                         std::vector<float> rest_frame_euler_angles = rest_frame_ -> getWorldEulerAnglesFromCam(
                             aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]
                         );
+                        RCLCPP_DEBUG(this->get_logger(), "camera euler angles: yaw=%.2f, pitch=%.2f, roll=%.2f", aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]);
 
                         // ========== EKF 逻辑 (9D模型修改) ==========
-                        RCLCPP_DEBUG(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
+                        RCLCPP_DEBUG(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], rest_frame_euler_angles[0]);
 
                         // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                         Tracker::Measurement z;
-                        z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw;
+                        z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], rest_frame_euler_angles[0];
 
                         // 2. EKF 状态机逻辑
                         if (tracker_->state == Tracker::LOST) {
@@ -745,7 +746,7 @@ private:
                         // );
                         
 
-                        RCLCPP_DEBUG(this->get_logger(), "yaw: %.2f" , aim.yaw );
+                        RCLCPP_DEBUG(this->get_logger(), "yaw: %.2f" , rest_frame_euler_angles[0] );
                         RCLCPP_DEBUG(this->get_logger(), "distance: %.2f" , aim.distance );
                         RCLCPP_DEBUG(this->get_logger(), "position: (%.2f, %.2f, %.2f)" , aim.position.x, aim.position.y, aim.position.z);
                         RCLCPP_DEBUG(this->get_logger(), "Future armor pos: (%.2f, %.2f, %.2f)",

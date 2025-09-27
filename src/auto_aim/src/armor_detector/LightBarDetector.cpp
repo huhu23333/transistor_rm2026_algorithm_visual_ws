@@ -20,24 +20,9 @@ void Light::calculateDimensions() {
     // 2. 计算长宽（确保length始终为较长边）
     length = el.size.height;
     width = el.size.width;
-    
-    // 3. 计算顶部和底部点
-    cv::Point2f vertices[4];
-    el.points(vertices);
-    
-    // 将四个顶点按y坐标排序
-    std::vector<cv::Point2f> vertexVec(vertices, vertices + 4);
-    std::sort(vertexVec.begin(), vertexVec.end(), 
-        [](const cv::Point2f& a, const cv::Point2f& b) {
-            return a.y < b.y;
-        });
-    
-    // 取最上和最下的点
-    top = vertexVec[0];
-    bottom = vertexVec[3];
 }
 
-void Light::correctLength(const cv::Mat& binary_img) {
+/* void Light::correctLength(const cv::Mat& binary_img) {
     float sum_value_target = computeRotatedRectSum(el, binary_img) * 0.99;
     // 二分查找使旋转矩形内二值图像总值下降为原来0.99倍的长度
     int binarySearchFrequency = 10; // 二分查找次数
@@ -58,7 +43,7 @@ void Light::correctLength(const cv::Mat& binary_img) {
     try_ratio = (upper_ratio + lower_ratio) * 0.5;
     length = length_original * try_ratio;
     el.size.height = length;
-}
+} */
 
 // 高效计算旋转矩形内白色像素面积的辅助函数
 float Light::computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& binary_img) {
@@ -101,6 +86,158 @@ float Light::computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& b
     float sum_value = cv::sum(masked)[0];
 
     return sum_value;
+}
+
+void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
+    // 原始面积
+    float original_sum = computeRotatedRectSum(el, binary_img);
+    float sum_value_target = original_sum * 0.95;
+    
+    // 保存原始参数
+    float length_original = length;
+    float width_original = width;
+    cv::Point2f center_original = el.center;
+    float angle_normal = el.angle + 90.0;
+    
+    // 二分查找参数
+    int binarySearchFrequency = 10;
+    
+    // 1. 分别优化长度方向的两端
+    float front_ratio = 1.0f;  // 前端收缩比例
+    float back_ratio = 1.0f;   // 后端收缩比例
+    
+    // 优化前端（沿着长度方向的正面）
+    float upper_front = 1.0f;
+    float lower_front = 0.5f;
+    for (int i = 0; i < binarySearchFrequency; i++) {
+        front_ratio = (upper_front + lower_front) * 0.5f;
+        
+        // 只收缩前端，保持后端不变
+        cv::RotatedRect test_rect = el;
+        float new_length = length_original * front_ratio;
+        
+        // 计算新的中心点（前端收缩，中心点向后移动）
+        double angle_rad = angle_normal * CV_PI / 180.0;
+        cv::Point2f direction(std::cos(angle_rad), std::sin(angle_rad));
+        cv::Point2f length_offset = direction * (length_original - new_length) * 0.5f;
+        
+        test_rect.center = center_original - length_offset;
+        test_rect.size.height = new_length;
+        
+        float sum_value = computeRotatedRectSum(test_rect, binary_img);
+        
+        if (sum_value > sum_value_target) {
+            upper_front = front_ratio;
+        } else {
+            lower_front = front_ratio;
+        }
+    }
+    front_ratio = (upper_front + lower_front) * 0.5f;
+    
+    // 优化后端（沿着长度方向的背面）
+    float upper_back = 1.0f;
+    float lower_back = 0.5f;
+    for (int i = 0; i < binarySearchFrequency; i++) {
+        back_ratio = (upper_back + lower_back) * 0.5f;
+        
+        cv::RotatedRect test_rect = el;
+        float new_length = length_original * back_ratio;
+        
+        // 计算新的中心点（后端收缩，中心点向前移动）
+        double angle_rad = angle_normal * CV_PI / 180.0;
+        cv::Point2f direction(std::cos(angle_rad), std::sin(angle_rad));
+        cv::Point2f length_offset = direction * (length_original - new_length) * 0.5f;
+        
+        test_rect.center = center_original + length_offset;
+        test_rect.size.height = new_length;
+        
+        float sum_value = computeRotatedRectSum(test_rect, binary_img);
+        
+        if (sum_value > sum_value_target) {
+            upper_back = back_ratio;
+        } else {
+            lower_back = back_ratio;
+        }
+    }
+    back_ratio = (upper_back + lower_back) * 0.5f;
+    
+    // 2. 分别优化宽度方向的两侧
+    float left_ratio = 1.0f;   // 左侧收缩比例
+    float right_ratio = 1.0f;  // 右侧收缩比例
+    
+    // 优化左侧（垂直于长度方向的左侧）
+    float upper_left = 1.0f;
+    float lower_left = 0.5f;
+    for (int i = 0; i < binarySearchFrequency; i++) {
+        left_ratio = (upper_left + lower_left) * 0.5f;
+        
+        cv::RotatedRect test_rect = el;
+        float new_width = width_original * left_ratio;
+        
+        // 计算新的中心点（左侧收缩，中心点向右移动）
+        double angle_rad = (angle_normal + 90) * CV_PI / 180.0;  // 垂直方向
+        cv::Point2f direction(std::cos(angle_rad), std::sin(angle_rad));
+        cv::Point2f width_offset = direction * (width_original - new_width) * 0.5f;
+        
+        test_rect.center = center_original - width_offset;
+        test_rect.size.width = new_width;
+        
+        float sum_value = computeRotatedRectSum(test_rect, binary_img);
+        
+        if (sum_value > sum_value_target) {
+            upper_left = left_ratio;
+        } else {
+            lower_left = left_ratio;
+        }
+    }
+    left_ratio = (upper_left + lower_left) * 0.5f;
+    
+    // 优化右侧（垂直于长度方向的右侧）
+    float upper_right = 1.0f;
+    float lower_right = 0.5f;
+    for (int i = 0; i < binarySearchFrequency; i++) {
+        right_ratio = (upper_right + lower_right) * 0.5f;
+        
+        cv::RotatedRect test_rect = el;
+        float new_width = width_original * right_ratio;
+        
+        // 计算新的中心点（右侧收缩，中心点向左移动）
+        double angle_rad = (angle_normal + 90) * CV_PI / 180.0;  // 垂直方向
+        cv::Point2f direction(std::cos(angle_rad), std::sin(angle_rad));
+        cv::Point2f width_offset = direction * (width_original - new_width) * 0.5f;
+        
+        test_rect.center = center_original + width_offset;
+        test_rect.size.width = new_width;
+        
+        float sum_value = computeRotatedRectSum(test_rect, binary_img);
+        
+        if (sum_value > sum_value_target) {
+            upper_right = right_ratio;
+        } else {
+            lower_right = right_ratio;
+        }
+    }
+    right_ratio = (upper_right + lower_right) * 0.5f;
+    
+    // 3. 应用最终的优化结果
+    // 计算平均收缩比例并应用
+    float final_length_ratio = (front_ratio + back_ratio - 1.0);
+    float final_width_ratio = (left_ratio + right_ratio - 1.0);
+    
+    length = length_original * final_length_ratio;
+    width = width_original * final_width_ratio;
+    
+    // 计算最终的中心点偏移（综合考虑两端收缩）
+    double angle_rad = angle_normal * CV_PI / 180.0;
+    cv::Point2f length_direction(std::cos(angle_rad), std::sin(angle_rad));
+    cv::Point2f width_direction(std::cos(angle_rad + CV_PI/2), std::sin(angle_rad + CV_PI/2));
+    
+    cv::Point2f length_offset = length_direction * (length_original * (back_ratio - front_ratio) * 0.5f);
+    cv::Point2f width_offset = width_direction * (width_original * (right_ratio - left_ratio) * 0.5f);
+    
+    el.center = center_original - length_offset - width_offset;
+    el.size.height = length;
+    el.size.width = width;
 }
 
 /************************* LightBarDetector类实现 *************************/
@@ -192,91 +329,88 @@ float LightBarDetector::calculateAccurateAngleByPCA(const cv::Mat& binaryImg, co
     return static_cast<float>(angle);
 }
 
-void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
+void LightBarDetector::detectLights(cv::Mat& img) {
     lights.clear();  // 清除上一帧的检测结果
-    
-    // 处理每一帧图像
-    for (const auto& img : images) {
 
-        // 1. 提取二值化图片
-        cv::Mat binary_img = binaryImg(img);
-        // cv::imshow("Light Bar Debug", binary_img);
+    // 1. 提取二值化图片
+    cv::Mat binary_img = binaryImg(img);
+    // cv::imshow("Light Bar Debug", binary_img);
 
-        // 2. 检测可能的灯条
-        std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);
+    // 2. 检测可能的灯条
+    std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);
 
-        // 3. 移除颜色错误的灯条，只保留目标颜色的灯条
+    // 3. 移除颜色错误的灯条，只保留目标颜色的灯条
 
-        // 进行多线程优化
-        int lightRectsNum = detectedRects.size();
-        std::vector<LightDetectThreadInfo> lightDetectThreadInfos(lightRectsNum);
-        for (size_t i = 0; i < lightRectsNum; ++i) {
-            lightDetectThreadInfos[i].lightRect = &detectedRects[i];
-        }
+    // 进行多线程优化
+    int lightRectsNum = detectedRects.size();
+    std::vector<LightDetectThreadInfo> lightDetectThreadInfos(lightRectsNum);
+    for (size_t i = 0; i < lightRectsNum; ++i) {
+        lightDetectThreadInfos[i].lightRect = &detectedRects[i];
+    }
 
-        cv::Mat color_diff;
+    cv::Mat color_diff;
+    if (enemy_color != Params::BOTH) {
+        // 1. 提取颜色通道差值图像
+        color_diff = extractColorChannelDiff(img);
+        // cv::imshow("Light Bar Debug", color_diff);
+    }
+
+    std::for_each(std::execution::par, lightDetectThreadInfos.begin(), lightDetectThreadInfos.end(), 
+    [&](LightDetectThreadInfo& lightDetectThreadInfo) {
+
+        cv::RotatedRect& rect = *lightDetectThreadInfo.lightRect;
+                
         if (enemy_color != Params::BOTH) {
-            // 1. 提取颜色通道差值图像
-            color_diff = extractColorChannelDiff(img);
-            // cv::imshow("Light Bar Debug", color_diff);
+            // 2. 获取扩张后的旋转矩形
+            cv::RotatedRect expandedRect = rectExpand(rect, color_rect_expand_FACTOR);
+
+            // 3. 获取矩形范围内通道差值图像的均值
+            float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
+
+            // 4. 移除小于阈值的图像
+            RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
+            float mean_color_diff_THRESHOLD;
+            if (params.enemy_color == Params::BLUE) {
+                mean_color_diff_THRESHOLD = mean_color_diff_THRESHOLD_BLUE;
+            } else {
+                mean_color_diff_THRESHOLD = mean_color_diff_THRESHOLD_RED;
+            }
+            if (mean_color_diff < mean_color_diff_THRESHOLD) {
+                lightDetectThreadInfo.is_true_light = false;
+                return;
+            }
         }
 
-        std::for_each(std::execution::par, lightDetectThreadInfos.begin(), lightDetectThreadInfos.end(), 
-        [&](LightDetectThreadInfo& lightDetectThreadInfo) {
+        // 将Light::calculateDimensions的方向纠正迁移至此
+        // 1. 计算角度并标准化到[-90, 90]
+        if (rect.size.width > rect.size.height) {
+            rect.angle += 90;  // 确保角度始终表示长边的方向
+        }
+        while (rect.angle > 90) rect.angle -= 180;
+        while (rect.angle < -90) rect.angle += 180;
 
-            cv::RotatedRect& rect = *lightDetectThreadInfo.lightRect;
-                    
-            if (enemy_color != Params::BOTH) {
-                // 2. 获取扩张后的旋转矩形
-                cv::RotatedRect expandedRect = rectExpand(rect, color_rect_expand_FACTOR);
+        // 2. 计算长宽（确保length始终为较长边）
+        float length = std::max(rect.size.width, rect.size.height);
+        float width = std::min(rect.size.width, rect.size.height);
+        rect.size.height = length;
+        rect.size.width = width;
 
-                // 3. 获取矩形范围内通道差值图像的均值
-                float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
+        // 2.5. 使用PCA修正角度
+        rect.angle = calculateAccurateAngleByPCA(binary_img, rect);
 
-                // 4. 移除小于阈值的图像
-                RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
-                float mean_color_diff_THRESHOLD;
-                if (params.enemy_color == Params::BLUE) {
-                    mean_color_diff_THRESHOLD = mean_color_diff_THRESHOLD_BLUE;
-                } else {
-                    mean_color_diff_THRESHOLD = mean_color_diff_THRESHOLD_RED;
-                }
-                if (mean_color_diff < mean_color_diff_THRESHOLD) {
-                    lightDetectThreadInfo.is_true_light = false;
-                    return;
-                }
-            }
-
-            // 将Light::calculateDimensions的方向纠正迁移至此
-            // 1. 计算角度并标准化到[-90, 90]
-            if (rect.size.width > rect.size.height) {
-                rect.angle += 90;  // 确保角度始终表示长边的方向
-            }
-            while (rect.angle > 90) rect.angle -= 180;
-            while (rect.angle < -90) rect.angle += 180;
-
-            // 2. 计算长宽（确保length始终为较长边）
-            float length = std::max(rect.size.width, rect.size.height);
-            float width = std::min(rect.size.width, rect.size.height);
-            rect.size.height = length;
-            rect.size.width = width;
-
-            // 2.5. 使用PCA修正角度
-            rect.angle = calculateAccurateAngleByPCA(binary_img, rect);
-
-            // 4. 将检测到的旋转矩形转换为Light对象
-            lightDetectThreadInfo.light = Light(rect);
-            // 5. 修正在拟合旋转矩形时造成的长度误差
-            lightDetectThreadInfo.light.correctLength(binary_img);
-        });
-        
-        // 统计结果
-        for (const auto& lightDetectThreadInfo : lightDetectThreadInfos) {
-            if (lightDetectThreadInfo.is_true_light) {
-                lights.push_back(lightDetectThreadInfo.light);
-            }
+        // 4. 将检测到的旋转矩形转换为Light对象
+        lightDetectThreadInfo.light = Light(rect);
+        // 5. 修正在拟合旋转矩形时造成的长度误差
+        lightDetectThreadInfo.light.correctLengthAndWidth(binary_img);
+    });
+    
+    // 统计结果
+    for (const auto& lightDetectThreadInfo : lightDetectThreadInfos) {
+        if (lightDetectThreadInfo.is_true_light) {
+            lights.push_back(lightDetectThreadInfo.light);
         }
     }
+    //cv::cvtColor(binary_img, img, cv::COLOR_GRAY2BGR);
 }
 
 cv::Mat LightBarDetector::binaryImg(const cv::Mat& img) {
