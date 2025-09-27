@@ -23,9 +23,90 @@ void PeriodicDataPredictor::addPoint(double point) {
 void PeriodicDataPredictor::setPeriod(int period) {
     if (period <= 0) {
         period_ = 1;
+    } else {
+        period_ = period;
     }
-    period_ = period;
     coefficients_dirty_ = true;
+}
+
+
+std::vector<double> PeriodicDataPredictor::computeModifiedACF() const {
+    int n = history_.size();
+    if (n == 0) return {};
+    
+    double history_mean = std::accumulate(history_.begin(), history_.end(), 0.0) / n;
+    double denominator = 0.0;
+    for (double r : history_) {
+        denominator += (r - history_mean) * (r - history_mean);
+    }
+    
+    if (denominator == 0) {
+        return std::vector<double>(n / 2 + 1, 0.0);
+    }
+    
+    int max_lag = static_cast<int>(n * 0.8);
+    std::vector<double> modified_acf(max_lag + 1);
+    
+    for (int k = 0; k <= max_lag; k++) {
+        double numerator = 0.0;
+        if (k == 0) {
+            for (int t = 0; t < n; t++) {
+                numerator += (history_[t] - history_mean) * (history_[t] - history_mean);
+            }
+            numerator /= n;
+        } else {
+            for (int t = 0; t < n - k; t++) {
+                numerator += (history_[t] - history_mean) * (history_[t + k] - history_mean);
+            }
+            numerator /= (n - k);
+        }
+        modified_acf[k] = numerator / denominator;
+    }
+    
+    return modified_acf;
+}
+
+void PeriodicDataPredictor::autoFindPeriod() {
+    std::vector<double> modified_acf = computeModifiedACF();
+
+    if (modified_acf.size() < 2) {
+        period_ = 1;
+        return;  // 直接返回，避免后续访问
+    }
+    
+    int max_k = 1;
+    double max_value = modified_acf[1];
+    double last_modified_acf = modified_acf[1];
+    
+    // 寻找第一个下降点
+    for (int k = 2; k < static_cast<int>(modified_acf.size() / 2); k++) {
+        if (modified_acf[k] < 0) {
+            max_k = k;
+            max_value = modified_acf[k];
+            last_modified_acf = modified_acf[k];
+            break;
+        }
+    }
+    
+    bool modified_acf_updating = false;
+    for (int k = max_k + 1; k < static_cast<int>(modified_acf.size()); k++) {
+        if ((modified_acf[k] > max_value * 3.0) || (modified_acf_updating && modified_acf[k] > max_value * 0.8)) {
+            if (modified_acf[k] > last_modified_acf) {
+                modified_acf_updating = true;
+            }
+            if (modified_acf[k] > max_value) {
+                max_value = modified_acf[k];
+                max_k = k;
+            }
+        }
+        if (modified_acf[k] < last_modified_acf * 0.8) {
+            modified_acf_updating = false;
+            //break;
+        }
+        last_modified_acf = modified_acf[k];
+    }
+    
+    period_ = max_k;
 }
 
 int PeriodicDataPredictor::getPeriod() const {

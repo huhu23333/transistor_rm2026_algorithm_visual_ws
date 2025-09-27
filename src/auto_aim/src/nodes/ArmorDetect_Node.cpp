@@ -205,7 +205,9 @@ public:
         predictor3d_fit_step = (*config_file_ptr)["predictor3d_fit_step"].as<int>();
         predictor3d_predict_step = (*config_file_ptr)["predictor3d_predict_step"].as<int>();
         predictor3d_fourier_fit_order = (*config_file_ptr)["predictor3d_fourier_fit_order"].as<int>();
-        predictor3d_fire_distance = (*config_file_ptr)["predictor3d_fire_distance"].as<float>();
+
+        fire_distance = (*config_file_ptr)["fire_distance"].as<float>();
+        fire_data_predictor_fit_step = (*config_file_ptr)["fire_data_predictor_fit_step"].as<int>();
 
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -245,7 +247,7 @@ public:
         oscilloscope_common_ -> setScale(2.0);
         oscilloscope_common_ -> setOffset(-1.0);
 
-        fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(predictor3d_fit_step);
+        fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(fire_data_predictor_fit_step);
         fire_data_predictor_ -> setPeriod(1);
         pred_fire_data_filter_ = std::make_shared<SimpleDataFilter>(1);
         pred_fire_data_filter_ -> setExponentialAlpha((*config_file_ptr)["pred_fire_data_smooth_factor"].as<float>());
@@ -610,7 +612,8 @@ private:
                     cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                     cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
 
-                    fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
+                    //fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
+                    fire_data_predictor_ -> autoFindPeriod();
                     fire_data_predictor_ -> addPoint(0.0);
 #endif
                 }
@@ -789,7 +792,7 @@ private:
                         RCLCPP_DEBUG(this->get_logger(), "bullet_nearest_point: (%.2f, %.2f, %.2f)",
                                     bullet_nearest_point.x, bullet_nearest_point.y, bullet_nearest_point.z);
 
-                        bool armor_near_flag = cv::norm(bullet_nearest_point - rest_frame_pos_Point3f) < predictor3d_fire_distance; // todo
+                        bool armor_near_flag = cv::norm(bullet_nearest_point - rest_frame_pos_Point3f) < fire_distance; // todo
 
                         //oscilloscope_fire_ -> addDataPoint(cv::norm(bullet_nearest_point - predicted_armor_pos)/400);
 
@@ -801,7 +804,8 @@ private:
                         predicted_armor_pos.y = pnp_armor_pos_pred[1];
                         predicted_armor_pos.z = pnp_armor_pos_pred[2];
 
-                        fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
+                        //fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
+                        fire_data_predictor_ -> autoFindPeriod();
                         fire_data_predictor_ -> addPoint(armor_near_flag);
                         pred_fire_data_filter_ -> addPoint(fire_data_predictor_ -> isUpper(predictor3dPrediction_indexToAim, 0.0) || fire_data_predictor_ -> getA0() > 0.8);
                         fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
@@ -900,7 +904,8 @@ private:
             drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
 #ifdef USE_PREDICTOR3D
             oscilloscope_fire_ -> update();
-            oscilloscope_fire_ -> putText("period:"+std::to_string(predictor3d->getFourierPeriod()), cv::Point2f(500, 20), cv::Scalar(0, 255, 0), 0.7);
+            oscilloscope_fire_ -> putText("period_3d:"+std::to_string(predictor3d->getFourierPeriod()), cv::Point2f(240, 20), cv::Scalar(0, 255, 0), 0.7);
+            oscilloscope_fire_ -> putText("period_fire:"+std::to_string(fire_data_predictor_->getPeriod()), cv::Point2f(440, 20), cv::Scalar(0, 255, 0), 0.7);
             oscilloscope_fire_ -> show();
 #endif
             oscilloscope_common_ -> update();
@@ -1016,11 +1021,12 @@ private:
     int predictor3d_fit_step;
     int predictor3d_predict_step;
     int predictor3d_fourier_fit_order;
-    float predictor3d_fire_distance;
+    float fire_distance;
     cv::Point2f last_aim_yaw_pitch_;
     cv::Point2f last_aim_yaw_pitch_pixel_;
     float last_command_pitch_;
     float last_command_yaw_;
+    int fire_data_predictor_fit_step;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

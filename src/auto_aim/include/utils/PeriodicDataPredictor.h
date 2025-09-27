@@ -40,6 +40,8 @@ public:
     // 获取添加点的计数
     int getPointCount() const;
     
+    void autoFindPeriod();
+    
 private:
     // 计算傅里叶系数
     void computeFourierCoefficients() const;
@@ -58,6 +60,8 @@ private:
     mutable double b1_ = 0.0;
     
     mutable bool coefficients_dirty_ = true; // 标记系数是否需要重新计算
+
+    std::vector<double> computeModifiedACF() const;
 };
 
 #endif // PERIODIC_DATA_FITTER_H

@@ -496,7 +496,7 @@ std::vector<double> PositionPredictor3D::computeModifiedACF(const std::vector<do
     if (n == 0) return {};
     
     double residual_mean = std::accumulate(residual.begin(), residual.end(), 0.0) / n;
-    double denominator = 0.0;
+    /* double denominator = 0.0;
     for (double r : residual) {
         denominator += (r - residual_mean) * (r - residual_mean);
     }
@@ -505,7 +505,7 @@ std::vector<double> PositionPredictor3D::computeModifiedACF(const std::vector<do
     
     if (denominator == 0) {
         return std::vector<double>(n / 2 + 1, 0.0);
-    }
+    } */
     
     int max_lag = static_cast<int>(n * 0.8);
     std::vector<double> modified_acf(max_lag + 1);
@@ -523,7 +523,7 @@ std::vector<double> PositionPredictor3D::computeModifiedACF(const std::vector<do
             }
             numerator /= (n - k);
         }
-        modified_acf[k] = numerator / denominator;
+        modified_acf[k] = numerator;// / denominator;
     }
     
     return modified_acf;
