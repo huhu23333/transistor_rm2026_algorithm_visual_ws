@@ -117,6 +117,8 @@ private:
      * @return 如果两个灯条重叠，返回true
      */
     bool isOverlap(const Light& light1, const Light& light2);
+
+    float calculateAccurateAngleByPCA(const cv::Mat& binaryImg, const cv::RotatedRect& rotatedRect);
 };
 
 #endif // LIGHTBARDETECTOR_H

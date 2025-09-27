@@ -126,6 +126,72 @@ struct alignas(64) LightDetectThreadInfo { // 64字节对齐
     Light light;
 };
 
+float LightBarDetector::calculateAccurateAngleByPCA(const cv::Mat& binaryImg, const cv::RotatedRect& rotatedRect) {
+    // 1. 获取旋转矩形的边界框
+    cv::Rect boundingRect = rotatedRect.boundingRect();
+    
+    // 确保边界框在图像范围内
+    boundingRect = boundingRect & cv::Rect(0, 0, binaryImg.cols, binaryImg.rows);
+    if (boundingRect.area() == 0) return rotatedRect.angle;
+    
+    // 2. 截取ROI区域
+    cv::Mat roi = binaryImg(boundingRect);
+    
+    // 3. 创建旋转矩形的掩码
+    cv::Mat mask = cv::Mat::zeros(roi.size(), CV_8UC1);
+    
+    // 将旋转矩形转换到ROI坐标系下
+    cv::Point2f centerInRoi(rotatedRect.center.x - boundingRect.x, 
+                           rotatedRect.center.y - boundingRect.y);
+    cv::RotatedRect rectInRoi(centerInRoi, rotatedRect.size, rotatedRect.angle);
+    
+    // 绘制旋转矩形作为掩码
+    cv::ellipse(mask, rectInRoi, cv::Scalar(255), -1);
+    
+    // 4. 应用掩码，只保留旋转矩形内的像素
+    cv::Mat maskedRoi;
+    roi.copyTo(maskedRoi, mask);
+    
+    //cv::imshow("Light Bar Debug", maskedRoi);
+    
+    // 5. 提取非零像素点的坐标（相对于ROI）
+    std::vector<cv::Point2f> points;
+    for (int y = 0; y < maskedRoi.rows; ++y) {
+        for (int x = 0; x < maskedRoi.cols; ++x) {
+            if (maskedRoi.at<uchar>(y, x) > 0) {
+                points.push_back(cv::Point2f(x, y));
+            }
+        }
+    }
+
+    int points_size = static_cast<int>(points.size());
+    if (points_size < 2) {
+        return rotatedRect.angle; // 像素点太少，返回原始角度
+    }
+
+    cv::Mat data_pts = cv::Mat(points_size, 2, CV_64F);
+    for (int i = 0; i < data_pts.rows; i++)
+    {
+        data_pts.at<double>(i, 0) = points[i].x;
+        data_pts.at<double>(i, 1) = points[i].y;
+    }
+    
+    // 6. 使用PCA分析像素点分布
+    cv::PCA pca(data_pts, cv::Mat(), cv::PCA::DATA_AS_ROW);
+    
+    // 7. 获取主方向（第一个特征向量）
+    cv::Point2d eigenvector = cv::Point2d(pca.eigenvectors.at<double>(0, 0),
+                                         pca.eigenvectors.at<double>(0, 1));
+    
+    // 8. 计算角度（弧度转角度）
+    double angle = std::atan2(eigenvector.y, eigenvector.x) * 180.0 / CV_PI + 90.0;
+
+    while (angle > 90) angle -= 180;
+    while (angle < -90) angle += 180;
+    
+    return static_cast<float>(angle);
+}
+
 void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
     lights.clear();  // 清除上一帧的检测结果
     
@@ -194,6 +260,9 @@ void LightBarDetector::detectLights(const std::vector<cv::Mat>& images) {
             float width = std::min(rect.size.width, rect.size.height);
             rect.size.height = length;
             rect.size.width = width;
+
+            // 2.5. 使用PCA修正角度
+            rect.angle = calculateAccurateAngleByPCA(binary_img, rect);
 
             // 4. 将检测到的旋转矩形转换为Light对象
             lightDetectThreadInfo.light = Light(rect);
