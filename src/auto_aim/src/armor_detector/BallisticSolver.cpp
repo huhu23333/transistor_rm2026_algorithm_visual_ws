@@ -369,7 +369,7 @@ BallisticInfo BallisticSolver::calcBallisticAngle(float x_camera, float y_camera
 
     // 1. 计算目标yaw弧度
     float target_delta_yaw = -atan2(x_standard, z_standard) * 1.0;  // 速度补偿 TODO
-    float target_yaw = normalizeRad(target_delta_yaw + cur_yaw);  // 标准化到[-M_PI, M_PI]
+    //float target_yaw = normalizeRad(target_delta_yaw + cur_yaw);  // 标准化到[-M_PI, M_PI]
     
     // 4. 求解弹道方程
     //CalcPitchInfo pitch_info = calcTargetPitch(r_standard, y_standard, v_bullet);
@@ -388,7 +388,8 @@ BallisticInfo BallisticSolver::calcBallisticAngle(float x_camera, float y_camera
 
     // 5. 计算需要转动的角度
     result.delta_pitch_rad = final_pitch_rad - cur_pitch;
-    result.target_yaw_rad = target_yaw;
+    //result.target_yaw_rad = target_yaw;
+    result.delta_yaw_rad = target_delta_yaw;
     
     result.valid = true;
     return result;

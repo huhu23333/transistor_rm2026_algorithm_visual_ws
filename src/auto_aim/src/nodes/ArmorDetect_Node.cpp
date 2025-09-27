@@ -840,6 +840,7 @@ private:
                             has_valid_target_ = true;
 
                             pitch_integration += ballistic_result.delta_pitch_rad * 0.03;
+                            yaw_integration += ballistic_result.delta_yaw_rad * 0.03;
 
                             if (pitch_integration > 0.3) {
                                 pitch_integration = 0.3;
@@ -850,7 +851,7 @@ private:
                             
                             // 发布云台控制命令
                             float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.5 + pitch_integration; // PI控制
-                            float command_yaw = ballistic_result.target_yaw_rad;
+                            float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad + yaw_integration; // 缓解yaw轴输入数据掉线问题
                             last_command_pitch_ = command_pitch;
                             last_command_yaw_ = command_yaw;
                             serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
@@ -867,7 +868,7 @@ private:
                             cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
 
                             // 计算并绘制瞄准时目标画面中心（天蓝色：未开火 | 红色：开火）
-                            cv::Point2f aim_yaw_pitch = cv::Point2f(ballistic_result.target_yaw_rad, last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad);
+                            cv::Point2f aim_yaw_pitch = cv::Point2f(last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad, last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad);
                             cv::Point2f aim_yaw_pitch_pixel = cv::Point2f(
                                 frame.cols / 2 - (aim_yaw_pitch.x - last_yaw_rad_delayed_) * yaw_rad_to_x_pixel_ratio, 
                                 frame.rows / 2 - (aim_yaw_pitch.y - last_pitch_rad_delayed_) * pitch_rad_to_y_pixel_ratio);
@@ -1008,6 +1009,7 @@ private:
     long long frame_count_ = 0;
 #endif
     float pitch_integration = 0.0;
+    float yaw_integration = 0.0;
     cv::Point2f ground_stable_point;
     std::shared_ptr<SerialCommunicationClass> serial_communication_;
     float reset_com_time;
