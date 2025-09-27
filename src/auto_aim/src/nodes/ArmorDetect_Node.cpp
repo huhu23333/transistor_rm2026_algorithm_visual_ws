@@ -612,8 +612,8 @@ private:
                     cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                     cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
 
-                    //fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
-                    fire_data_predictor_ -> autoFindPeriod();
+                    fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
+                    //fire_data_predictor_ -> autoFindPeriod();
                     fire_data_predictor_ -> addPoint(0.0);
 #endif
                 }
@@ -805,8 +805,8 @@ private:
                         predicted_armor_pos.y = pnp_armor_pos_pred[1];
                         predicted_armor_pos.z = pnp_armor_pos_pred[2];
 
-                        //fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
-                        fire_data_predictor_ -> autoFindPeriod();
+                        fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
+                        //fire_data_predictor_ -> autoFindPeriod();
                         fire_data_predictor_ -> addPoint(armor_near_flag);
                         pred_fire_data_filter_ -> addPoint(fire_data_predictor_ -> isUpper(predictor3dPrediction_indexToAim, 0.0) || fire_data_predictor_ -> getA0() > 0.8);
                         fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
