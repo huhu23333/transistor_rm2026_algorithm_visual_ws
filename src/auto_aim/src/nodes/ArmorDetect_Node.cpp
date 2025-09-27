@@ -42,7 +42,7 @@
 namespace fs = std::filesystem;
 
 
-//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
@@ -241,9 +241,9 @@ public:
         oscilloscope_fire_ -> setScale(1.0);
         oscilloscope_fire_ -> setOffset(-0.5);
 
-        oscilloscope_common_ = std::make_shared<Oscilloscope>(640, 120, "Common Debug Oscilloscope");
-        oscilloscope_common_ -> setScale(1.0);
-        oscilloscope_common_ -> setOffset(-0.5);
+        oscilloscope_common_ = std::make_shared<Oscilloscope>(640, 480, "Common Debug Oscilloscope", 30);
+        oscilloscope_common_ -> setScale(2.0);
+        oscilloscope_common_ -> setOffset(-1.0);
 
         fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(predictor3d_fit_step);
         fire_data_predictor_ -> setPeriod(1);
@@ -635,7 +635,7 @@ private:
                         // 查看并滤波z轴距离轴数据
                         armor_distance_filter_ -> addPoint(aim.position.z);
                         aim.position.z = armor_distance_filter_ -> getExponentialValue();
-                        oscilloscope_common_ -> addDataPoint(aim.position.z / 6000);
+                        oscilloscope_common_ -> addDataPoint(aim.position.z / 10000);
 
                         // 将pnp结果转换至静止坐标系以稳定预测
                         std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);
@@ -883,13 +883,21 @@ private:
                             oscilloscope_fire_ -> addDataPoint(fire_flag);
                             //oscilloscope_fire_ -> addDataPoint(fire_data_predictor_ -> smooth(0));
                             //oscilloscope_fire_ -> addDataPoint(fire_data_predictor_ -> isRising(0));
+
+                            // 绘制不同时间预测开火波形
+                            for (size_t debug_pred_fire_index = 1; debug_pred_fire_index < 6; debug_pred_fire_index += 1) {
+                                oscilloscope_common_ -> addDataPoint(
+                                    ((float)(fire_data_predictor_ -> isUpper(debug_pred_fire_index*5, 0.0)))/11.0 + 
+                                    (float)(debug_pred_fire_index - 1) / 10,
+                                    debug_pred_fire_index);
+                            }
 #endif
                         }
                     }
                     
                 }
             }
-            //drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
+            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
 #ifdef USE_PREDICTOR3D
             oscilloscope_fire_ -> update();
             oscilloscope_fire_ -> putText("period:"+std::to_string(predictor3d->getFourierPeriod()), cv::Point2f(500, 20), cv::Scalar(0, 255, 0), 0.7);
