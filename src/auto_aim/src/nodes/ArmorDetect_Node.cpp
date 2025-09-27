@@ -841,7 +841,7 @@ private:
                             has_valid_target_ = true;
 
                             pitch_integration += ballistic_result.delta_pitch_rad * 0.03;
-                            yaw_integration += ballistic_result.delta_yaw_rad * 0.03;
+                            //yaw_integration += ballistic_result.delta_yaw_rad * 0.03;
 
                             if (pitch_integration > 0.3) {
                                 pitch_integration = 0.3;
