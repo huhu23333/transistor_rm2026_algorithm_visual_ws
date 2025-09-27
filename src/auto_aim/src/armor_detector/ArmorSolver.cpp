@@ -109,7 +109,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             RCLCPP_DEBUG(logger_p, "solvePnP success");
 
             result.yaw = getYawFromRvec(rvec); // <<--- 计算并填充yaw
-            RCLCPP_INFO(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
+            RCLCPP_DEBUG(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
 
             result.normal_euler_angles = getNormalYawPitchRollFromRvec(rvec);
             RCLCPP_DEBUG(logger_p, "NormalYawPitchRoll: (%.2f, %.2f, %.2f)", 
@@ -123,7 +123,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             // 现打印ba优化之前的参数
             auto rpy_before = ba_ -> rotationMatrixToRPY(R);
 
-            RCLCPP_INFO(logger_p, "RPY before ba: (%.2f, %.2f, %.2f)" , rpy_before[2], rpy_before[0],rpy_before[1]);
+            RCLCPP_INFO(logger_p, "\nRPY PNP: (%.2f, %.2f, %.2f)" , result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
             // RCLCPP_INFO(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
             // RCLCPP_INFO(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
             // RCLCPP_INFO(logger_p, "roll before ba: %.2f" , rpy_before[2]);
@@ -135,7 +135,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             auto rpy = ba_ -> rotationMatrixToRPY(R);
 
             // 打印优化之后的参数
-            RCLCPP_INFO(logger_p, "RPY after ba: (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
+            RCLCPP_INFO(logger_p, "\nRPY BA : (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
             // RCLCPP_INFO(logger_p, "pitch before ba: %.2f" , rpy[0]);
             // RCLCPP_INFO(logger_p, "yaw before ba: %.2f" , rpy[1]);
             // RCLCPP_INFO(logger_p, "roll before ba: %.2f" , rpy[2]);

@@ -55,7 +55,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   double initial_armor_yaw;
   initial_armor_yaw = std::atan2(R_imu_armor(0,2), R_imu_armor(0,0));
 
-  RCLCPP_INFO(logger_b, "Yaw beforeOptimize :%.2f", initial_armor_yaw);                     // 调试行：世界系下的yaw对不对
+  RCLCPP_DEBUG(logger_b, "Yaw beforeOptimize :%.2f", initial_armor_yaw);                     // 调试行：世界系下的yaw对不对
 
   // Get the pitch angle of the armor
   double armor_pitch =
@@ -71,7 +71,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
           : Eigen::Vector2d( 230.0 , 127.0 );
   const auto object_points =
     buildObjectPoints<Eigen::Vector3d>(armor_size(0), armor_size(1));
-    RCLCPP_INFO(logger_b, "pitch: %.2f, is_large: %.2f", armor_pitch, armor.is_large);       // 调试行：装甲板俯仰角和装甲板大小判断
+    RCLCPP_DEBUG(logger_b, "pitch: %.2f, is_large: %.2f", armor_pitch, armor.is_large);       // 调试行：装甲板俯仰角和装甲板大小判断
     
   // Fill the optimizer
   size_t id_counter = 0;
@@ -114,7 +114,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   for (int i = 0; i < 4; ++i) {
     const auto& uv_pred = edges[i]->getLastUV();
     const auto& uv_obs  = armor.corners[i];
-    RCLCPP_DEBUG(logger_b, "[BEFORE] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
+    RCLCPP_INFO(logger_b, "[BEFORE] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
                 i, uv_pred.x(), uv_pred.y(), i, uv_obs.x, uv_obs.y);
   }
 
@@ -133,15 +133,16 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   for (int i = 0; i < 4; ++i) {
     const auto& uv_pred = edges[i]->getLastUV();
     const auto& uv_obs  = armor.corners[i];
-    RCLCPP_DEBUG(logger_b, "[AFTER ] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
+    RCLCPP_INFO(logger_b, "[AFTER ] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
                 i, uv_pred.x(), uv_pred.y(), i, uv_obs.x, uv_obs.y);
   }
 
   Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, 0, yaw_optimized));
-  RCLCPP_INFO(logger_b, "Yaw before trans: %.2f", yaw_optimized);
+  RCLCPP_DEBUG(logger_b, "Yaw before trans: %.2f", yaw_optimized);
 
   RCLCPP_DEBUG(logger_b, "Yaw angle is valid after optimization");
   return (R_camera_imu * R_yaw * R_pitch).matrix();
+  // return ( R_yaw * R_pitch).matrix();
 }
 
 } // namespace fyt::auto_aim

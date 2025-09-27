@@ -46,7 +46,7 @@ namespace fs = std::filesystem;
 // #define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 // #define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
-//#define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
+#define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
 
 // 全局变量定义
 cv::Mat g_image;
@@ -277,30 +277,30 @@ public:
 
 private:
     void debug_code() {
-        while (true) {
-            static double debug_time_count = 0.0;
-            double debug_freq = 0.3;
-            double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
-            double debug_pitch = std::sin(debug_time_count*M_PI*debug_freq) * M_PI / 6;
-            serial_communication_->sendData(debug_pitch, debug_yaw);
-            RCLCPP_INFO(this->get_logger(), "send debug data: yaw[%.2f] pitch[%.2f]", debug_yaw, debug_pitch);
-            RCLCPP_INFO(this->get_logger(), "received data: yaw[%.2f] pitch[%.2f]", last_yaw_rad_delayed_, last_pitch_rad_delayed_);
-            cv::Mat frame;
-            pthread_mutex_lock(&g_mutex);
-            if (!g_image.empty()) {
-                frame = g_image.clone();
-                image_used = true;
-            }
-            pthread_mutex_unlock(&g_mutex);
-            if (!frame.empty()) {
-                cv::imshow("debug_code", frame);
-                cv::waitKey(1);
-            }
-            auto start = std::chrono::steady_clock::now();
-            std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
-            debug_time_count += 0.033;
-        }
-        /* std::thread([&]() {
+        // while (true) {
+        //     static double debug_time_count = 0.0;
+        //     double debug_freq = 0.3;
+        //     double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
+        //     double debug_pitch = std::sin(debug_time_count*M_PI*debug_freq) * M_PI / 6;
+        //     serial_communication_->sendData(debug_pitch, debug_yaw);
+        //     RCLCPP_INFO(this->get_logger(), "send debug data: yaw[%.2f] pitch[%.2f]", debug_yaw, debug_pitch);
+        //     RCLCPP_INFO(this->get_logger(), "received data: yaw[%.2f] pitch[%.2f]", last_yaw_rad_delayed_, last_pitch_rad_delayed_);
+        //     cv::Mat frame;
+        //     pthread_mutex_lock(&g_mutex);
+        //     if (!g_image.empty()) {
+        //         frame = g_image.clone();
+        //         image_used = true;
+        //     }
+        //     pthread_mutex_unlock(&g_mutex);
+        //     if (!frame.empty()) {
+        //         cv::imshow("debug_code", frame);
+        //         cv::waitKey(1);
+        //     }
+        //     auto start = std::chrono::steady_clock::now();
+        //     std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
+        //     debug_time_count += 0.033;
+        // }
+        std::thread([&]() {
             double debug_time_count = 0.0;
             while (true) {
                 auto start = std::chrono::steady_clock::now();
@@ -316,7 +316,7 @@ private:
                 std::this_thread::sleep_until(start + std::chrono::microseconds(10000));  // 大约10ms周期
                 debug_time_count += 0.01;
             }
-        }).detach(); */
+        }).detach();
     }
 
     void serialDataCallback(const SerialData& msg) {
@@ -632,11 +632,11 @@ private:
                         
 
                         // ========== EKF 逻辑 (9D模型修改) ==========
-                        RCLCPP_INFO(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw);
+                        RCLCPP_INFO(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], rest_frame_euler_angles[0]);
 
                         // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                         Tracker::Measurement z;
-                        z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], aim.yaw;
+                        z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], rest_frame_euler_angles[0];
 
                         // 2. EKF 状态机逻辑
                         if (tracker_->state == Tracker::LOST) {
