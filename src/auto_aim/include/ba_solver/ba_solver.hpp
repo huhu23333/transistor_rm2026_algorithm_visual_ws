@@ -54,43 +54,26 @@ public:
     if (sp >  1.0) sp =  1.0;
     if (sp < -1.0) sp = -1.0;
 
-    rpy[1] = std::asin(sp);                // pitch
-    rpy[0] = std::atan2(R(2,1), R(2,2));   // roll
-    rpy[2] = std::atan2(R(1,0), R(0,0));   // yaw
+    rpy[0] = std::asin(sp);                // pitch
+    rpy[1] = std::atan2(R(2,1), R(2,2));   // yaw
+    rpy[2] = std::atan2(R(1,0), R(0,0));   // roll
     return rpy; 
-  }// 单位：弧度;
+  }
 
   Eigen::Matrix3d RPYTorotationMatrix(const Eigen::Vector3d& rpy) {
     // 改后约定：rpy = [rollZ, pitchX, yawY] ，单位：rad
-    const double rollZ  = rpy[0]; // 绕 Z（图像内旋）
+    const double yawZ  = rpy[0]; // 绕 Z（偏航）
     const double pitchX = rpy[1]; // 绕 X（俯仰）
-    const double yawY   = rpy[2]; // 绕 Y（偏航）
+    const double rollY   = rpy[2]; // 绕 Y（滚转）
 
-    const Eigen::AngleAxisd Rz(rollZ,  Eigen::Vector3d::UnitZ());
+    const Eigen::AngleAxisd Rz(rollY,  Eigen::Vector3d::UnitZ());
     const Eigen::AngleAxisd Rx(pitchX, Eigen::Vector3d::UnitX());
-    const Eigen::AngleAxisd Ry(yawY,   Eigen::Vector3d::UnitY());
+    const Eigen::AngleAxisd Ry(yawZ,   Eigen::Vector3d::UnitY());
 
-    // 组合顺序：先 yaw(Y)，再 pitch(X)，最后 roll(Z)
+    // 组合顺序：先 yaw，再 pitch，最后 roll
     return (Rz * Rx * Ry).toRotationMatrix();
 }  
-  // 小工具：将rpy转化成旋转矩阵
-//  Eigen::Matrix3d RPYTorotationMatrix(const Eigen::Vector3d& rpy) {
-//    // rpy = [roll, pitch, yaw] (rad)
-//    const double roll  = rpy[0];
-//    const double pitch = rpy[1];
-//    const double yaw   = rpy[2];
-//
-//    const double cr = std::cos(roll),  sr = std::sin(roll);
-//    const double cp = std::cos(pitch), sp = std::sin(pitch);
-//    const double cy = std::cos(yaw),   sy = std::sin(yaw);
-//
-//    // ZYX: R = Rz(yaw) * Ry(pitch) * Rx(roll)
-//    Eigen::Matrix3d R;
-//    R <<  cy*cp,            cy*sp*sr - sy*cr,   cy*sp*cr + sy*sr,
-//          sy*cp,            sy*sp*sr + cy*cr,   sy*sp*cr - cy*sr,
-//          -sp,              cp*sr,              cp*cr;
-//    return R;
-//  }
+
 
   template<typename TPoint3>
   inline std::vector<TPoint3> buildObjectPoints(double w, double h) noexcept {

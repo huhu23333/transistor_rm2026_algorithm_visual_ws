@@ -587,6 +587,7 @@ private:
                     predicted_aim_pos.y = pnp_aim_pos_pred[1];
                     predicted_aim_pos.z = pnp_aim_pos_pred[2];
 
+
                     // 转换回pnp相机坐标系
                     std::vector<float> rest_frame_armor_pos_pred = {predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z};
                     std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
@@ -629,10 +630,11 @@ private:
                         std::vector<float> rest_frame_euler_angles = rest_frame_ -> getWorldEulerAnglesFromCam(
                             aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]
                         );
+                        RCLCPP_INFO(this->get_logger(), "\n由pnp解算的世界系下的装甲板YPR:(%.2f, %.2f, %.2f)", rest_frame_euler_angles[0], rest_frame_euler_angles[1], rest_frame_euler_angles[2]);
                         
 
                         // ========== EKF 逻辑 (9D模型修改) ==========
-                        RCLCPP_INFO(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], rest_frame_euler_angles[0]);
+                        RCLCPP_DEBUG(this->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], rest_frame_euler_angles[0]);
 
                         // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                         Tracker::Measurement z;
