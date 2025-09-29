@@ -50,8 +50,8 @@ def main():
     except KeyboardInterrupt:
         print("\nStopped by user")
         visualizer.finish_video()
-    except Exception as e:
-        print(f"Error: {e}")
+    """ except Exception as e:
+        print(f"Error: {e}") """
     
     print("Visualization finished.")
     #plt.show(block=True)  # 保持窗口打开
