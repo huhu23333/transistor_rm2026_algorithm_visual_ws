@@ -15,22 +15,26 @@ class ObservedData:
         self.yaw = yaw
         self.t = t
 
+# todo:
+"""
+使用最小二乘法解析解计算z vz
+使用矩阵运算拟合x vx y vy
+中心拟合离轴向量权重衰减
+"""
 
-def center_to_yaw_function(params, armor_x, armor_y, data_t):
+def center_residuals(params, armor_yaw, armor_x, armor_y, armor_z, data_t):
     center_x = params[0]
     center_vx = params[1]
     center_y = params[2]
     center_vy = params[3]
-    center_yaw = np.arctan2(-(center_x + data_t * center_vx - armor_x), (center_y + data_t * center_vy - armor_y))
-    return center_yaw
-
-def center_residuals(params, armor_yaw, armor_x, armor_y, armor_z, data_t):
-    center_yaw = center_to_yaw_function(params, armor_x, armor_y, data_t)
     center_z = params[4]
     center_vz = params[5]
-    res_yaw = center_yaw - armor_yaw # TODO
+    axis_vector = np.stack([-np.sin(armor_yaw), np.cos(armor_yaw)])
+    off_axis_vector = np.stack([axis_vector[1], -axis_vector[0]])
+    aromr_to_center_vector = np.stack([center_x + data_t * center_vx - armor_x, center_y + data_t * center_vy - armor_y])
+    res_xy = aromr_to_center_vector[0] * off_axis_vector[0] + aromr_to_center_vector[1] * off_axis_vector[1]
     res_z = center_z + data_t * center_vz - armor_z
-    return np.concatenate([res_yaw, res_z])
+    return np.concatenate([res_xy, res_z])
 
 
 def compute_modified_acf(residual):
@@ -133,7 +137,7 @@ class MotionModel:
         n_latest = 10
         max_r = 800
         max_v = 5000
-        bounds = (np.array([-np.mean(x_data[-n_latest:])-max_r, -max_v, -np.mean(y_data[-n_latest:])-max_r, -max_v, -np.inf, -np.inf]), 
+        bounds = (np.array([np.mean(x_data[-n_latest:])-max_r, -max_v, np.mean(y_data[-n_latest:])-max_r, -max_v, -np.inf, -np.inf]), 
                   np.array([np.mean(x_data[-n_latest:])+max_r, max_v, np.mean(y_data[-n_latest:])+max_r, max_v, np.inf, np.inf]))
         init_in_range = np.clip(np.array([self.center_x, self.center_vx, self.center_y, self.center_vy, self.center_z, self.center_vz]), 
                                 *bounds)
