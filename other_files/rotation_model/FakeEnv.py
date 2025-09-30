@@ -25,8 +25,8 @@ class FakeEnv:
         delta_t = obs_time - self.init_time
         target_yaw = delta_t * self.vyaw + self.yaw
         if self.self_round_move:
-            self.center_x = self.origin_center_x + 500 * math.cos(delta_t * 0.3)
-            self.center_y = self.origin_center_y + 500 * math.sin(delta_t * 0.3)
+            self.center_x = self.origin_center_x + 500 * math.cos(delta_t * 0.3 * math.pi)
+            self.center_y = self.origin_center_y + 500 * math.sin(delta_t * 0.3 * math.pi)
         while target_yaw > math.pi / 3:
             target_yaw -= math.pi * 2 / 4
         while target_yaw < -math.pi / 3:

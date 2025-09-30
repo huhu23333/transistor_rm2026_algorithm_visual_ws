@@ -36,7 +36,7 @@ def main():
             fitted_params = [motion_model.center_x, motion_model.center_vx, 
                            motion_model.center_y, motion_model.center_vy,
                            motion_model.center_z, motion_model.center_vz,
-                           motion_model.last_yaw, motion_model.vyaw, 
+                           motion_model.vyaw, 
                            motion_model.r, motion_model.all_armors_yaw]
             
             # 更新可视化

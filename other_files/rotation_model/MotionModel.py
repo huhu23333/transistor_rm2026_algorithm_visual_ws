@@ -1,11 +1,8 @@
 import numpy as np
-from scipy.optimize import least_squares
 import math
-import time
 np.random.seed(42)
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_agg import FigureCanvasAgg
-from scipy.fftpack import fft, ifft
+
 
 class ObservedData:
     def __init__(self, x, y, z, yaw, t):
@@ -22,19 +19,108 @@ class ObservedData:
 中心拟合离轴向量权重衰减
 """
 
-def center_residuals(params, armor_yaw, armor_x, armor_y, armor_z, data_t):
+def simple_linear_regression(xn, yn):
+    x_mean = np.mean(xn)
+    y_mean = np.mean(yn)
+    b = np.sum((xn - x_mean) * (yn - y_mean)) / np.sum((xn - x_mean) ** 2)
+    a = y_mean - b * x_mean
+    return np.array([a, b])
+
+def center_residuals(params, armor_yaw, armor_x, armor_y, data_t):
     center_x = params[0]
     center_vx = params[1]
     center_y = params[2]
     center_vy = params[3]
-    center_z = params[4]
-    center_vz = params[5]
     axis_vector = np.stack([-np.sin(armor_yaw), np.cos(armor_yaw)])
     off_axis_vector = np.stack([axis_vector[1], -axis_vector[0]])
     aromr_to_center_vector = np.stack([center_x + data_t * center_vx - armor_x, center_y + data_t * center_vy - armor_y])
     res_xy = aromr_to_center_vector[0] * off_axis_vector[0] + aromr_to_center_vector[1] * off_axis_vector[1]
-    res_z = center_z + data_t * center_vz - armor_z
-    return np.concatenate([res_xy, res_z])
+    return res_xy
+
+
+# 更稳定的版本，使用Tikhonov正则化
+def fit_center_xy(armor_yaw, armor_x, armor_y, data_t, last_r, weight_t=None, alpha=1e-8, tikhonov_lambda=1e-12):
+    """
+    向量化版本的带权重拟合（更高效）
+    """
+    n = len(armor_yaw)
+    
+    # 初始化权重
+    if weight_t is None:
+        weight_t = np.ones(n)
+    else:
+        weight_t = np.asarray(weight_t)
+    
+    weight_t = np.maximum(weight_t, 0)
+    sqrt_weights = np.sqrt(weight_t)
+    
+    # 构建轴向量
+    cos_yaw = np.cos(armor_yaw)
+    sin_yaw = np.sin(armor_yaw)
+    
+    # 轴向量和垂直轴向量
+    axis_x = -sin_yaw
+    axis_y = cos_yaw
+    off_axis_x = axis_y
+    off_axis_y = -axis_x
+    
+    # 构建设计矩阵（主问题）
+    # aromr_to_center_vector · off_axis_vector = 0
+    A_main = np.column_stack([
+        off_axis_x,                    # center_x 系数
+        off_axis_y,                    # center_y 系数
+        off_axis_x * data_t,           # center_vx 系数
+        off_axis_y * data_t            # center_vy 系数
+    ])
+    
+    b_main = off_axis_x * armor_x + off_axis_y * armor_y
+    
+    # 构建设计矩阵（正则化问题）
+    # aromr_to_center_vector · axis_vector - last_r = 0
+    A_reg = np.column_stack([
+        axis_x,                        # center_x 系数
+        axis_y,                        # center_y 系数
+        axis_x * data_t,               # center_vx 系数
+        axis_y * data_t                # center_vy 系数
+    ])
+    
+    b_reg = axis_x * armor_x + axis_y * armor_y + last_r
+    
+    # 计算条件数
+    U, s, Vt = np.linalg.svd(A_main, full_matrices=False)
+    cond_A = s[0] / s[-1] if s[-1] > 0 else np.inf
+    
+    # 自适应正则化参数
+    lambda_reg = alpha * min(cond_A, 1e10)
+    
+    # 应用权重
+    A_main_weighted = A_main * sqrt_weights[:, np.newaxis]
+    b_main_weighted = b_main * sqrt_weights
+    
+    A_reg_weighted = A_reg * sqrt_weights[:, np.newaxis]
+    b_reg_weighted = b_reg * sqrt_weights
+    
+    # 构建增广系统
+    A_aug = np.vstack([A_main_weighted, np.sqrt(lambda_reg) * A_reg_weighted])
+    b_aug = np.hstack([b_main_weighted, np.sqrt(lambda_reg) * b_reg_weighted])
+    
+    # Tikhonov正则化
+    A_tikh = np.vstack([A_aug, tikhonov_lambda * np.eye(4)])
+    b_tikh = np.hstack([b_aug, np.zeros(4)])
+    
+    # SVD求解
+    U_t, s_t, Vt_t = np.linalg.svd(A_tikh, full_matrices=False)
+    
+    # 截断奇异值
+    s_threshold = max(s_t) * max(A_tikh.shape) * np.finfo(float).eps
+    s_inv = np.where(s_t > s_threshold, 1.0 / s_t, 0)
+    
+    x = Vt_t.T @ (s_inv * (U_t.T @ b_tikh))
+    
+    center_x, center_y, center_vx, center_vy = x
+    
+    return center_x, center_y, center_vx, center_vy
+
 
 
 def compute_modified_acf(residual):
@@ -95,21 +181,14 @@ def lag_stack_with_decay(signal, refine_multiple = 1):
 class MotionModel:
     def __init__(self, init_observed_data):
         self.observed_data_history = [init_observed_data]
-        self.last_observed_data = init_observed_data
-        self.last_x = init_observed_data.x
-        self.last_y = init_observed_data.y
-        self.last_z = init_observed_data.z
-        self.last_yaw = init_observed_data.yaw
-        self.last_t = init_observed_data.t
         self.center_vx = 0.0
         self.center_vy = 0.0
         self.center_vz = 0.0
         self.vyaw = 0.0
         self.r = 250
-        self.center_x = self.last_x - self.r * math.sin(self.last_yaw)
-        self.center_y = self.last_y + self.r * math.cos(self.last_yaw)
-        self.center_z = self.last_z
-        self.inited_v = False
+        self.center_x = init_observed_data.x - self.r * math.sin(init_observed_data.yaw)
+        self.center_y = init_observed_data.y + self.r * math.cos(init_observed_data.yaw)
+        self.center_z = init_observed_data.z
         self.max_history = 60
 
         self.refine_multiple = 10
@@ -118,64 +197,45 @@ class MotionModel:
         self.rotation_period = 0.0
         self.current_phase = 0.0
         self.n_armors = 4  # 假设3等分圆周
+        self.rotation_direction = 1
 
         self.jump_rad = math.pi * 2 / self.n_armors
         self.delta_phase = 0 #math.pi * 15 / 180
 
-        self.all_armors_yaw = np.array([self.last_yaw] * self.n_armors)
+        self.all_armors_yaw = np.array([init_observed_data.yaw] * self.n_armors)
         
-        self.debug_fig, self.debug_ax = plt.subplots(2, 2, figsize=(8, 8))
+        self.debug_fig, self.debug_ax = plt.subplots(2, 3, figsize=(12, 8))
 
-        self.rotation_direction = 1
 
 
     def update(self, observed_data):
         self.observed_data_history.append(observed_data)
         if len(self.observed_data_history) > self.max_history:
             self.observed_data_history = self.observed_data_history[len(self.observed_data_history) - self.max_history:]
-        initial_params, t_data, x_data, y_data, z_data, yaw_data = self.get_params()
-        n_latest = 10
-        max_r = 800
-        max_v = 5000
-        bounds = (np.array([np.mean(x_data[-n_latest:])-max_r, -max_v, np.mean(y_data[-n_latest:])-max_r, -max_v, -np.inf, -np.inf]), 
-                  np.array([np.mean(x_data[-n_latest:])+max_r, max_v, np.mean(y_data[-n_latest:])+max_r, max_v, np.inf, np.inf]))
-        init_in_range = np.clip(np.array([self.center_x, self.center_vx, self.center_y, self.center_vy, self.center_z, self.center_vz]), 
-                                *bounds)
-        #print(init_in_range)
-        center_fit_result = least_squares(center_residuals, 
-                                          init_in_range, 
-                                          args=(yaw_data, x_data, y_data, z_data, t_data), 
-                                          bounds=bounds)
-        if center_fit_result.success:
-            center_fit_params = center_fit_result.x
-            self.center_x = center_fit_params[0]
-            self.center_y = center_fit_params[2]
-            self.center_z = center_fit_params[4]
-            self.center_vx = center_fit_params[1]
-            self.center_vy = center_fit_params[3]
-            self.center_vz = center_fit_params[5]
+        t_data, x_data, y_data, z_data, yaw_data = self.get_params()
+        self.center_z, self.center_vz = simple_linear_regression(t_data, z_data)
 
-            self.calculate_r()
-            
-            # 新增：拟合旋转参数
-            self.fit_rotation_parameters()
+        self.center_x, self.center_y, self.center_vx, self.center_vy = fit_center_xy(yaw_data, x_data, y_data, t_data, self.r)
 
-            _, _, _, now_armor_yaw = self.predict(0)
-            self.last_yaw = now_armor_yaw
-            self.all_armors_yaw = np.array([now_armor_yaw + i * self.jump_rad for i in range(self.n_armors)])
+        self.calculate_r()
+        
+        self.fit_rotation_parameters()
+
+        _, _, _, now_armor_yaw = self.predict(0)
+        self.all_armors_yaw = np.array([now_armor_yaw + i * self.jump_rad for i in range(self.n_armors)])
 
     def calculate_r(self):
-        initial_params, t_data, x_data, y_data, z_data, yaw_data = self.get_params()
-        self.r =  np.mean(np.sqrt((x_data - (self.center_x + t_data * self.center_vx)) ** 2 + (y_data - (self.center_y + t_data * self.center_vy)) ** 2))
+        t_data, x_data, y_data, z_data, yaw_data = self.get_params()
+        self.r =  np.mean(np.sqrt((x_data - (self.center_x + self.center_vx * t_data)) ** 2 +
+                                  (y_data - (self.center_y + self.center_vy * t_data)) ** 2))
 
     def get_params(self):
-        params = np.array([self.center_x, self.center_vx, self.center_y, self.center_vy, self.center_z, self.center_vz, self.last_yaw, self.vyaw, self.r])
         t_data = np.array([observed_data.t-self.observed_data_history[-1].t for observed_data in self.observed_data_history])
         x_data = np.array([observed_data.x for observed_data in self.observed_data_history])
         y_data = np.array([observed_data.y for observed_data in self.observed_data_history])
         z_data = np.array([observed_data.z for observed_data in self.observed_data_history])
         yaw_data = np.array([observed_data.yaw for observed_data in self.observed_data_history])
-        return [params, t_data, x_data, y_data, z_data, yaw_data]
+        return [t_data, x_data, y_data, z_data, yaw_data]
     
     def find_mid_yaw(self, yaw_data, period_frames):
         mid_square_yaw_data = (yaw_data - np.mean(yaw_data)) ** 2
@@ -227,6 +287,15 @@ class MotionModel:
         y_data = np.array([obs.y for obs in self.observed_data_history]) - self.center_vy * t_data
         z_data = np.array([obs.z for obs in self.observed_data_history]) - self.center_vz * t_data
         yaw_data = np.array([obs.yaw for obs in self.observed_data_history])
+
+        reg_a_x_data, reg_b_x_data = simple_linear_regression(t_data, x_data)
+        reg_a_y_data, reg_b_y_data = simple_linear_regression(t_data, y_data)
+        reg_a_z_data, reg_b_z_data = simple_linear_regression(t_data, z_data)
+        reg_a_yaw_data, reg_b_yaw_data = simple_linear_regression(t_data, yaw_data)
+        x_data -= reg_a_x_data + reg_b_x_data * t_data
+        y_data -= reg_a_y_data + reg_b_y_data * t_data
+        z_data -= reg_a_z_data + reg_b_z_data * t_data
+        yaw_data -= reg_a_yaw_data + reg_b_yaw_data * t_data
         
         # 计算四个分量的ACF
         acf_x = compute_modified_acf(x_data)
@@ -294,7 +363,7 @@ class MotionModel:
 
     def predict(self, predict_time):
         """预测未来时刻的位置和角度"""
-        delta_t = predict_time - self.last_t
+        delta_t = predict_time
         
         # 预测中心点位置
         pred_center_x = self.center_x + delta_t * self.center_vx

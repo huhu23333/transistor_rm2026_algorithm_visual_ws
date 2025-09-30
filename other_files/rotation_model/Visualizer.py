@@ -75,21 +75,9 @@ class Visualizer:
         true_y = true_params['true_y']
         
         # 提取拟合参数
-        fitted_center_x, fitted_vx, fitted_center_y, fitted_vy, fitted_center_z, fitted_vz, fitted_yaw, fitted_vyaw, fitted_r, fitted_all_armors_yaw = fitted_params
+        fitted_center_x, fitted_vx, fitted_center_y, fitted_vy, fitted_center_z, fitted_vz, fitted_vyaw, fitted_r, fitted_all_armors_yaw = fitted_params
         
-        # 计算拟合的当前位置
-        fitted_x = fitted_center_x + fitted_r * np.sin(fitted_yaw)
-        fitted_y = fitted_center_y - fitted_r * np.cos(fitted_yaw)
-        
-        # 5. 绘制真实位置和观测位置
-        self.ax.plot(true_x, true_y, 'g^', markersize=10, label='True Position')
-        self.ax.plot(observed_data.x, observed_data.y, 'b*', markersize=12, label='Observed Position')
-        self.ax.plot(fitted_x, fitted_y, 'rs', markersize=8, label='Fitted Position')
-        
-        # 6. 添加连接线（从中心到位置点）
-        self.ax.plot([true_center_x, true_x], [true_center_y, true_y], 'g-', alpha=0.5)
-        self.ax.plot([fitted_center_x, fitted_x], [fitted_center_y, fitted_y], 'r-', alpha=0.5)
-
+        fitted_yaw = fitted_all_armors_yaw[0]
         fitted_xs = fitted_center_x + fitted_r * np.sin(fitted_all_armors_yaw)
         fitted_ys = fitted_center_y - fitted_r * np.cos(fitted_all_armors_yaw)
         for i in range(len(fitted_all_armors_yaw)):
