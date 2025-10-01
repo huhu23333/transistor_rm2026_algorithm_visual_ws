@@ -24,8 +24,15 @@ RotationMotionModel::RotationMotionModel(const ObservedData& initObservedData) {
 
 void RotationMotionModel::emptyUpdate(double update_time) {
     ObservedData last_observed_data = observedDataHistory.back();
-    last_observed_data.t = update_time;
-    update(last_observed_data);
+    PredictResult pred_data_to_update = predict(update_time - last_observed_data.t);
+    ObservedData update_data({
+        pred_data_to_update.armors[0].x,
+        pred_data_to_update.armors[0].y,
+        pred_data_to_update.armors[0].z,
+        pred_data_to_update.armors[0].yaw,
+        update_time
+    });
+    update(update_data);
 }
 
 
@@ -244,7 +251,7 @@ void RotationMotionModel::fitRotationParameters() {
     size_t min_size = std::min({acf_x.size(), acf_y.size(), acf_z.size(), acf_yaw.size()});
     std::vector<double> combined_acf(min_size, 0.0);
     for (size_t i = 0; i < min_size; i++) {
-        combined_acf[i] = acf_x[i] + acf_y[i] + acf_z[i] + acf_yaw[i];
+        combined_acf[i] = acf_x[i] + acf_y[i];// + acf_z[i] + acf_yaw[i];
     }
     
     std::vector<double> refined_acf = lagStackWithDecay(combined_acf, refine_multiple);
@@ -263,13 +270,13 @@ void RotationMotionModel::fitRotationParameters() {
         vyaw = (rotation_period > 0) ? (2 * M_PI / rotation_period) : 0.0;
     }
     
-    std::vector<double> dataToFit, fittedData;
-    std::vector<int> midPoints = findMidYaw(yawData, jump_period_frames, dataToFit, fittedData);
     std::vector<double> TheoreticYawData(observedDataHistory.size());
     for (size_t i = 0; i < observedDataHistory.size(); i++) {
         TheoreticYawData[i] = (getTheoreticYaw(observedDataHistory[i].x, observedDataHistory[i].y));
     }
-    rotation_direction = getRotationDirection(midPoints, TheoreticYawData);
+    std::vector<double> dataToFit, fittedData;
+    std::vector<int> midPoints = findMidYaw(TheoreticYawData, jump_period_frames, dataToFit, fittedData);
+    rotation_direction = getRotationDirection(TheoreticYawData);
     vyaw *= rotation_direction;
     
     if (!midPoints.empty()) {
@@ -345,19 +352,13 @@ std::vector<int> RotationMotionModel::findMidYaw(const std::vector<double>& yawD
     return mid_points;
 }
 
-int RotationMotionModel::getRotationDirection(const std::vector<int>& midPoints, 
-                                             const std::vector<double>& yawData) {
-    double d_yaw_integrate = 0.0;
+int RotationMotionModel::getRotationDirection(const std::vector<double>& yawData) {
     if (yawData.size() < 2) return 1;
     
-    for (int mid_idx : midPoints) {
-        if (mid_idx == 0) {
-            d_yaw_integrate += yawData[1] - yawData[0];
-        } else if (mid_idx == yawData.size() - 1) {
-            d_yaw_integrate += yawData[yawData.size() - 1] - yawData[yawData.size() - 2];
-        } else {
-            d_yaw_integrate += yawData[mid_idx + 1] - yawData[mid_idx - 1];
-        }
+    double d_yaw_integrate = 0.0;
+    for (int first_idx = 0; first_idx < yawData.size() - 1; first_idx += 1) {
+        d_yaw_integrate += 0.1 * (yawData[first_idx + 1] - yawData[first_idx]) / 
+                           ((yawData[first_idx + 1] - yawData[first_idx]) * (yawData[first_idx + 1] - yawData[first_idx]) + 0.01);
     }
     
     return (d_yaw_integrate > 0) ? 1 : -1;

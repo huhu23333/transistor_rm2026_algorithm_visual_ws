@@ -82,7 +82,7 @@ private:
     void fitRotationParameters();
     std::vector<int> findMidYaw(const std::vector<double>& yawData, double periodFrames, 
                                std::vector<double>& dataToFit, std::vector<double>& fittedData);
-    int getRotationDirection(const std::vector<int>& midPoints, const std::vector<double>& yawData);
+    int getRotationDirection(const std::vector<double>& yawData);
     double centerResiduals(const std::vector<double>& params, double armorYaw, double armorX, 
                           double armorY, double dataT);
 
