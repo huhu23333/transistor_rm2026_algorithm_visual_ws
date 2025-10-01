@@ -73,6 +73,7 @@ add_library(armor_detector SHARED
     src/utils/PeriodicDataPredictor.cpp
     src/utils/SimpleDataFilter.cpp
     src/utils/UtilsFunc.cpp
+    src/utils/RotationMotionModel.cpp
     # EKF
     src/EKF/Tracker.cpp
     # ba solver
