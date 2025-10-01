@@ -176,13 +176,15 @@ void PositionPredictor3D::fitFourier(int steps, int fourier_order) {
     auto modified_acf_y = computeModifiedACF(res_y);
     auto modified_acf_z = computeModifiedACF(res_z);
     
-    // 取两个方向ACF的平均值
+    // 取三个方向ACF的和
     std::vector<double> modified_acf_combined(modified_acf_x.size());
     for (size_t i = 0; i < modified_acf_x.size(); i++) {
-        modified_acf_combined[i] = (modified_acf_x[i] + modified_acf_y[i] + modified_acf_z[i]) / 3.0;
+        modified_acf_combined[i] = (modified_acf_x[i] + modified_acf_y[i] + modified_acf_z[i]);
     }
     
-    int T = findPeriod(modified_acf_combined);
+    std::vector<double> acf_stack = lagStackWithDecay(modified_acf_combined);
+    auto acf_stack_max_iter = std::max_element(acf_stack.begin(), acf_stack.end());
+    int T = std::distance(acf_stack.begin(), acf_stack_max_iter);
     if (T <= 0) T = 1;  // 确保周期有效
     
     // 拟合傅里叶级数
@@ -491,81 +493,6 @@ PositionPredictor3D::QuadraticFitResult PositionPredictor3D::fitQuadraticCompone
     return result;
 }
 
-std::vector<double> PositionPredictor3D::computeModifiedACF(const std::vector<double>& residual) const {
-    int n = residual.size();
-    if (n == 0) return {};
-    
-    double residual_mean = std::accumulate(residual.begin(), residual.end(), 0.0) / n;
-    /* double denominator = 0.0;
-    for (double r : residual) {
-        denominator += (r - residual_mean) * (r - residual_mean);
-    }
-    // 修改方差为标准差
-    denominator = std::pow(denominator, 0.5);
-    
-    if (denominator == 0) {
-        return std::vector<double>(n / 2 + 1, 0.0);
-    } */
-    
-    int max_lag = static_cast<int>(n * 0.8);
-    std::vector<double> modified_acf(max_lag + 1);
-    
-    for (int k = 0; k <= max_lag; k++) {
-        double numerator = 0.0;
-        if (k == 0) {
-            for (int t = 0; t < n; t++) {
-                numerator += (residual[t] - residual_mean) * (residual[t] - residual_mean);
-            }
-            numerator /= n;
-        } else {
-            for (int t = 0; t < n - k; t++) {
-                numerator += (residual[t] - residual_mean) * (residual[t + k] - residual_mean);
-            }
-            numerator /= (n - k);
-        }
-        modified_acf[k] = numerator;// / denominator;
-    }
-    
-    return modified_acf;
-}
-
-int PositionPredictor3D::findPeriod(const std::vector<double>& modified_acf) const {
-    if (modified_acf.size() < 2) return 1;
-    
-    int max_k = 1;
-    double max_value = modified_acf[1];
-    double last_modified_acf = modified_acf[1];
-    
-    // 寻找第一个下降点
-    for (int k = 2; k < static_cast<int>(modified_acf.size() / 2); k++) {
-        if (modified_acf[k] < 0) {
-            max_k = k;
-            max_value = modified_acf[k];
-            last_modified_acf = modified_acf[k];
-            break;
-        }
-    }
-    
-    bool modified_acf_updating = false;
-    for (int k = max_k + 1; k < static_cast<int>(modified_acf.size()); k++) {
-        if ((modified_acf[k] > max_value * 3.0) || (modified_acf_updating && modified_acf[k] > max_value * 0.8)) {
-            if (modified_acf[k] > last_modified_acf) {
-                modified_acf_updating = true;
-            }
-            if (modified_acf[k] > max_value) {
-                max_value = modified_acf[k];
-                max_k = k;
-            }
-        }
-        if (modified_acf[k] < last_modified_acf * 0.8) {
-            modified_acf_updating = false;
-            //break;
-        }
-        last_modified_acf = modified_acf[k];
-    }
-    
-    return max_k;
-}
 
 std::vector<double> PositionPredictor3D::fitFourierSeries(const std::vector<double>& residuals, int T, int N) const {
     if (T <= 0) {
