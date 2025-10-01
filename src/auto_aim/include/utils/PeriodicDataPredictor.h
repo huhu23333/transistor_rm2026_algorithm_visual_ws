@@ -7,6 +7,8 @@
 #include <numeric>
 #include <stdexcept>
 #include <iostream>
+#include "utils/UtilsFunc.h"
+#include <algorithm>
 
 class PeriodicDataPredictor {
 public:
@@ -60,8 +62,6 @@ private:
     mutable double b1_ = 0.0;
     
     mutable bool coefficients_dirty_ = true; // 标记系数是否需要重新计算
-
-    std::vector<double> computeModifiedACF() const;
 };
 
 #endif // PERIODIC_DATA_FITTER_H

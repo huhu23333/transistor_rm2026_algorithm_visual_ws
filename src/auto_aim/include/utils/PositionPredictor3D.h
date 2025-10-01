@@ -8,6 +8,8 @@
 #include <numeric>
 #include <stdexcept>
 #include <iostream>
+#include "utils/UtilsFunc.h"
+#include <algorithm>
 
 class PositionPredictor3D {
 public:
@@ -90,12 +92,6 @@ private:
     
     // 一维二次曲线拟合实现（新增）
     QuadraticFitResult fitQuadraticComponent(const std::vector<float>& y, int point_count, int steps) const;
-    
-    // 计算自相关函数
-    std::vector<double> computeModifiedACF(const std::vector<double>& residuals) const;
-    
-    // 从ACF中寻找周期
-    int findPeriod(const std::vector<double>& acf) const;
     
     // 傅里叶级数拟合
     std::vector<double> fitFourierSeries(const std::vector<double>& residuals, int T, int N) const;
