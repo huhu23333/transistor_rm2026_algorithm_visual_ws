@@ -189,14 +189,14 @@ class MotionModel:
         self.center_x = init_observed_data.x - self.r * math.sin(init_observed_data.yaw)
         self.center_y = init_observed_data.y + self.r * math.cos(init_observed_data.yaw)
         self.center_z = init_observed_data.z
-        self.max_history = 60
+        self.max_history = 90
 
         self.refine_multiple = 10
 
         # 新增属性用于旋转参数拟合
         self.rotation_period = 0.0
         self.current_phase = 0.0
-        self.n_armors = 4  # 假设3等分圆周
+        self.n_armors = 3  # 假设3等分圆周
         self.rotation_direction = 1
 
         self.jump_rad = math.pi * 2 / self.n_armors
@@ -301,7 +301,7 @@ class MotionModel:
         acf_x = compute_modified_acf(x_data)
         acf_y = compute_modified_acf(y_data)
         acf_z = compute_modified_acf(z_data)
-        acf_yaw = compute_modified_acf(yaw_data)
+        acf_yaw = compute_modified_acf(yaw_data * self.r)
         
         # 合并ACF（简单相加）
         combined_acf = acf_x + acf_y + acf_z + acf_yaw
@@ -365,13 +365,20 @@ class MotionModel:
         """预测未来时刻的位置和角度"""
         delta_t = predict_time
         
+        latest_yaw = self.observed_data_history[-1].yaw
+        start_yaw_distances = np.zeros(self.n_armors)
+        for i in range(self.n_armors):
+            start_yaw_distances[i] = abs(self.current_phase + i * self.jump_rad - latest_yaw)
+        start_yaw_distances_min_index = start_yaw_distances.argmin()
+        start_yaw = self.current_phase + start_yaw_distances_min_index * self.jump_rad
+
         # 预测中心点位置
         pred_center_x = self.center_x + delta_t * self.center_vx
         pred_center_y = self.center_y + delta_t * self.center_vy
         pred_center_z = self.center_z + delta_t * self.center_vz
         
         # 预测角度
-        pred_phase = (self.current_phase + delta_t * self.vyaw) % (2 * math.pi)
+        pred_phase = (start_yaw + delta_t * self.vyaw) % (2 * math.pi)
         
         # 预测装甲板位置
         pred_x = pred_center_x + self.r * math.sin(pred_phase)

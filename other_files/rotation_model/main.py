@@ -30,7 +30,12 @@ def main():
             
             # 获取观测数据（有噪音）
             obs_data = MotionModel.ObservedData(*env.observeDataWithNoise(t),t)
-            motion_model.update(obs_data)
+            if abs(obs_data.yaw) > 0.7:
+                pred_data = motion_model.predict(0.033)
+                obs_data = MotionModel.ObservedData(*pred_data, t)
+                motion_model.update(obs_data)
+            else:
+                motion_model.update(obs_data)
             
             # 获取拟合参数
             fitted_params = [motion_model.center_x, motion_model.center_vx, 

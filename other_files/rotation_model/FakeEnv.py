@@ -6,7 +6,7 @@ random.seed(42)
 
 class FakeEnv:
     #def __init__(self, center_x=-100, vx=1000, center_y=2000, vy=300, center_z=500, vz=0, yaw=0.1, vyaw=0.8*math.pi, r=276, init_time=0):
-    def __init__(self, center_x=-100, vx=0, center_y=2000, vy=0, center_z=500, vz=0, yaw=0.1, vyaw=1.5*math.pi, r=276, init_time=0, self_round_move = True):
+    def __init__(self, center_x=-100, vx=0, center_y=2000, vy=0, center_z=500, vz=0, yaw=0.1, vyaw=0.8*math.pi, r=276, init_time=0, self_round_move = False):
         self.center_x = center_x
         self.vx = vx
         self.center_y = center_y
@@ -28,16 +28,16 @@ class FakeEnv:
             self.center_x = self.origin_center_x + 500 * math.cos(delta_t * 0.3 * math.pi)
             self.center_y = self.origin_center_y + 500 * math.sin(delta_t * 0.3 * math.pi)
         while target_yaw > math.pi / 3:
-            target_yaw -= math.pi * 2 / 4
+            target_yaw -= math.pi * 2 / 3
         while target_yaw < -math.pi / 3:
-            target_yaw += math.pi * 2 / 4
+            target_yaw += math.pi * 2 / 3
         if rand_jump:
-            if target_yaw - math.pi * 2 / 4 >= -math.pi / 3:
+            if target_yaw - math.pi * 2 / 3 >= -math.pi / 3:
                 if random.random() < 0.5:
-                    target_yaw -= math.pi * 2 / 4
-            if target_yaw + math.pi * 2 / 4 <= math.pi / 3:
+                    target_yaw -= math.pi * 2 / 3
+            if target_yaw + math.pi * 2 / 3 <= math.pi / 3:
                 if random.random() < 0.5:
-                    target_yaw += math.pi * 2 / 4
+                    target_yaw += math.pi * 2 / 3
         obs_x = self.center_x + self.r * math.sin(target_yaw) + delta_t * self.vx
         obs_y = self.center_y - self.r * math.cos(target_yaw) + delta_t * self.vy
         obs_z = self.center_z + delta_t * self.vz
