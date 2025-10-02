@@ -43,7 +43,7 @@
 namespace fs = std::filesystem;
 
 
-#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
@@ -198,6 +198,7 @@ public:
 #else
         // 初始化相机和检测器
         camera_ = std::make_shared<Camera>((*config_file_ptr)["cam_ip"].as<std::string>(), (*config_file_ptr)["pc_ip"].as<std::string>());
+        //camera_ = std::make_shared<Camera>(0);
         camera_->setExposureTime((*config_file_ptr)["camera_ExposureTime"].as<float>());
         camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
 #endif
@@ -526,7 +527,6 @@ private:
         pthread_mutex_unlock(&g_mutex);
 
         if (!frame.empty()) {
-            
 #ifdef SAVE_IMG_FREQ
             frame_count_ += 1;
             if (frame_count_ % SAVE_IMG_FREQ == 0 && frame_count_ / SAVE_IMG_FREQ < 2000) {
@@ -540,6 +540,7 @@ private:
                 cv::imwrite(filename.str(), frame);
             }
 #endif
+            //cv::resize(frame, frame, cv::Size(768, 512), 0, 0, cv::INTER_LINEAR);
 
             //cv::flip(frame, frame, -1);  // 翻转图像（上下翻转）
 
