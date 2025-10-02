@@ -335,7 +335,7 @@ private:
 
     void serialDataCallback(const SerialData& msg) {
         bullet_velocity_ = msg.bullet_velocity;
-        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180; // 测定pitch轴传入数据1.8大约对应30°
+        current_pitch_ = -(((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180) + 0.22; // 测定pitch轴传入数据1.8大约对应30°
         current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
         enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
@@ -950,7 +950,8 @@ private:
                         // ====================== ======================
 
                         // 转换回pnp相机坐标系
-                        std::vector<float> rest_frame_aim_pos_pred = {predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z};
+                        //std::vector<float> rest_frame_aim_pos_pred = {predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z};
+                        std::vector<float> rest_frame_aim_pos_pred = rest_frame_pos;
                         std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_aim_pos_pred[0], rest_frame_aim_pos_pred[1], rest_frame_aim_pos_pred[2]);
                         std::vector<float> pnp_aim_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_aim_pos_pred[0], cam_normal_aim_pos_pred[1], cam_normal_aim_pos_pred[2]);
                         predicted_aim_pos.x = pnp_aim_pos_pred[0];
@@ -987,7 +988,7 @@ private:
                             }
                             
                             // 发布云台控制命令
-                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.5 + pitch_integration; // PI控制
+                            float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration; // PI控制
                             float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad + yaw_integration; // 缓解yaw轴输入数据掉线问题
                             last_command_pitch_ = command_pitch;
                             last_command_yaw_ = command_yaw;
