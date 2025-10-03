@@ -5,6 +5,9 @@
 #include <chrono>
 #include <vector>
 #include <memory>
+#define _USE_MATH_DEFINES
+#include <cmath>
+#include <algorithm>
 
 #include <3d_processing/BallisticSolver.h>
 #include "3d_processing/ArmorSolver.h"
@@ -24,6 +27,15 @@ struct PredictorResult {
     float command_yaw = 0.0;
     float fire_flag = false;
 };
+
+namespace UsingPredictorType {
+    enum UsingPredictorType {
+        None,   // 直接瞄准装甲板
+        EKF,
+        FirePredictor,
+        RotationMotionModel
+    };
+}
 
 class AllPredictor {
 public:
@@ -48,7 +60,7 @@ public:
         RESET_DISTANCE_THRESHOLD = (*config_file_ptr)["RESET_DISTANCE_THRESHOLD"].as<float>(); 
         MAX_LOST_TIME = (*config_file_ptr)["MAX_LOST_TIME"].as<float>(); 
 
-        reset_com_time = (*config_file_ptr)["reset_com_time"].as<float>();
+        reset_com_time = (*config_file_ptr)["reset_com_time"].as<float>(); 
 
         predictor3d_fit_step = (*config_file_ptr)["predictor3d_fit_step"].as<int>();
         predictor3d_predict_step = (*config_file_ptr)["predictor3d_predict_step"].as<int>();
@@ -57,6 +69,7 @@ public:
         fire_distance = (*config_file_ptr)["fire_distance"].as<float>();
         fire_data_predictor_fit_step = (*config_file_ptr)["fire_data_predictor_fit_step"].as<int>();
 
+        last_com_time = std::chrono::steady_clock::now();
         
         predictor3d = std::make_shared<PositionPredictor3D>(predictor3d_fit_step);
         predictor3dArmorPredictions.push_back(cv::Point3f(0,0,0));
@@ -86,6 +99,7 @@ public:
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
 
 private:
+    UsingPredictorType::UsingPredictorType using_predictor_type = UsingPredictorType::RotationMotionModel;
     std::shared_ptr<YAML::Node> config_file_ptr; 
     rclcpp::Node* node;
 
@@ -93,6 +107,8 @@ private:
 
     float RESET_DISTANCE_THRESHOLD; // 单位：mm
     float MAX_LOST_TIME;              // 单位：秒
+
+    float last_total_delay_ = 0.0;
     
     std::shared_ptr<ArmorSolver> armor_solver_;
     std::shared_ptr<BallisticSolver> ballistic_solver_;
@@ -128,7 +144,7 @@ private:
     float yaw_rad_to_x_pixel_ratio;
     float pitch_rad_to_y_pixel_ratio;
     float reset_com_time;
-    std::chrono::steady_clock::time_point last_com_time = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point last_com_time;
     std::shared_ptr<PositionPredictor3D> predictor3d;
     int predictor3dPrediction_nowIndex = 0;
     std::vector<cv::Point3f> predictor3dArmorPredictions;

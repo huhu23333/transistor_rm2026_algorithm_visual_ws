@@ -12,7 +12,7 @@
 #include <yaml-cpp/yaml.h>
 #include "2d_armor_detector/UnwarpUtils.h"
 //#include "test_codes/model_rm2026.h"
-#include "predictor/PositionPredictor.h"
+#include "predictor/PositionPredictor2D.h"
 #include <iostream>
 #include <sstream>
 #include <string>

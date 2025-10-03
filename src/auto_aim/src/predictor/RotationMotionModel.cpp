@@ -409,6 +409,8 @@ PredictResult RotationMotionModel::predict(double predictTime) {
         }));
     }
     
+    result.rotation_direction = rotation_direction;
+
     return result;
 }
 

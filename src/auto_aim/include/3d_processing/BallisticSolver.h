@@ -24,7 +24,7 @@ public:
     BallisticSolver(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) : 
     config_file_ptr(config_file_ptr), node(node) {}
     // 函数声明
-    BallisticInfo calcBallisticAngle(float x, float y, float z, float deltax, float deltay, float deltaz, 
+    BallisticInfo calcBallisticAngle(float x, float y, float z,
                                     float v_bullet, float cur_pitch, float cur_yaw);
 
     cv::Point3d calcNearestPointWithAirResistance(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet);

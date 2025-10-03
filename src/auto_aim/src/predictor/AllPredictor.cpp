@@ -15,10 +15,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             tracker_->predict();
         }
 
-        bool fire_flag = false;
         if (
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
-            //serial_communication_->sendData(0, 0, false);
             result.reset = true;
             pitch_integration = 0.0; // 积分项重置
             yaw_integration = 0.0;
@@ -28,82 +26,56 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             armor_distance_filter_ -> clearHistory();
             rotation_motion_model_.reset();
         } else {
-            pred_fire_data_filter_ -> addPoint(0.0);
-            fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
-            //serial_communication_->sendData(last_command_pitch_, last_command_yaw_, fire_flag);
             result.reset = false;
             result.command_pitch = last_command_pitch_;
             result.command_yaw = last_command_yaw_;
-            result.fire_flag = fire_flag;
-            if (fire_flag) {
-                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(0, 0, 255), 2);
-            } else {
-                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
-            }
+            result.fire_flag = false;
+
+            // ==========================FirePredictor===========================
+            pred_fire_data_filter_ -> addPoint(0.0);
             cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
             cv::Point3f predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_nowIndex];
             predictor3d -> addPoint(predicted_armor_pos);
             if (predictor3dPrediction_nowIndex < predictor3dArmorPredictions.size()-1) {
                 predictor3dPrediction_nowIndex += 1;
             }
-//#ifdef USE_PREDICTOR3D
-            // 转换回pnp相机坐标系
-            std::vector<float> rest_frame_aim_pos_pred = {predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z};
-            std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_aim_pos_pred[0], rest_frame_aim_pos_pred[1], rest_frame_aim_pos_pred[2]);
-            std::vector<float> pnp_aim_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_aim_pos_pred[0], cam_normal_aim_pos_pred[1], cam_normal_aim_pos_pred[2]);
-            predicted_aim_pos.x = pnp_aim_pos_pred[0];
-            predicted_aim_pos.y = pnp_aim_pos_pred[1];
-            predicted_aim_pos.z = pnp_aim_pos_pred[2];
-
-            // 转换回pnp相机坐标系
-            std::vector<float> rest_frame_armor_pos_pred = {predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z};
-            std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
-            std::vector<float> pnp_armor_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_armor_pos_pred[0], cam_normal_armor_pos_pred[1], cam_normal_armor_pos_pred[2]);
-            predicted_armor_pos.x = pnp_armor_pos_pred[0];
-            predicted_armor_pos.y = pnp_armor_pos_pred[1];
-            predicted_armor_pos.z = pnp_armor_pos_pred[2];
-            // 绘制瞄准预测点（黄色）
-            cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
-            cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
-            // 绘制装甲板预测点（蓝色）
-            cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
-            cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
-
+            if (using_predictor_type == UsingPredictorType::FirePredictor) {
+                result.fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
+            }
+            
             fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
             //fire_data_predictor_ -> autoFindPeriod();
             fire_data_predictor_ -> addPoint(0.0);
-//#endif
+            // ==========================FirePredictor=========================== END
+            // ==========================RotationMotionModel===========================
             if (rotation_motion_model_) {
                 double RMM_update_time = (std::chrono::steady_clock::now() - node_start_time).count() / 1e9;
                 rotation_motion_model_ -> emptyUpdate(RMM_update_time);
-
                 
-                PredictResult RMM_pred_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8);
-                std::vector<double> rest_frame_RMM_pred_center = {RMM_pred_data.center_x, RMM_pred_data.center_y, RMM_pred_data.center_z};
-                std::vector<float> cam_normal_RMM_pred_center = rest_frame_ -> getCamPositionFromWorld(rest_frame_RMM_pred_center[0], rest_frame_RMM_pred_center[1], rest_frame_RMM_pred_center[2]);
-                std::vector<float> pnp_RMM_pred_center = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_center[0], cam_normal_RMM_pred_center[1], cam_normal_RMM_pred_center[2]);
-                cv::Point3f RMM_pred_center_p3f(pnp_RMM_pred_center[0], pnp_RMM_pred_center[1], pnp_RMM_pred_center[2]);
-                cv::Point2f RMM_pred_center_pixel = armor_solver_->project3DToPixel(RMM_pred_center_p3f);
-                cv::circle(frame, RMM_pred_center_pixel, 6, cv::Scalar(255, 0, 255), 2);
+                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8);
+                std::vector<float> cam_normal_RMM_pred_now_center = rest_frame_ -> getCamPositionFromWorld(RMM_pred_now_data.center_x, RMM_pred_now_data.center_y, RMM_pred_now_data.center_z);
+                std::vector<float> pnp_RMM_pred_now_center = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_now_center[0], cam_normal_RMM_pred_now_center[1], cam_normal_RMM_pred_now_center[2]);
+                cv::Point3f RMM_pred_now_center_p3f(pnp_RMM_pred_now_center[0], pnp_RMM_pred_now_center[1], pnp_RMM_pred_now_center[2]);
+                cv::Point2f RMM_pred_now_center_pixel = armor_solver_->project3DToPixel(RMM_pred_now_center_p3f);
+                cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(255, 0, 255), 2);
 
                 cv::Mat RMM_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
-                cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_data.center_x/10, 800-RMM_pred_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
-                for (int RMM_pred_armor_i = 0; RMM_pred_armor_i < RMM_pred_data.armors.size(); RMM_pred_armor_i += 1) {
-                    SimpleArmor& RMM_pred_armor = RMM_pred_data.armors[RMM_pred_armor_i];
-                    std::vector<double> rest_frame_RMM_pred_armor = {RMM_pred_armor.x, RMM_pred_armor.y, RMM_pred_armor.z};
-                    std::vector<float> cam_normal_RMM_pred_armor = rest_frame_ -> getCamPositionFromWorld(rest_frame_RMM_pred_armor[0], rest_frame_RMM_pred_armor[1], rest_frame_RMM_pred_armor[2]);
-                    std::vector<float> pnp_RMM_pred_armor = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_armor[0], cam_normal_RMM_pred_armor[1], cam_normal_RMM_pred_armor[2]);
-                    cv::Point3f RMM_pred_armor_p3f(pnp_RMM_pred_armor[0], pnp_RMM_pred_armor[1], pnp_RMM_pred_armor[2]);
-                    cv::Point2f RMM_pred_armor_pixel = armor_solver_->project3DToPixel(RMM_pred_armor_p3f);
-                    cv::circle(frame, RMM_pred_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
-                    cv::line(frame, RMM_pred_center_pixel, RMM_pred_armor_pixel, cv::Scalar(0, 255, 0), 2);
+                cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
+                for (int RMM_pred_now_armor_i = 0; RMM_pred_now_armor_i < RMM_pred_now_data.armors.size(); RMM_pred_now_armor_i += 1) {
+                    SimpleArmor& RMM_pred_now_armor = RMM_pred_now_data.armors[RMM_pred_now_armor_i];
+                    std::vector<float> cam_normal_RMM_pred_now_armor = rest_frame_ -> getCamPositionFromWorld(RMM_pred_now_armor.x, RMM_pred_now_armor.y, RMM_pred_now_armor.z);
+                    std::vector<float> pnp_RMM_pred_now_armor = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_now_armor[0], cam_normal_RMM_pred_now_armor[1], cam_normal_RMM_pred_now_armor[2]);
+                    cv::Point3f RMM_pred_now_armor_p3f(pnp_RMM_pred_now_armor[0], pnp_RMM_pred_now_armor[1], pnp_RMM_pred_now_armor[2]);
+                    cv::Point2f RMM_pred_now_armor_pixel = armor_solver_->project3DToPixel(RMM_pred_now_armor_p3f);
+                    cv::circle(frame, RMM_pred_now_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
+                    cv::line(frame, RMM_pred_now_center_pixel, RMM_pred_now_armor_pixel, cv::Scalar(0, 255, 0), 2);
                     
-                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_armor.x/10, 800-RMM_pred_armor.y/10), 8, 
-                        cv::Scalar(0, 255 - RMM_pred_armor_i * 80, RMM_pred_armor_i * 80), 2);
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 800-RMM_pred_now_armor.y/10), 8, 
+                        cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                     cv::line(RMM_visualize_frame, 
-                        cv::Point2f(400+RMM_pred_data.center_x/10, 800-RMM_pred_data.center_y/10), 
-                        cv::Point2f(400+RMM_pred_armor.x/10, 800-RMM_pred_armor.y/10), 
-                        cv::Scalar(0, 255 - RMM_pred_armor_i * 80, RMM_pred_armor_i * 80), 2);
+                        cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 
+                        cv::Point2f(400+RMM_pred_now_armor.x/10, 800-RMM_pred_now_armor.y/10), 
+                        cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                 }
                 RotationMotionState RMM_state = rotation_motion_model_ -> getState();
                 cv::putText(RMM_visualize_frame, 
@@ -122,11 +94,54 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
                 cv::imshow("RMM visualize", RMM_visualize_frame);
+                
+                if (using_predictor_type == UsingPredictorType::RotationMotionModel) {
+                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8 + last_total_delay_);
+                    std::vector<float> cam_position = rest_frame_ -> getCamPosition();
+                    cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
+                    std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
+                    float yaw_bias = M_PI / 180.0 * 15.0;
+                    yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
+                    for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
+                        SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
+                        cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + yaw_bias), -std::cos(RMM_pred_aim_armor.yaw + yaw_bias)};
+                        center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
+                    }
+                    int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
+                    predicted_armor_pos = {
+                        static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].x),
+                        static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].y),
+                        static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].z) 
+                    };
+                    predicted_aim_pos = predicted_armor_pos;
+                    result.fire_flag = true;
+                }
+            }
+            // ==========================RotationMotionModel=========================== END
+            // 统一转换回pnp相机坐标系
+            std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getCamPositionFromWorld(predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
+            std::vector<float> pnp_aim_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_aim_pos_pred[0], cam_normal_aim_pos_pred[1], cam_normal_aim_pos_pred[2]);
+            predicted_aim_pos.x = pnp_aim_pos_pred[0];
+            predicted_aim_pos.y = pnp_aim_pos_pred[1];
+            predicted_aim_pos.z = pnp_aim_pos_pred[2];
+            std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getCamPositionFromWorld(predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z);
+            std::vector<float> pnp_armor_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_armor_pos_pred[0], cam_normal_armor_pos_pred[1], cam_normal_armor_pos_pred[2]);
+            predicted_armor_pos.x = pnp_armor_pos_pred[0];
+            predicted_armor_pos.y = pnp_armor_pos_pred[1];
+            predicted_armor_pos.z = pnp_armor_pos_pred[2];
+            // 绘制瞄准预测点（黄色）
+            cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
+            cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
+            // 绘制装甲板预测点（蓝色）
+            cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
+            cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
+            if (result.fire_flag) {
+                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(0, 0, 255), 2);
+            } else {
+                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
             }
         }
-//#ifdef USE_PREDICTOR3D
-        oscilloscope_fire_ -> addDataPoint(fire_flag);
-//#endif
+        oscilloscope_fire_ -> addDataPoint(result.fire_flag);
     } 
     
     if (!classifyResults.empty()) {
@@ -154,10 +169,22 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]
                 );
                 RCLCPP_DEBUG(node->get_logger(), "camera euler angles: yaw=%.2f, pitch=%.2f, roll=%.2f", aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]);
-
-                // ========== EKF 逻辑 (9D模型修改) ==========
                 RCLCPP_DEBUG(node->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], rest_frame_euler_angles[0]);
 
+                // 提前预测与弹道解算
+                constexpr float image_latency = 0.013f;
+                constexpr float comm_latency  = 0.010f;
+                float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
+                float extra_time = 0.300f;
+                float total_delay = image_latency + comm_latency + bullet_time + extra_time;
+                last_total_delay_ = total_delay;
+
+                // 默认使用 None （直接瞄准装甲板）
+                cv::Point3f predicted_armor_pos(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]);
+                cv::Point3f predicted_aim_pos = predicted_armor_pos;
+                bool fire_flag = true;
+                
+                // ========================== EKF 逻辑 (9D模型修改) ===========================
                 // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                 Tracker::Measurement z;
                 z << rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], rest_frame_euler_angles[0];
@@ -185,34 +212,32 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
                 }
 
-                // 3. 提前预测与弹道解算
-                constexpr float image_latency = 0.013f;
-                constexpr float comm_latency  = 0.010f;
-                float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                float extra_time = 0.300f;
-                float total_delay = image_latency + comm_latency + bullet_time + extra_time;
-
                 // 获取提前预测后的机器人中心状态
                 Tracker::State future_state = tracker_->predictAhead(total_delay);
                 
                 // 从预测的机器人中心状态，反解出未来时刻装甲板的位置
                 double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
                 double future_yaw = future_state(6), future_r = future_state(8);
-                cv::Point3f predicted_aim_pos(
-                    future_xc - future_r * sin(future_yaw),
-                    future_yc + future_r * cos(future_yaw),
-                    future_zc 
-                );
                 
-                RCLCPP_DEBUG(node->get_logger(), "yaw: %.2f" , rest_frame_euler_angles[0] );
-                RCLCPP_DEBUG(node->get_logger(), "distance: %.2f" , aim.distance );
-                RCLCPP_DEBUG(node->get_logger(), "position: (%.2f, %.2f, %.2f)" , aim.position.x, aim.position.y, aim.position.z);
-                RCLCPP_DEBUG(node->get_logger(), "Future armor pos: (%.2f, %.2f, %.2f)",
-                            predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
+                if (using_predictor_type == UsingPredictorType::EKF) {
 
-                bool fire_flag = true;
-
-                // ======================3D位置预测器======================
+                    predicted_armor_pos = {
+                        static_cast<float>(future_xc - future_r * sin(future_yaw)),
+                        static_cast<float>(future_yc + future_r * cos(future_yaw)),
+                        static_cast<float>(future_zc) 
+                    };
+                    predicted_aim_pos = predicted_armor_pos;
+                    fire_flag = true;
+                    
+                    RCLCPP_DEBUG(node->get_logger(), "yaw: %.2f" , rest_frame_euler_angles[0] );
+                    RCLCPP_DEBUG(node->get_logger(), "distance: %.2f" , aim.distance );
+                    RCLCPP_DEBUG(node->get_logger(), "position: (%.2f, %.2f, %.2f)" , aim.position.x, aim.position.y, aim.position.z);
+                    RCLCPP_DEBUG(node->get_logger(), "Future armor pos: (%.2f, %.2f, %.2f)",
+                                predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
+                }
+                
+                // ========================== EKF 逻辑 (9D模型修改) =========================== END
+                // ========================== FirePredictor ===========================
                 cv::Point3f rest_frame_pos_Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]);
                 predictor3d -> addPoint(rest_frame_pos_Point3f);
                 predictor3d -> fitFourier(predictor3d_fit_step, predictor3d_fourier_fit_order);
@@ -221,9 +246,10 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 predictor3dPrediction_nowIndex = 0;
                 size_t predictor3dPrediction_indexToAim = std::min(predictor3d_predict_step-1, (int)(total_delay * fps_counter->fps())); // total_delay
 //#ifdef USE_PREDICTOR3D
-                predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_indexToAim]; // todo
-
-                cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_indexToAim]; // todo
+                if (using_predictor_type == UsingPredictorType::FirePredictor) {
+                    predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_indexToAim]; // todo
+                    predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_indexToAim]; // todo
+                }
 
                 // 计算弹道最近点并绘制（大紫色圈）
                 std::vector<float> cam_position = rest_frame_ -> getCamPosition();
@@ -238,24 +264,17 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
                 bool armor_near_flag = cv::norm(bullet_nearest_point - rest_frame_pos_Point3f) < fire_distance; // todo
 
-                //oscilloscope_fire_ -> addDataPoint(cv::norm(bullet_nearest_point - predicted_armor_pos)/400);
-
-                // 转换回pnp相机坐标系
-                std::vector<float> rest_frame_armor_pos_pred = {predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z};
-                std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_armor_pos_pred[0], rest_frame_armor_pos_pred[1], rest_frame_armor_pos_pred[2]);
-                std::vector<float> pnp_armor_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_armor_pos_pred[0], cam_normal_armor_pos_pred[1], cam_normal_armor_pos_pred[2]);
-                predicted_armor_pos.x = pnp_armor_pos_pred[0];
-                predicted_armor_pos.y = pnp_armor_pos_pred[1];
-                predicted_armor_pos.z = pnp_armor_pos_pred[2];
 
                 fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
                 //fire_data_predictor_ -> autoFindPeriod();
                 fire_data_predictor_ -> addPoint(armor_near_flag);
                 pred_fire_data_filter_ -> addPoint(fire_data_predictor_ -> isUpper(predictor3dPrediction_indexToAim, 0.0) || fire_data_predictor_ -> getA0() > 0.8);
-                fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
+                if (using_predictor_type == UsingPredictorType::FirePredictor) {
+                    fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
+                }
                 //oscilloscope_fire_ -> addDataPoint(pred_fire_data_filter_ -> getExponentialValue());
-//#endif
-                // ======================旋转运动模型======================
+                // ========================== FirePredictor =========================== END
+                // ========================== RotationMotionModel ===========================
                 double RMM_update_time = (std::chrono::steady_clock::now() - node_start_time).count() / 1e9;
                 ObservedData RMM_update_data({
                     rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2], rest_frame_euler_angles[0],
@@ -271,40 +290,38 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
                 }
 
-                PredictResult RMM_pred_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8);
-                std::vector<double> rest_frame_RMM_pred_center = {RMM_pred_data.center_x, RMM_pred_data.center_y, RMM_pred_data.center_z};
-                std::vector<float> cam_normal_RMM_pred_center = rest_frame_ -> getCamPositionFromWorld(rest_frame_RMM_pred_center[0], rest_frame_RMM_pred_center[1], rest_frame_RMM_pred_center[2]);
-                std::vector<float> pnp_RMM_pred_center = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_center[0], cam_normal_RMM_pred_center[1], cam_normal_RMM_pred_center[2]);
-                cv::Point3f RMM_pred_center_p3f(pnp_RMM_pred_center[0], pnp_RMM_pred_center[1], pnp_RMM_pred_center[2]);
-                cv::Point2f RMM_pred_center_pixel = armor_solver_->project3DToPixel(RMM_pred_center_p3f);
+                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8);
+                std::vector<float> cam_normal_RMM_pred_now_center = rest_frame_ -> getCamPositionFromWorld(RMM_pred_now_data.center_x, RMM_pred_now_data.center_y, RMM_pred_now_data.center_z);
+                std::vector<float> pnp_RMM_pred_now_center = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_now_center[0], cam_normal_RMM_pred_now_center[1], cam_normal_RMM_pred_now_center[2]);
+                cv::Point3f RMM_pred_now_center_p3f(pnp_RMM_pred_now_center[0], pnp_RMM_pred_now_center[1], pnp_RMM_pred_now_center[2]);
+                cv::Point2f RMM_pred_now_center_pixel = armor_solver_->project3DToPixel(RMM_pred_now_center_p3f);
                 if (best_result.is_tracked_now) {
-                    cv::circle(frame, RMM_pred_center_pixel, 6, cv::Scalar(0, 255, 0), 2);
+                    cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(0, 255, 0), 2);
                 } else {
-                    cv::circle(frame, RMM_pred_center_pixel, 6, cv::Scalar(255, 0, 255), 2);
+                    cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(255, 0, 255), 2);
                 }
 
                 cv::Mat RMM_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
                 if (best_result.is_tracked_now) {
-                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_data.center_x/10, 800-RMM_pred_data.center_y/10), 8, cv::Scalar(0, 255, 0), 2);
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 8, cv::Scalar(0, 255, 0), 2);
                 } else {
-                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_data.center_x/10, 800-RMM_pred_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
                 }
-                for (int RMM_pred_armor_i = 0; RMM_pred_armor_i < RMM_pred_data.armors.size(); RMM_pred_armor_i += 1) {
-                    SimpleArmor& RMM_pred_armor = RMM_pred_data.armors[RMM_pred_armor_i];
-                    std::vector<double> rest_frame_RMM_pred_armor = {RMM_pred_armor.x, RMM_pred_armor.y, RMM_pred_armor.z};
-                    std::vector<float> cam_normal_RMM_pred_armor = rest_frame_ -> getCamPositionFromWorld(rest_frame_RMM_pred_armor[0], rest_frame_RMM_pred_armor[1], rest_frame_RMM_pred_armor[2]);
-                    std::vector<float> pnp_RMM_pred_armor = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_armor[0], cam_normal_RMM_pred_armor[1], cam_normal_RMM_pred_armor[2]);
-                    cv::Point3f RMM_pred_armor_p3f(pnp_RMM_pred_armor[0], pnp_RMM_pred_armor[1], pnp_RMM_pred_armor[2]);
-                    cv::Point2f RMM_pred_armor_pixel = armor_solver_->project3DToPixel(RMM_pred_armor_p3f);
-                    cv::circle(frame, RMM_pred_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
-                    cv::line(frame, RMM_pred_center_pixel, RMM_pred_armor_pixel, cv::Scalar(0, 255, 0), 2);
+                for (int RMM_pred_now_armor_i = 0; RMM_pred_now_armor_i < RMM_pred_now_data.armors.size(); RMM_pred_now_armor_i += 1) {
+                    SimpleArmor& RMM_pred_now_armor = RMM_pred_now_data.armors[RMM_pred_now_armor_i];
+                    std::vector<float> cam_normal_RMM_pred_now_armor = rest_frame_ -> getCamPositionFromWorld(RMM_pred_now_armor.x, RMM_pred_now_armor.y, RMM_pred_now_armor.z);
+                    std::vector<float> pnp_RMM_pred_now_armor = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_now_armor[0], cam_normal_RMM_pred_now_armor[1], cam_normal_RMM_pred_now_armor[2]);
+                    cv::Point3f RMM_pred_now_armor_p3f(pnp_RMM_pred_now_armor[0], pnp_RMM_pred_now_armor[1], pnp_RMM_pred_now_armor[2]);
+                    cv::Point2f RMM_pred_now_armor_pixel = armor_solver_->project3DToPixel(RMM_pred_now_armor_p3f);
+                    cv::circle(frame, RMM_pred_now_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
+                    cv::line(frame, RMM_pred_now_center_pixel, RMM_pred_now_armor_pixel, cv::Scalar(0, 255, 0), 2);
                     
-                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_armor.x/10, 800-RMM_pred_armor.y/10), 8, 
-                        cv::Scalar(0, 255 - RMM_pred_armor_i * 80, RMM_pred_armor_i * 80), 2);
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 800-RMM_pred_now_armor.y/10), 8, 
+                        cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                     cv::line(RMM_visualize_frame, 
-                        cv::Point2f(400+RMM_pred_data.center_x/10, 800-RMM_pred_data.center_y/10), 
-                        cv::Point2f(400+RMM_pred_armor.x/10, 800-RMM_pred_armor.y/10), 
-                        cv::Scalar(0, 255 - RMM_pred_armor_i * 80, RMM_pred_armor_i * 80), 2);
+                        cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 
+                        cv::Point2f(400+RMM_pred_now_armor.x/10, 800-RMM_pred_now_armor.y/10), 
+                        cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                 }
                 cv::circle(RMM_visualize_frame, cv::Point2f(400+rest_frame_pos[0]/10, 800-rest_frame_pos[1]/10), 8, cv::Scalar(255, 255, 0), 2);
                 cv::line(RMM_visualize_frame, 
@@ -335,15 +352,39 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
                 cv::imshow("RMM visualize", RMM_visualize_frame);
-                // ====================== ======================
+                if (using_predictor_type == UsingPredictorType::RotationMotionModel) {
+                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8 + total_delay);
+                    cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
+                    std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
+                    float yaw_bias = M_PI / 180.0 * 15.0;
+                    yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
+                    for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
+                        SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
+                        cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + yaw_bias), -std::cos(RMM_pred_aim_armor.yaw + yaw_bias)};
+                        center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
+                    }
+                    int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
+                    predicted_armor_pos = {
+                        static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].x),
+                        static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].y),
+                        static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].z) 
+                    };
+                    predicted_aim_pos = predicted_armor_pos;
+                    fire_flag = true;
+                }
+                // ========================== RotationMotionModel =========================== END
 
-                // 转换回pnp相机坐标系
-                std::vector<float> rest_frame_aim_pos_pred = {predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z};
-                std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getCamPositionFromWorld(rest_frame_aim_pos_pred[0], rest_frame_aim_pos_pred[1], rest_frame_aim_pos_pred[2]);
+                // 统一转换回pnp相机坐标系
+                std::vector<float> cam_normal_aim_pos_pred = rest_frame_ -> getCamPositionFromWorld(predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
                 std::vector<float> pnp_aim_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_aim_pos_pred[0], cam_normal_aim_pos_pred[1], cam_normal_aim_pos_pred[2]);
                 predicted_aim_pos.x = pnp_aim_pos_pred[0];
                 predicted_aim_pos.y = pnp_aim_pos_pred[1];
                 predicted_aim_pos.z = pnp_aim_pos_pred[2];
+                std::vector<float> cam_normal_armor_pos_pred = rest_frame_ -> getCamPositionFromWorld(predicted_armor_pos.x, predicted_armor_pos.y, predicted_armor_pos.z);
+                std::vector<float> pnp_armor_pos_pred = rest_frame_ -> normalToPnpResultFrame(cam_normal_armor_pos_pred[0], cam_normal_armor_pos_pred[1], cam_normal_armor_pos_pred[2]);
+                predicted_armor_pos.x = pnp_armor_pos_pred[0];
+                predicted_armor_pos.y = pnp_armor_pos_pred[1];
+                predicted_armor_pos.z = pnp_armor_pos_pred[2];
 
                 // 弹道解算
                 RCLCPP_DEBUG(node->get_logger(), "aim pos: (%.2f, %.2f, %.2f)",
@@ -352,9 +393,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     predicted_aim_pos.x, 
                     predicted_aim_pos.y, 
                     predicted_aim_pos.z,
-                    delta_x_,
+                    /* delta_x_,
                     delta_y_,
-                    delta_z_,
+                    delta_z_, */
                     bullet_velocity_,
                     last_pitch_rad_delayed_,//pitch_integration | last_pitch_rad_delayed_ #todo
                     last_yaw_rad_delayed_
@@ -375,7 +416,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
                     
                     // 发布云台控制命令
-                    float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.5 + pitch_integration; // PI控制
+                    float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration; // PI控制
                     float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad + yaw_integration; // 缓解yaw轴输入数据掉线问题
                     last_command_pitch_ = command_pitch;
                     last_command_yaw_ = command_yaw;

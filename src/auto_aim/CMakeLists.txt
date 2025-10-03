@@ -62,7 +62,7 @@ add_library(armor_detector SHARED
     src/camera/cameraConnect.cpp  # 添加这一行
     src/other_input/VideoInput.cpp
     src/other_input/ImagesInput.cpp
-    src/predictor/PositionPredictor.cpp
+    src/predictor/PositionPredictor2D.cpp
     src/predictor/PredictionTrans.cpp
     src/predictor/PositionPredictor3D.cpp
     src/predictor/PeriodicDataPredictor.cpp

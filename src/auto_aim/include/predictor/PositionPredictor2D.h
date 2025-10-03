@@ -1,6 +1,6 @@
-// PositionPredictor.h
-#ifndef POSITION_PREDICTOR_H
-#define POSITION_PREDICTOR_H
+// PositionPredictor2D.h
+#ifndef POSITION_PREDICTOR_2D_H
+#define POSITION_PREDICTOR_2D_H
 
 #include <vector>
 #include <opencv2/core.hpp>
@@ -8,6 +8,8 @@
 #include <numeric>
 #include <stdexcept>
 #include <iostream>
+#include "utils/PeriodFunctions.h"
+
 
 class PositionPredictor2D {
 public:
@@ -84,12 +86,6 @@ private:
     // 一维二次曲线拟合实现（新增）
     QuadraticFitResult fitQuadraticComponent(const std::vector<float>& y, int point_count, int steps) const;
     
-    // 计算自相关函数
-    std::vector<double> computeModifiedACF(const std::vector<double>& residuals) const;
-    
-    // 从ACF中寻找周期
-    int findPeriod(const std::vector<double>& acf) const;
-    
     // 傅里叶级数拟合
     std::vector<double> fitFourierSeries(const std::vector<double>& residuals, int T, int N) const;
     
@@ -114,4 +110,4 @@ private:
     double last_mse_ = 0.0;
 };
 
-#endif // POSITION_PREDICTOR_H
+#endif // POSITION_PREDICTOR_2D_H

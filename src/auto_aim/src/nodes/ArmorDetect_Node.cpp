@@ -47,9 +47,7 @@ namespace fs = std::filesystem;
 #define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
-#define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF
 //#define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
-#define USE_ROTATION_MOTION_MODEL
 
 // 全局变量定义
 cv::Mat g_image;
@@ -100,14 +98,6 @@ public:
         current_pitch_ = (*config_file_ptr)["current_pitch_"].as<float>();
         current_yaw_ = (*config_file_ptr)["current_yaw_"].as<float>();
 
-        delta_x_ = (*config_file_ptr)["delta_x_"].as<float>();
-        delta_y_ = (*config_file_ptr)["delta_y_"].as<float>();
-        delta_z_ = (*config_file_ptr)["delta_z_"].as<float>();
-
-        RESET_DISTANCE_THRESHOLD = (*config_file_ptr)["RESET_DISTANCE_THRESHOLD"].as<float>(); 
-        MAX_LOST_TIME = (*config_file_ptr)["MAX_LOST_TIME"].as<float>(); 
-
-        has_valid_target_ = false;
         enemy_color_ = (*config_file_ptr)["enemy_color"].as<std::string>();
 
         yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
@@ -531,7 +521,6 @@ private:
             
             // 检测装甲板
             armors = armor_detector_->detectArmors(lights);
-            has_valid_target_ = false;
 
             classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
             classifyResults = classifyResults_expanded[0];
@@ -549,13 +538,13 @@ private:
             //计算帧率
             fps_counter->tick();
             
-            // // 显示当前参数状态
-            // cv::putText(frame, 
-            //     cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
-            //         bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_),
-            //     cv::Point(10, 60),
-            //     cv::FONT_HERSHEY_SIMPLEX, 0.5,
-            //     cv::Scalar(0, 255, 0), 1);
+            // 显示当前参数状态
+            cv::putText(frame, 
+                cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
+                    bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_),
+                cv::Point(10, 60),
+                cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                cv::Scalar(0, 255, 0), 1);
         }        
 
         // 获取处理帧率
@@ -565,25 +554,6 @@ private:
     // 参数文件
     std::shared_ptr<YAML::Node> config_file_ptr; 
 
-    // 处理目标丢失情况
-    // void handleTargetLost() {
-    //     if (!is_target_lost_) {
-    //         RCLCPP_WARN(get_logger(), "Target lost!");
-    //         is_target_lost_ = true;
-    //         last_track_time_ = this->now();
-    //     }
-    // }
-    // 新增成员变量
-    int current_target_id_ = -1;      // 当前跟踪目标ID
-    cv::Point3f last_observed_pos_;   // 上一帧观测位置
-    bool is_target_lost_ = false;     // 目标丢失标志
-    rclcpp::Time last_track_time_;    // 最后有效跟踪时间
-
-    // 配置参数
-    // static constexpr float RESET_DISTANCE_THRESHOLD = 400.0f; // 单位：mm
-    // static constexpr float MAX_LOST_TIME = 0.5f;              // 单位：秒
-    float RESET_DISTANCE_THRESHOLD; // 单位：mm
-    float MAX_LOST_TIME;              // 单位：秒
     // 成员变量
     rclcpp::TimerBase::SharedPtr timer_;
     std::thread com_timer_thread_;
@@ -600,23 +570,12 @@ private:
     float frame_rate_;
 
     std::shared_ptr<RestFrame> rest_frame_;
-    std::shared_ptr<Oscilloscope> oscilloscope_fire_;
-    std::shared_ptr<PeriodicDataPredictor> fire_data_predictor_;
-    std::shared_ptr<SimpleDataFilter> pred_fire_data_filter_;
-    
-    std::shared_ptr<Oscilloscope> oscilloscope_common_;
-    std::shared_ptr<SimpleDataFilter> armor_distance_filter_;
-
-    std::shared_ptr<RotationMotionModel> rotation_motion_model_;
 
     std::chrono::time_point<std::chrono::steady_clock> node_start_time;
     
     float bullet_velocity_;
     float current_pitch_;
     float current_yaw_;
-    float delta_x_;
-    float delta_y_;
-    float delta_z_;
     int yaw_circle_ = 0;
     float last_pitch_rad_ = 0;
     float last_yaw_rad_ = 0;
@@ -632,40 +591,21 @@ private:
     };
     std::queue<DelayInfos> serial_infos_delay_;
     float serial_delay_time;
-    bool has_valid_target_;
     std::string enemy_color_;
     Params params_;
 
     // EKF/Tracker 相关新增成员
     std::shared_ptr<Tracker> tracker_;
-    double last_continuous_yaw_ = 0.0; // 用于连续化yaw角
 
     // 帧率计算器
     std::shared_ptr<FrameRateCounter> fps_counter;
 #ifdef SAVE_IMG_FREQ
     long long frame_count_ = 0;
 #endif
-    float pitch_integration = 0.0;
-    float yaw_integration = 0.0;
     cv::Point2f ground_stable_point;
     std::shared_ptr<SerialCommunicationClass> serial_communication_;
-    float reset_com_time;
-    std::chrono::steady_clock::time_point last_com_time = std::chrono::steady_clock::now();
     float yaw_rad_to_x_pixel_ratio;
     float pitch_rad_to_y_pixel_ratio;
-    std::shared_ptr<PositionPredictor3D> predictor3d;
-    int predictor3dPrediction_nowIndex = 0;
-    std::vector<cv::Point3f> predictor3dArmorPredictions;
-    std::vector<cv::Point3f> predictor3dCenterPredictions;
-    int predictor3d_fit_step;
-    int predictor3d_predict_step;
-    int predictor3d_fourier_fit_order;
-    float fire_distance;
-    cv::Point2f last_aim_yaw_pitch_;
-    cv::Point2f last_aim_yaw_pitch_pixel_;
-    float last_command_pitch_;
-    float last_command_yaw_;
-    int fire_data_predictor_fit_step;
 
     std::shared_ptr<AllPredictor> all_predictor_;
 };

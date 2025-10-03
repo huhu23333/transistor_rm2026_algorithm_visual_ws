@@ -40,6 +40,7 @@ struct PredictResult {
     double center_z;
     double r;
     double yaw;
+    int rotation_direction;
     std::vector<SimpleArmor> armors;
 };
 

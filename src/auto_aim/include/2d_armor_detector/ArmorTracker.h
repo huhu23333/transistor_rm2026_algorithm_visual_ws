@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <yaml-cpp/yaml.h>
 #include "2d_armor_detector/Armor.h"
-#include "predictor/PositionPredictor.h"
+#include "predictor/PositionPredictor2D.h"
 
 
 

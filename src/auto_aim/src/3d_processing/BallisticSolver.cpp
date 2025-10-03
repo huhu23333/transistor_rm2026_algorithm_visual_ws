@@ -351,15 +351,15 @@ BallisticSolver::CalcPitchInfo BallisticSolver::calcTargetPitchWithAirResistance
     return result;
 }
 
-BallisticInfo BallisticSolver::calcBallisticAngle(float x_camera, float y_camera, float z_camera, float deltax_camera, float deltay_camera, float deltaz_camera, 
+BallisticInfo BallisticSolver::calcBallisticAngle(float x_camera, float y_camera, float z_camera, 
                                   float v_bullet, float cur_pitch, float cur_yaw) {
     BallisticInfo result;
     result.valid = false;
     
     // 转换单位：mm到m
-    x_camera = (x_camera + deltax_camera) / 1000.0f; // 向右
-    y_camera = (y_camera + deltay_camera) / 1000.0f; // 向下
-    z_camera = (z_camera + deltaz_camera) / 1000.0f; // 向前
+    x_camera = x_camera / 1000.0f; // 向右
+    y_camera = y_camera / 1000.0f; // 向下
+    z_camera = z_camera / 1000.0f; // 向前
 
     // 转换为水平坐标系
     float x_standard = x_camera;                                               // 向右
