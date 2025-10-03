@@ -50,30 +50,32 @@ include_directories(
 
 # 添加装甲板检测相关的库
 add_library(armor_detector SHARED
-    src/armor_detector/Armor.cpp
-    src/armor_detector/LightBarDetector.cpp
-    src/armor_detector/ArmorDetector.cpp
-    src/armor_detector/ArmorClassifier.cpp
-    src/armor_detector/ArmorTracker.cpp
-    src/armor_detector/ArmorSolver.cpp
-    src/armor_detector/BallisticSolver.cpp
+    src/2d_armor_detector/Armor.cpp
+    src/2d_armor_detector/LightBarDetector.cpp
+    src/2d_armor_detector/ArmorDetector.cpp
+    src/2d_armor_detector/ArmorClassifier.cpp
+    src/2d_armor_detector/ArmorTracker.cpp
+    src/2d_armor_detector/UnwarpUtils.cpp
+    src/3d_processing/ArmorSolver.cpp
+    src/3d_processing/BallisticSolver.cpp
+    src/3d_processing/RestFrame.cpp
     src/camera/cameraConnect.cpp  # 添加这一行
-    src/test_codes/VideoInput.cpp
-    src/test_codes/ImagesInput.cpp
-    src/test_codes/PositionPredictor.cpp
-    src/test_codes/PredictionTrans.cpp
-    src/test_codes/DataVisualizer.cpp
+    src/other_input/VideoInput.cpp
+    src/other_input/ImagesInput.cpp
+    src/predictor/PositionPredictor2D.cpp
+    src/predictor/PredictionTrans.cpp
+    src/predictor/PositionPredictor3D.cpp
+    src/predictor/PeriodicDataPredictor.cpp
+    src/predictor/RotationMotionModel.cpp
+    src/predictor/AllPredictor.cpp
+    src/visualizer/DataVisualizer.cpp
+    src/communication/SharedMemoryTorch.cpp
+    src/communication/Com.cpp
+    src/communication/CRC.cpp
     src/utils/FrameRateCounter.cpp
-    src/utils/UnwarpUtils.cpp
-    src/utils/SharedMemoryTorch.cpp
-    src/utils/Com.cpp
-    src/utils/CRC.cpp
-    src/utils/RestFrame.cpp
-    src/utils/PositionPredictor3D.cpp
-    src/utils/PeriodicDataPredictor.cpp
     src/utils/SimpleDataFilter.cpp
-    src/utils/UtilsFunc.cpp
-    src/utils/RotationMotionModel.cpp
+    src/utils/DataProcessFuncs.cpp
+    src/utils/PeriodFunctions.cpp
     # EKF
     src/EKF/Tracker.cpp
     # ba solver

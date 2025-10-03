@@ -24,7 +24,7 @@
 #include <g2o/core/sparse_optimizer.h>
 // project
 #include "ba_solver/graph_optimizer.hpp" 
-#include "armor_detector/Armor.h"
+#include "2d_armor_detector/Armor.h"
 #include <yaml-cpp/yaml.h>
 
 
