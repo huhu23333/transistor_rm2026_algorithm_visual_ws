@@ -158,4 +158,6 @@ private:
     float last_command_pitch_;
     float last_command_yaw_;
     int fire_data_predictor_fit_step;
+
+    float rotation_motion_model_forward_frames = 6.0;
 };

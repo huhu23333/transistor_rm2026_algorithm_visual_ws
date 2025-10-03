@@ -533,8 +533,6 @@ private:
                 serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             }
             
-            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
-
             //计算帧率
             fps_counter->tick();
             
@@ -543,8 +541,10 @@ private:
                 cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
                     bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_),
                 cv::Point(10, 60),
-                cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(0, 255, 0), 1);
+
+            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
         }        
 
         // 获取处理帧率

@@ -52,7 +52,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 double RMM_update_time = (std::chrono::steady_clock::now() - node_start_time).count() / 1e9;
                 rotation_motion_model_ -> emptyUpdate(RMM_update_time);
                 
-                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8);
+                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * rotation_motion_model_forward_frames);
                 std::vector<float> cam_normal_RMM_pred_now_center = rest_frame_ -> getCamPositionFromWorld(RMM_pred_now_data.center_x, RMM_pred_now_data.center_y, RMM_pred_now_data.center_z);
                 std::vector<float> pnp_RMM_pred_now_center = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_now_center[0], cam_normal_RMM_pred_now_center[1], cam_normal_RMM_pred_now_center[2]);
                 cv::Point3f RMM_pred_now_center_p3f(pnp_RMM_pred_now_center[0], pnp_RMM_pred_now_center[1], pnp_RMM_pred_now_center[2]);
@@ -93,10 +93,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Point2f(20,80), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
-                cv::imshow("RMM visualize", RMM_visualize_frame);
                 
                 if (using_predictor_type == UsingPredictorType::RotationMotionModel) {
-                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8 + last_total_delay_);
+                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * rotation_motion_model_forward_frames + last_total_delay_);
                     std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                     cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                     std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
@@ -115,7 +114,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     };
                     predicted_aim_pos = predicted_armor_pos;
                     result.fire_flag = true;
+                    cv::circle(RMM_visualize_frame, 
+                        cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 800-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
+                        cv::Scalar(0, 0, 255), 2);
                 }
+                cv::imshow("RMM visualize", RMM_visualize_frame);
             }
             // ==========================RotationMotionModel=========================== END
             // 统一转换回pnp相机坐标系
@@ -175,7 +178,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 constexpr float image_latency = 0.013f;
                 constexpr float comm_latency  = 0.010f;
                 float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                float extra_time = 0.300f;
+                float extra_time = 0.000f; // 0.300f
                 float total_delay = image_latency + comm_latency + bullet_time + extra_time;
                 last_total_delay_ = total_delay;
 
@@ -290,7 +293,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
                 }
 
-                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8);
+                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * rotation_motion_model_forward_frames);
                 std::vector<float> cam_normal_RMM_pred_now_center = rest_frame_ -> getCamPositionFromWorld(RMM_pred_now_data.center_x, RMM_pred_now_data.center_y, RMM_pred_now_data.center_z);
                 std::vector<float> pnp_RMM_pred_now_center = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_now_center[0], cam_normal_RMM_pred_now_center[1], cam_normal_RMM_pred_now_center[2]);
                 cv::Point3f RMM_pred_now_center_p3f(pnp_RMM_pred_now_center[0], pnp_RMM_pred_now_center[1], pnp_RMM_pred_now_center[2]);
@@ -351,9 +354,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Point2f(20,80), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
-                cv::imshow("RMM visualize", RMM_visualize_frame);
                 if (using_predictor_type == UsingPredictorType::RotationMotionModel) {
-                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * 8 + total_delay);
+                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * rotation_motion_model_forward_frames + total_delay);
                     cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                     std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
                     float yaw_bias = M_PI / 180.0 * 15.0;
@@ -371,7 +373,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     };
                     predicted_aim_pos = predicted_armor_pos;
                     fire_flag = true;
+                    cv::circle(RMM_visualize_frame, 
+                        cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 800-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
+                        cv::Scalar(0, 0, 255), 2);
                 }
+                cv::imshow("RMM visualize", RMM_visualize_frame);
                 // ========================== RotationMotionModel =========================== END
 
                 // 统一转换回pnp相机坐标系
