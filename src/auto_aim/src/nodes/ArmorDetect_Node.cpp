@@ -2,10 +2,10 @@
 #include <rclcpp/rclcpp.hpp>
 #include <opencv2/opencv.hpp>
 #include "camera/Camera.h"
-#include "armor_detector/LightBarDetector.h"
-#include "armor_detector/ArmorDetector.h"
-#include "armor_detector/ArmorClassifier.h"
-#include "armor_detector/ArmorSolver.h"
+#include "2d_armor_detector/LightBarDetector.h"
+#include "2d_armor_detector/ArmorDetector.h"
+#include "2d_armor_detector/ArmorClassifier.h"
+#include "3d_processing/ArmorSolver.h"
 //#include "armor_detector/ArmorAngleKalman.h"
 
 #include "EKF/Tracker.h"
@@ -16,34 +16,34 @@
 #include <chrono>
 #include <string>
 #include <thread>
-#include <armor_detector/BallisticSolver.h>
+#include <3d_processing/BallisticSolver.h>
 #include <yaml-cpp/yaml.h>
 #include "utils/FrameRateCounter.h"
-#include "utils/UnwarpUtils.h"
-#include "test_codes/VideoInput.h"
-#include "test_codes/ImagesInput.h"
+#include "2d_armor_detector/UnwarpUtils.h"
+#include "other_input/VideoInput.h"
+#include "other_input/ImagesInput.h"
 #include <iostream>
 #include <sstream>
 #include <filesystem>
 #include <unistd.h>
 #include <limits.h>
 #include <queue>
-#include "utils/Com.h"
+#include "communication/Com.h"
 #include <csignal>
-#include "test_codes/PredictionTrans.h"
-#include "utils/RestFrame.h"
-#include "utils/PositionPredictor3D.h"
+#include "predictor/PredictionTrans.h"
+#include "3d_processing/RestFrame.h"
+#include "predictor/PositionPredictor3D.h"
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
-#include "test_codes/DataVisualizer.h"
-#include "utils/PeriodicDataPredictor.h"
+#include "visualizer/DataVisualizer.h"
+#include "predictor/PeriodicDataPredictor.h"
 #include "utils/SimpleDataFilter.h"
-#include "utils/RotationMotionModel.h"
+#include "predictor/RotationMotionModel.h"
 
 namespace fs = std::filesystem;
 
 
-//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define USE_PREDICTOR3D // 定义后使用3D位置预测器而不是EKF

@@ -1,0 +1,165 @@
+// ArmorSolver.cpp
+#include "3d_processing/ArmorSolver.h"
+
+void ArmorSolver::initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) {
+    const YAML::Node& camera_matrix_Node = (*config_file_ptr)["camera_matrix"];
+    /* RCLCPP_DEBUG(node->get_logger(), "camera_matrix_config: \n[%f, %f, %f,\n %f, %f, %f,\n %f, %f, %f]\n", 
+        camera_matrix_Node[0][0].as<double>(), camera_matrix_Node[0][1].as<double>(), camera_matrix_Node[0][2].as<double>(), 
+        camera_matrix_Node[1][0].as<double>(), camera_matrix_Node[1][1].as<double>(), camera_matrix_Node[1][2].as<double>(), 
+        camera_matrix_Node[2][0].as<double>(), camera_matrix_Node[2][1].as<double>(), camera_matrix_Node[2][2].as<double>()); */
+    // 相机内参矩阵
+    camera_matrix = (cv::Mat_<double>(3, 3) << 
+        camera_matrix_Node[0][0].as<double>(), camera_matrix_Node[0][1].as<double>(), camera_matrix_Node[0][2].as<double>(), 
+        camera_matrix_Node[1][0].as<double>(), camera_matrix_Node[1][1].as<double>(), camera_matrix_Node[1][2].as<double>(), 
+        camera_matrix_Node[2][0].as<double>(), camera_matrix_Node[2][1].as<double>(), camera_matrix_Node[2][2].as<double>());
+    
+    const YAML::Node& dist_coeffs_Node = (*config_file_ptr)["dist_coeffs"];
+    /* RCLCPP_DEBUG(node->get_logger(), "dist_coeffs_config: %f, %f, %f, %f, %f\n", 
+        dist_coeffs_Node[0].as<double>(), dist_coeffs_Node[1].as<double>(), dist_coeffs_Node[2].as<double>(), 
+        dist_coeffs_Node[3].as<double>(), dist_coeffs_Node[4].as<double>()); */
+    // 畸变系数
+    dist_coeffs = (cv::Mat_<double>(1, 5) << 
+        dist_coeffs_Node[0].as<double>(), dist_coeffs_Node[1].as<double>(), dist_coeffs_Node[2].as<double>(), 
+        dist_coeffs_Node[3].as<double>(), dist_coeffs_Node[4].as<double>());
+    
+    // 初始化ba指针
+    std::array<double,9> Karr = {
+    camera_matrix.at<double>(0,0), camera_matrix.at<double>(0,1), camera_matrix.at<double>(0,2),
+    camera_matrix.at<double>(1,0), camera_matrix.at<double>(1,1), camera_matrix.at<double>(1,2),
+    camera_matrix.at<double>(2,0), camera_matrix.at<double>(2,1), camera_matrix.at<double>(2,2)};
+    std::vector<double> distv;
+    distv.reserve(dist_coeffs.total());
+     for (int i = 0; i < dist_coeffs.total(); ++i)
+    distv.push_back(dist_coeffs.at<double>(i));
+    ba_ = std::make_unique<fyt::auto_aim::BaSolver>(Karr, distv);
+}
+
+void ArmorSolver::initArmorPoints() {
+    // 使用小装甲板尺寸初始化（因为在初始化阶段我们还不知道具体是哪种装甲板）
+    const float HALF_WIDTH = ArmorConstants::SMALL_ARMOR_WIDTH / 2.0f;   // 67.5mm
+    const float HALF_HEIGHT = ArmorConstants::SMALL_ARMOR_HEIGHT / 2.0f; // 62.5mm
+    
+    armor_points_3d = {
+        cv::Point3f(-HALF_WIDTH, -HALF_HEIGHT, 0.0f),  // 左上
+        cv::Point3f(HALF_WIDTH, -HALF_HEIGHT, 0.0f),   // 右上
+        cv::Point3f(HALF_WIDTH, HALF_HEIGHT, 0.0f),    // 右下
+        cv::Point3f(-HALF_WIDTH, HALF_HEIGHT, 0.0f)    // 左下
+    };
+}
+
+cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const {
+    // 确保相机参数已初始化
+    if (camera_matrix.empty() || dist_coeffs.empty()) {
+        throw std::runtime_error("Camera parameters not initialized!");
+    }
+
+    // 将3D点转换为OpenCV输入格式
+    std::vector<cv::Point3f> object_points = {world_point};
+    std::vector<cv::Point2f> image_points;
+
+    // 使用solvePnP投影
+    cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64F);  // 假设无旋转
+    cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64F);  // 假设无平移
+    
+    // 直接使用projectPoints进行投影
+    cv::projectPoints(object_points, rvec, tvec, 
+                     camera_matrix, dist_coeffs, 
+                     image_points);
+
+    return image_points[0];
+}
+
+// 修改solveArmor函数实现
+AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_) const {
+    AimResult result;
+    result.valid = false;
+    
+    const Armor armor = armor_result.armor;
+    int number = armor_result.number;
+    
+    // 计算相机到水平系的旋转矩阵
+    Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(0, last_pitch_rad_, last_yaw_rad_));
+    
+
+    try {
+        bool is_large_armor = armor_result.is_large;
+        
+        float half_width = is_large_armor ? 
+            ArmorConstants::LARGE_ARMOR_WIDTH / 2.0f :
+            ArmorConstants::SMALL_ARMOR_WIDTH / 2.0f;
+            
+        float half_height = is_large_armor ? 
+            ArmorConstants::LARGE_ARMOR_HEIGHT / 2.0f :
+            ArmorConstants::SMALL_ARMOR_HEIGHT / 2.0f;
+            
+        std::vector<cv::Point3f> armor_points_3d = {
+            cv::Point3f(-half_width, -half_height, 0.0f),
+            cv::Point3f(-half_width, half_height, 0.0f),
+            cv::Point3f(half_width, half_height, 0.0f),
+            cv::Point3f(half_width, -half_height, 0.0f)
+        };
+
+        cv::Mat rvec, tvec;
+        bool solve_success = cv::solvePnP(armor_points_3d, armor.corners, 
+                                        camera_matrix, dist_coeffs, 
+                                        rvec, tvec, false, cv::SOLVEPNP_IPPE);
+
+        if (solve_success) {
+
+            RCLCPP_DEBUG(logger_p, "solvePnP success");
+
+            result.yaw = getYawFromRvec(rvec); // <<--- 计算并填充yaw
+            RCLCPP_DEBUG(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
+
+            result.normal_euler_angles = getNormalYawPitchRollFromRvec(rvec);
+            RCLCPP_DEBUG(logger_p, "NormalYawPitchRoll: (%.2f, %.2f, %.2f)", 
+                result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
+             
+            //转化为ba需要的参数
+            cv::Mat rmat;
+            cv::Rodrigues(rvec, rmat);
+            Eigen::Matrix3d R = fyt::utils::cvToEigen(rmat);
+
+            // 现打印ba优化之前的yaw
+
+            auto rpy_before = ba_ -> rotationMatrixToRPY(R);
+            RCLCPP_DEBUG(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
+            RCLCPP_DEBUG(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
+            RCLCPP_DEBUG(logger_p, "roll before ba: %.2f" , rpy_before[2]);
+
+            Eigen::Vector3d t = fyt::utils::cvToEigen(tvec);
+
+            R = ba_-> solveBa(armor_result, t, R, R_imu_camera);
+            // 将优化后的旋转矩阵转化为RPY
+            auto rpy = ba_ -> rotationMatrixToRPY(R);
+            
+            // 填充所有的result
+            result.valid = true;
+            //result.yaw = rpy[2]; // <<--- 填充yaw
+            result.position = cv::Point3f(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
+            result.rvec = rvec.clone(); // <<--- 填充rvec
+
+
+        } else {
+            std::cerr << "PnP solve failed!" << std::endl;
+            return result;
+        }
+        
+        // 设置位置信息（相机坐标系下的三维位置）
+        result.position = cv::Point3f(tvec.at<double>(0),
+                                    tvec.at<double>(1),
+                                    tvec.at<double>(2));
+        
+        // 计算距离
+        result.distance = cv::norm(result.position);
+        
+        // 标记解算成功
+        
+        result.valid = true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error in solveArmor: " << e.what() << std::endl;
+    }
+    
+    return result;
+}
