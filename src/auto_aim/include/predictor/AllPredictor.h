@@ -25,7 +25,7 @@ struct PredictorResult {
     bool reset = true;
     float command_pitch = 0.0;
     float command_yaw = 0.0;
-    float fire_flag = false;
+    bool fire_flag = false;
 };
 
 namespace UsingPredictorType {
