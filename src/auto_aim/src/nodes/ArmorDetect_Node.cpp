@@ -90,9 +90,6 @@ public:
 
 
 
-        // 初始化串口通信器
-        serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
-
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
         current_pitch_ = (*config_file_ptr)["current_pitch_"].as<float>();
@@ -222,15 +219,19 @@ public:
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
+        all_predictor_ = std::make_shared<AllPredictor>(
+            config_file_ptr, this, node_start_time, tracker_, armor_solver_,
+            ballistic_solver_, rest_frame_, fps_counter);
+
+
+        // 初始化串口通信器
+        serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
+
         com_timer_thread_ = std::thread(std::bind(&SerialCommunicationClass::timerThread, serial_communication_));
         com_timer_thread_.detach();
 
         // 串口通信下位机初始化
         serial_communication_->sendData(0, 0, false);
-
-        all_predictor_ = std::make_shared<AllPredictor>(
-            config_file_ptr, this, node_start_time, tracker_, armor_solver_,
-            ballistic_solver_, rest_frame_, fps_counter);
 
 #ifdef DEBUG_CODE
         debug_code();
@@ -522,8 +523,10 @@ private:
 
             PredictorResult predictor_result = all_predictor_ -> step(classifyResults, frame);
             if (predictor_result.reset) {
-                serial_communication_->sendData(0, 0, false);
+                RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
+                serial_communication_->sendData(0.0, 0.0, false);
             } else {
+                RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             }
             
