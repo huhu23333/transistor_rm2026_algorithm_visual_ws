@@ -13,13 +13,13 @@ RotationMotionModel::RotationMotionModel(const ObservedData& initObservedData) {
     center_y = initObservedData.y + r * cos(initObservedData.yaw);
     center_z = initObservedData.z;
     max_history = 90;
-    refine_multiple = 5;
+    refine_multiple = 30;
     rotation_period = 0.0;
     current_phase = 0.0;
     n_armors = 3;
     rotation_direction = 1;
     jump_rad = M_PI * 2.0 / n_armors;
-    delta_phase = 0.0;
+    delta_phase = 25.0 * M_PI / 180.0;
 }
 
 void RotationMotionModel::emptyUpdate(double update_time) {
@@ -408,7 +408,7 @@ PredictResult RotationMotionModel::predict(double predictTime) {
             armor_yaw
         }));
     }
-    
+
     result.rotation_direction = rotation_direction;
 
     return result;

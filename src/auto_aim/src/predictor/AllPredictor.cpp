@@ -52,7 +52,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 double RMM_update_time = (std::chrono::steady_clock::now() - node_start_time).count() / 1e9;
                 rotation_motion_model_ -> emptyUpdate(RMM_update_time);
                 
-                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * rotation_motion_model_forward_frames);
+                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(0.0);
                 std::vector<float> cam_normal_RMM_pred_now_center = rest_frame_ -> getCamPositionFromWorld(RMM_pred_now_data.center_x, RMM_pred_now_data.center_y, RMM_pred_now_data.center_z);
                 std::vector<float> pnp_RMM_pred_now_center = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_now_center[0], cam_normal_RMM_pred_now_center[1], cam_normal_RMM_pred_now_center[2]);
                 cv::Point3f RMM_pred_now_center_p3f(pnp_RMM_pred_now_center[0], pnp_RMM_pred_now_center[1], pnp_RMM_pred_now_center[2]);
@@ -95,7 +95,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Scalar(0, 255, 0), 1, 8, false);
                 
                 if (using_predictor_type == UsingPredictorType::RotationMotionModel) {
-                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * rotation_motion_model_forward_frames + last_total_delay_);
+                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(last_total_delay_);
                     std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                     cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                     std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
@@ -293,7 +293,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
                 }
 
-                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * rotation_motion_model_forward_frames);
+                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(0.0);
                 std::vector<float> cam_normal_RMM_pred_now_center = rest_frame_ -> getCamPositionFromWorld(RMM_pred_now_data.center_x, RMM_pred_now_data.center_y, RMM_pred_now_data.center_z);
                 std::vector<float> pnp_RMM_pred_now_center = rest_frame_ -> normalToPnpResultFrame(cam_normal_RMM_pred_now_center[0], cam_normal_RMM_pred_now_center[1], cam_normal_RMM_pred_now_center[2]);
                 cv::Point3f RMM_pred_now_center_p3f(pnp_RMM_pred_now_center[0], pnp_RMM_pred_now_center[1], pnp_RMM_pred_now_center[2]);
@@ -355,7 +355,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
                 if (using_predictor_type == UsingPredictorType::RotationMotionModel) {
-                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * rotation_motion_model_forward_frames + total_delay);
+                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(total_delay);
                     cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                     std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
                     float yaw_bias = M_PI / 180.0 * 15.0;
