@@ -300,7 +300,7 @@ private:
     void serialDataCallback(const SerialData& msg) {
         bullet_velocity_ = msg.bullet_velocity;
         current_pitch_ = -(((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180) + 0.22; // 测定pitch轴传入数据1.8大约对应30°
-        current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
+        current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0 + 1.19;  // 一圈对应[-4096, 4095]
         enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -529,6 +529,7 @@ private:
                 RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             }
+            // serial_communication_->sendData(last_pitch_rad_delayed_, last_yaw_rad_delayed_, false);
             
             //计算帧率
             fps_counter->tick();
