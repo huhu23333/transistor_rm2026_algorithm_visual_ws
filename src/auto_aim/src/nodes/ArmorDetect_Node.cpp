@@ -370,14 +370,8 @@ private:
             }    
         } */                       
         // 绘制3D面系不动点
-        cv::Point3f test_point_pos;
-        std::vector<float> rest_frame_test_point = {0, 1000, 0};
-        std::vector<float> cam_normal_test_point = rest_frame_ -> getCamPositionFromWorld(rest_frame_test_point[0], rest_frame_test_point[1], rest_frame_test_point[2]);
-        std::vector<float> pnp_pos_test_point = rest_frame_ -> normalToPnpResultFrame(cam_normal_test_point[0], cam_normal_test_point[1], cam_normal_test_point[2]);
-        test_point_pos.x = pnp_pos_test_point[0];
-        test_point_pos.y = pnp_pos_test_point[1];
-        test_point_pos.z = pnp_pos_test_point[2];
-        cv::Point2f test_point_pos_pixel = armor_solver_->project3DToPixel(test_point_pos);
+        cv::Point3f test_point_pos = rest_frame_ -> worldToPnpP3f({0, 1000, 0});
+        cv::Point2f test_point_pos_pixel = armor_solver_ -> project3DToPixel(test_point_pos);
         cv::circle(result, test_point_pos_pixel, 8, cv::Scalar(255, 0, 255), 2);
 
         // 1. 绘制灯条（绿色）
@@ -533,8 +527,6 @@ private:
                 serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             }
             
-            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
-
             //计算帧率
             fps_counter->tick();
             
@@ -543,8 +535,10 @@ private:
                 cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
                     bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_),
                 cv::Point(10, 60),
-                cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(0, 255, 0), 1);
+
+            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
         }        
 
         // 获取处理帧率

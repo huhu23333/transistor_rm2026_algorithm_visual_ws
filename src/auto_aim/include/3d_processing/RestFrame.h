@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <cmath>
+#include <opencv2/opencv.hpp>
 
 class RestFrame {
 public:
@@ -24,6 +25,9 @@ public:
 
     std::vector<float> getWorldEulerAnglesFromCam(float yaw_cam, float pitch_cam, float roll_cam);
     std::vector<float> getCamEulerAnglesFromWorld(float yaw_world, float pitch_world, float roll_world);
+
+    cv::Point3f pnpToWorldP3f(const cv::Point3f& pnp_pos);
+    cv::Point3f worldToPnpP3f(const cv::Point3f& world_pos);
 
 private:
     float camera_yaw;

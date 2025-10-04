@@ -232,3 +232,15 @@ std::vector<float> RestFrame::getCamEulerAnglesFromWorld(float yaw_world, float 
     // 使用正确的欧拉角提取方法
     return rotationMatrixToEuler(camRotationResult);
 }
+
+cv::Point3f RestFrame::pnpToWorldP3f(const cv::Point3f& pnp_pos) {    
+    std::vector<float> cam_normal_pos = pnpResultToNormalFrame(pnp_pos.x, pnp_pos.y, pnp_pos.z);
+    std::vector<float> rest_frame_pos = getWorldPositionFromCam(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+    return cv::Point3f(rest_frame_pos[0], rest_frame_pos[1], rest_frame_pos[2]);
+}
+
+cv::Point3f RestFrame::worldToPnpP3f(const cv::Point3f& world_pos) {
+    std::vector<float> cam_normal_pos = getCamPositionFromWorld(world_pos.x, world_pos.y, world_pos.z);
+    std::vector<float> pnp_pos = normalToPnpResultFrame(cam_normal_pos[0], cam_normal_pos[1], cam_normal_pos[2]);
+    return cv::Point3f(pnp_pos[0], pnp_pos[1], pnp_pos[2]);
+}
