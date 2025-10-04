@@ -370,14 +370,8 @@ private:
             }    
         } */                       
         // 绘制3D面系不动点
-        cv::Point3f test_point_pos;
-        std::vector<float> rest_frame_test_point = {0, 1000, 0};
-        std::vector<float> cam_normal_test_point = rest_frame_ -> getCamPositionFromWorld(rest_frame_test_point[0], rest_frame_test_point[1], rest_frame_test_point[2]);
-        std::vector<float> pnp_pos_test_point = rest_frame_ -> normalToPnpResultFrame(cam_normal_test_point[0], cam_normal_test_point[1], cam_normal_test_point[2]);
-        test_point_pos.x = pnp_pos_test_point[0];
-        test_point_pos.y = pnp_pos_test_point[1];
-        test_point_pos.z = pnp_pos_test_point[2];
-        cv::Point2f test_point_pos_pixel = armor_solver_->project3DToPixel(test_point_pos);
+        cv::Point3f test_point_pos = rest_frame_ -> worldToPnpP3f({0, 1000, 0});
+        cv::Point2f test_point_pos_pixel = armor_solver_ -> project3DToPixel(test_point_pos);
         cv::circle(result, test_point_pos_pixel, 8, cv::Scalar(255, 0, 255), 2);
 
         // 1. 绘制灯条（绿色）
