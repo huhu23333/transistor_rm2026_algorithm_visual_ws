@@ -99,7 +99,7 @@ public:
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
 
 private:
-    UsingPredictorType::UsingPredictorType using_predictor_type = UsingPredictorType::RotationMotionModel;
+    UsingPredictorType::UsingPredictorType using_predictor_type = UsingPredictorType::None;
     std::shared_ptr<YAML::Node> config_file_ptr; 
     rclcpp::Node* node;
 

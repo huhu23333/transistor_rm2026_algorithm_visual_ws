@@ -115,7 +115,9 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         }
         
         // 处理pitch_target (2字节)
-        int16_t pitch_int16 = static_cast<int16_t>(pitch_target * 32768 / M_PI);
+        pitch_target = -pitch_target;
+        int16_t pitch_int16 = static_cast<int16_t>(pitch_target * (180.0f / M_PI * 173.5f / 60.0f)) + 32844;
+        pitch_int16 -= 88; // 机械零点偏移约为88
         uint16_t pitch_uint16;
         if (pitch_int16 >= 0) {
             pitch_uint16 = pitch_int16;
@@ -138,7 +140,7 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         } else {
             yaw_uint16 = 8192 + yaw_int16;
         }
-        memcpy(&tx_data[7], &yaw_int16, sizeof(int16_t));  // 2字节
+        memcpy(&tx_data[7], &yaw_uint16, sizeof(uint16_t));  // 2字节
 
         // 处理fire
         if (fire) {
@@ -149,6 +151,19 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         
         // 计算并添加CRC
         tx_data[10] = CRC8_Check_Sum(tx_data.data(), 10);
+
+
+        RCLCPP_INFO(node->get_logger(), 
+            "\033[1;34m[Send Data]\033[0m\n"
+            "\033[1;32mReset:\033[0m %d\n"
+            "\033[1;32mPitch_uint16 Angle:\033[0m %d\n"
+            "\033[1;33mYaw_uint16:\033[0m %d\n"
+            "\033[1;36mFire:\033[0m %d\n",
+            reset,
+            pitch_uint16,
+            yaw_uint16,
+            fire
+        );
 
         ssize_t written = write(fd_, tx_data.data(), tx_data.size());
         if (written == static_cast<ssize_t>(tx_data.size())) {
@@ -174,14 +189,14 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     memcpy(&frame.z_rotation_velocity, &data[15], sizeof(int16_t));
 
     // 格式化输出
-    RCLCPP_DEBUG(node->get_logger(), 
+    RCLCPP_INFO(node->get_logger(), 
         "\033[1;34m[Received Data]\033[0m\n"
         "\033[1;32mBullet Velocity:\033[0m %.2f m/s\n"
         "\033[1;32mBullet Angle:\033[0m %d\n"
         "\033[1;33mGimbal Yaw:\033[0m %d\n"
         "\033[1;36mMark:\033[0m %d\n"
         "\033[1;31mColor:\033[0m %d\n"
-        "\033[1;35mZ Rotation Velocity:\033[0m %.2f rad/s",
+        "\033[1;35mZ Rotation Velocity:\033[0m %d\n",
         frame.bullet_velocity,
         frame.gimbal_pitch,
         frame.gimbal_yaw,
@@ -192,13 +207,14 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
 
     SerialData msg;
     msg.bullet_velocity = frame.bullet_velocity;
-    msg.gimbal_pitch = static_cast<float>(frame.gimbal_pitch) * M_PI / 32768.0f;
+    msg.gimbal_pitch = static_cast<float>(frame.gimbal_pitch - 32844) * (60.0f / 173.5f * M_PI / 180.0f);
     if (msg.gimbal_pitch > M_PI) {
         msg.gimbal_pitch -= 2 * M_PI;
     }
+    msg.gimbal_pitch = -msg.gimbal_pitch;
     msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw) * M_PI / 4096.0f;
-    while (msg.gimbal_pitch > M_PI) {
-        msg.gimbal_pitch -= 2 * M_PI;
+    while (msg.gimbal_yaw > M_PI) {
+        msg.gimbal_yaw -= 2 * M_PI;
     }
     msg.color = frame.color;
     

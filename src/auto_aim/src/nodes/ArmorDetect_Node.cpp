@@ -522,14 +522,14 @@ private:
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
             PredictorResult predictor_result = all_predictor_ -> step(classifyResults, frame);
-            /* if (predictor_result.reset) {
+            if (predictor_result.reset) {
                 RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 serial_communication_->sendData(true, 0.0, 0.0, false);
             } else {
                 RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(false, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
-            } */
-            serial_communication_->sendData(false, last_pitch_rad_delayed_, last_yaw_rad_delayed_, false);
+            }
+            // serial_communication_->sendData(false, last_pitch_rad_delayed_, last_yaw_rad_delayed_, false);
             
             //计算帧率
             fps_counter->tick();
