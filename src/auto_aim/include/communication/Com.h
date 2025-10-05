@@ -30,8 +30,8 @@
 
 struct SerialData {
     float bullet_velocity;  // 子弹速度
-    float bullet_angle;    // 子弹角度
-    int16_t gimbal_yaw;       // 云台当前偏航角
+    float gimbal_pitch;    // 子弹角度
+    float gimbal_yaw;       // 云台当前偏航角
     uint8_t color;            // 敌方颜色(0:红色, 1:蓝色)
 };
 
@@ -40,17 +40,17 @@ public:
     SerialCommunicationClass(rclcpp::Node* node, std::function<void(const SerialData&)> serialDataCallback);
     ~SerialCommunicationClass();
     void timerCallback();
-    bool sendData(float pitch_target, float yaw_target, bool fire = true);
+    bool sendData(bool reset, float pitch_target, float yaw_target, bool fire);
     void timerThread();
     
 private:
     struct DataFrame {
         float bullet_velocity;
-        float bullet_angle;
-        int16_t gimbal_yaw;
+        uint16_t gimbal_pitch;
+        uint16_t gimbal_yaw;
         uint16_t mark;
         uint8_t color;
-        float z_rotation_velocity;
+        int16_t z_rotation_velocity;
     };
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;
