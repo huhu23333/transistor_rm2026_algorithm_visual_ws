@@ -231,7 +231,7 @@ public:
         com_timer_thread_.detach();
 
         // 串口通信下位机初始化
-        serial_communication_->sendData(true, 0.0, 0.0, false);
+        //serial_communication_->sendData(true, 0.0, 0.0, false);
 
 #ifdef DEBUG_CODE
         debug_code();

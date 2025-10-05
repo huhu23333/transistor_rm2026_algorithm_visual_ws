@@ -174,7 +174,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 constexpr float image_latency = 0.013f;
                 constexpr float comm_latency  = 0.010f;
                 float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                float extra_time = 0.300f; // 0.300f
+                float extra_time = 0.000f; // 0.300f
                 float total_delay = image_latency + comm_latency + bullet_time + extra_time;
                 last_total_delay_ = total_delay;
 
@@ -356,7 +356,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(total_delay);
                     cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                     std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
-                    float yaw_bias = M_PI / 180.0 * 15.0;
+                    float yaw_bias = M_PI / 180.0 * 5.0;
                     yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
                     for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
                         SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
@@ -402,7 +402,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     // has_valid_target_ = true;
 
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.03;
-                    yaw_integration += ballistic_result.delta_yaw_rad * 0.03;
+                    //yaw_integration += ballistic_result.delta_yaw_rad * 0.03;
 
                     if (pitch_integration > 0.3) {
                         pitch_integration = 0.3;

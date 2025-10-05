@@ -389,7 +389,7 @@ BallisticInfo BallisticSolver::calcBallisticAngle(float x_camera, float y_camera
     // 5. 计算需要转动的角度
     result.delta_pitch_rad = final_pitch_rad - cur_pitch;
     //result.target_yaw_rad = target_yaw;
-    result.delta_yaw_rad = target_delta_yaw;
+    result.delta_yaw_rad = target_delta_yaw + 2.0 * M_PI / 180.0f; // todo
     
     result.valid = true;
     return result;
