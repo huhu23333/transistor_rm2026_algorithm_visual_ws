@@ -29,25 +29,17 @@ struct PredictorResult {
     bool fire_flag = false;
 };
 
-namespace UsingPredictorType {
-    enum UsingPredictorType {
-        None,   // 直接瞄准装甲板
-        EKF,
-        FirePredictor,
-        RotationMotionModel
-    };
-}
-
 class AllPredictor {
 public:
     AllPredictor(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, 
         std::chrono::time_point<std::chrono::steady_clock> node_start_time, 
         std::shared_ptr<ArmorSolver> armor_solver_,
         std::shared_ptr<BallisticSolver> ballistic_solver_,
-        std::shared_ptr<RestFrame> rest_frame_, std::shared_ptr<FrameRateCounter> fps_counter
+        std::shared_ptr<RestFrame> rest_frame_, std::shared_ptr<FrameRateCounter> fps_counter,
+        int armor_class
     ) : config_file_ptr(config_file_ptr), node(node), node_start_time(node_start_time), 
     armor_solver_(armor_solver_), ballistic_solver_(ballistic_solver_),
-    rest_frame_(rest_frame_), fps_counter(fps_counter) {
+    rest_frame_(rest_frame_), fps_counter(fps_counter), armor_class(armor_class) {
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
 
@@ -143,6 +135,8 @@ public:
 
         armor_distance_filter_ = std::make_shared<SimpleDataFilter>(1);
         armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
+
+        predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node, predictor_switcher_check_frames_);
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame);
@@ -151,7 +145,8 @@ public:
     bool is_reset = false;
 
 private:
-    UsingPredictorType::UsingPredictorType using_predictor_type = UsingPredictorType::RotationMotionModel;
+    UsingPredictorType::UsingPredictorType using_predictor_type = UsingPredictorType::None;
+    int armor_class;
 
     std::shared_ptr<YAML::Node> config_file_ptr; 
     rclcpp::Node* node;
@@ -208,4 +203,8 @@ private:
     float last_command_yaw_;
     int fire_data_predictor_fit_step;
 
+    std::shared_ptr<PredictorSwitcher> predictor_switcher_;
+    int predictor_switcher_check_frames_ = 10;
+
+    cv::Point3f last_rest_frame_pos = {0.0, 0.0, 0.0};
 };

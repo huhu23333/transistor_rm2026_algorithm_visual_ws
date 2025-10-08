@@ -23,7 +23,7 @@ public:
         for (size_t all_predictors_index = 0; all_predictors_index < classify_classes; all_predictors_index++) {
             all_predictors_.push_back(std::make_shared<AllPredictor>(
                 config_file_ptr, node, node_start_time, armor_solver_,
-                ballistic_solver_, rest_frame_, fps_counter));
+                ballistic_solver_, rest_frame_, fps_counter, all_predictors_index));
         } 
     }
 

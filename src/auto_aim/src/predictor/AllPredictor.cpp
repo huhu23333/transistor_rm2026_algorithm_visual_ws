@@ -25,7 +25,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             armor_distance_filter_ -> clearHistory();
             rotation_motion_model_.reset();
             is_reset = true;
+            predictor_switcher_ -> clearHistory();
         } else {
+            
             result.reset = false;
             result.command_pitch = last_command_pitch_;
             result.command_yaw = last_command_yaw_;
@@ -142,6 +144,59 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             }
         }
         oscilloscope_fire_ -> addDataPoint(result.fire_flag);
+
+
+        // 预测器切换
+        // EKF
+        cv::Point3f EKF_to_check(0.0, 0.0, 0.0);
+        {
+            Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
+            double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
+            double future_yaw = future_state(6), future_r = future_state(8);
+            EKF_to_check = {
+                static_cast<float>(future_xc - future_r * sin(future_yaw)),
+                static_cast<float>(future_yc + future_r * cos(future_yaw)),
+                static_cast<float>(future_zc) 
+            };
+        }
+        // P3D
+        cv::Point3f P3D_to_check(0.0, 0.0, 0.0);
+        float P3D_period = 1.0;
+        if (predictor3dArmorPredictions.size() > 0) {
+            P3D_to_check = predictor3dArmorPredictions[std::min(predictor3dPrediction_nowIndex + predictor_switcher_check_frames_, static_cast<int>(predictor3dArmorPredictions.size())-1)];
+            P3D_period = predictor3d -> getFourierPeriod();
+        }
+        // RMM
+        cv::Point3f RMM_to_check(0.0, 0.0, 0.0);
+        float RMM_period = 1.0;
+        if (rotation_motion_model_) {
+            PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
+            std::vector<float> cam_position = rest_frame_ -> getCamPosition();
+            cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
+            std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
+            float yaw_bias = M_PI / 180.0 * 15.0;
+            yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
+            for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
+                SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
+                cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + yaw_bias), -std::cos(RMM_pred_aim_armor.yaw + yaw_bias)};
+                center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
+            }
+            int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
+            RMM_to_check = {
+                static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].x),
+                static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].y),
+                static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].z) 
+            };
+            RMM_period = rotation_motion_model_ -> getJumpPeriod();
+        }
+
+        using_predictor_type = predictor_switcher_ -> step(false, cv::Point3f(0.0, 0.0, 0.0), 
+            last_rest_frame_pos, 
+            EKF_to_check, 
+            P3D_to_check, 
+            RMM_to_check, 
+            P3D_period, 
+            RMM_period);
     } 
     
     if (!classifyResults.empty()) {
@@ -170,6 +225,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 );
                 RCLCPP_DEBUG(node->get_logger(), "camera euler angles: yaw=%.2f, pitch=%.2f, roll=%.2f", aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]);
                 RCLCPP_DEBUG(node->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0]);
+
+                last_rest_frame_pos = rest_frame_pos;
 
                 // 提前预测与弹道解算
                 constexpr float image_latency = 0.013f;
@@ -211,15 +268,15 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         EKF_tracker_->update(z);
                     }
                 }
-
-                // 获取提前预测后的机器人中心状态
-                Tracker::State future_state = EKF_tracker_->predictAhead(total_delay);
-                
-                // 从预测的机器人中心状态，反解出未来时刻装甲板的位置
-                double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-                double future_yaw = future_state(6), future_r = future_state(8);
                 
                 if (using_predictor_type == UsingPredictorType::EKF) {
+
+                    // 获取提前预测后的机器人中心状态
+                    Tracker::State future_state = EKF_tracker_->predictAhead(total_delay);
+                    
+                    // 从预测的机器人中心状态，反解出未来时刻装甲板的位置
+                    double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
+                    double future_yaw = future_state(6), future_r = future_state(8);
 
                     predicted_armor_pos = {
                         static_cast<float>(future_xc - future_r * sin(future_yaw)),
@@ -465,8 +522,59 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
 //#endif
                 }
+            // 预测器切换
+            // EKF
+            cv::Point3f EKF_to_check(0.0, 0.0, 0.0);
+            {
+                Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
+                double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
+                double future_yaw = future_state(6), future_r = future_state(8);
+                EKF_to_check = {
+                    static_cast<float>(future_xc - future_r * sin(future_yaw)),
+                    static_cast<float>(future_yc + future_r * cos(future_yaw)),
+                    static_cast<float>(future_zc) 
+                };
             }
-            
+            // P3D
+            cv::Point3f P3D_to_check(0.0, 0.0, 0.0);
+            float P3D_period = 1.0;
+            if (predictor3dArmorPredictions.size() > 0) {
+                P3D_to_check = predictor3dArmorPredictions[std::min(predictor3dPrediction_nowIndex + predictor_switcher_check_frames_, static_cast<int>(predictor3dArmorPredictions.size())-1)];
+                P3D_period = predictor3d -> getFourierPeriod();
+            }
+            // RMM
+            cv::Point3f RMM_to_check(0.0, 0.0, 0.0);
+            float RMM_period = 1.0;
+            if (rotation_motion_model_) {
+                PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
+                std::vector<float> cam_position = rest_frame_ -> getCamPosition();
+                cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
+                std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
+                float yaw_bias = M_PI / 180.0 * 15.0;
+                yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
+                for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
+                    SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
+                    cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + yaw_bias), -std::cos(RMM_pred_aim_armor.yaw + yaw_bias)};
+                    center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
+                }
+                int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
+                RMM_to_check = {
+                    static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].x),
+                    static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].y),
+                    static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].z) 
+                };
+                RMM_period = rotation_motion_model_ -> getJumpPeriod();
+            }
+
+            using_predictor_type = predictor_switcher_ -> step(true, rest_frame_pos, 
+                last_rest_frame_pos, 
+                EKF_to_check, 
+                P3D_to_check, 
+                RMM_to_check, 
+                P3D_period, 
+                RMM_period);
+
+            }   
         }
     }
 //#ifdef USE_PREDICTOR3D
@@ -477,5 +585,12 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 //#endif
     oscilloscope_common_ -> update();
     oscilloscope_common_ -> show();
+
+    std::string using_predictor_type_string = UsingPredictorType::UsingPredictorTypeStrings[using_predictor_type];
+    cv::putText(frame, 
+        "Class "+std::to_string(armor_class)+": "+using_predictor_type_string, 
+        cv::Point2f(frame.cols - 200, 50 + 30 * armor_class), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
     return result;
 }

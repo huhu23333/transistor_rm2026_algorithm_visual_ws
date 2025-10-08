@@ -81,7 +81,7 @@ private:
         std::vector<double> beta_x;
         std::vector<double> beta_y;
         std::vector<double> beta_z;
-        int period;
+        int period = 1;
         double mse;
         int fit_point_count;   // 拟合时的点计数
         int fit_steps;         // 拟合使用的步数

@@ -20,7 +20,7 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
             /* if (!all_predictors_[all_predictors_index]) {
                 all_predictors_[all_predictors_index] = std::make_shared<AllPredictor>(
                                                         config_file_ptr, node, node_start_time, armor_solver_,
-                                                        ballistic_solver_, rest_frame_, fps_counter);
+                                                        ballistic_solver_, rest_frame_, fps_counter, all_predictors_index);
             } */
             all_predictors_[all_predictors_index] -> is_reset = false;
         }
