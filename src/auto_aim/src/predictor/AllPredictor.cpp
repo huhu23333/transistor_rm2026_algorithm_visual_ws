@@ -11,12 +11,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 {
     PredictorResult result;
     if (classifyResults.empty()) {
-        if (tracker_->state != Tracker::LOST) {
-            tracker_->predict();
+        if (EKF_tracker_->state != Tracker::LOST) {
+            EKF_tracker_->predict();
         }
 
-        if (
-        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
             result.reset = true;
             pitch_integration = 0.0; // 积分项重置
             yaw_integration = 0.0;
@@ -25,6 +24,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             pred_fire_data_filter_ -> clearHistory();
             armor_distance_filter_ -> clearHistory();
             rotation_motion_model_.reset();
+            is_reset = true;
         } else {
             result.reset = false;
             result.command_pitch = last_command_pitch_;
@@ -145,6 +145,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     } 
     
     if (!classifyResults.empty()) {
+        is_reset = false;
         last_com_time = std::chrono::steady_clock::now();
         // 选择最佳目标（置信度最高）
         auto it = std::max_element(
@@ -189,12 +190,12 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 z << rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0];
 
                 // 2. EKF 状态机逻辑
-                if (tracker_->state == Tracker::LOST) {
-                    tracker_->reset(z);
+                if (EKF_tracker_->state == Tracker::LOST) {
+                    EKF_tracker_->reset(z);
                     current_target_id_ = best_result.number;
                 } else {
                     // 跳变处理：通过ID或距离判断
-                    Eigen::Vector3d pred_armor_pos = tracker_->getArmorPosition();
+                    Eigen::Vector3d pred_armor_pos = EKF_tracker_->getArmorPosition();
                     double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z)).norm();
 
                     if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
@@ -203,16 +204,16 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         } else {
                             RCLCPP_DEBUG(node->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
                         }
-                        tracker_->reset(z);
+                        EKF_tracker_->reset(z);
                         current_target_id_ = best_result.number;
                     } else {
-                        tracker_->predict();
-                        tracker_->update(z);
+                        EKF_tracker_->predict();
+                        EKF_tracker_->update(z);
                     }
                 }
 
                 // 获取提前预测后的机器人中心状态
-                Tracker::State future_state = tracker_->predictAhead(total_delay);
+                Tracker::State future_state = EKF_tracker_->predictAhead(total_delay);
                 
                 // 从预测的机器人中心状态，反解出未来时刻装甲板的位置
                 double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);

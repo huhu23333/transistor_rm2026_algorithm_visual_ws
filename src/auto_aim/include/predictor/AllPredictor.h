@@ -20,6 +20,7 @@
 #include "predictor/PeriodicDataPredictor.h"
 #include "utils/SimpleDataFilter.h"
 #include "predictor/RotationMotionModel.h"
+#include "predictor/PredictorSwitcher.h"
 
 struct PredictorResult {
     bool reset = true;
@@ -41,11 +42,11 @@ class AllPredictor {
 public:
     AllPredictor(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, 
         std::chrono::time_point<std::chrono::steady_clock> node_start_time, 
-        std::shared_ptr<Tracker> tracker_, std::shared_ptr<ArmorSolver> armor_solver_,
+        std::shared_ptr<ArmorSolver> armor_solver_,
         std::shared_ptr<BallisticSolver> ballistic_solver_,
         std::shared_ptr<RestFrame> rest_frame_, std::shared_ptr<FrameRateCounter> fps_counter
     ) : config_file_ptr(config_file_ptr), node(node), node_start_time(node_start_time), 
-    tracker_(tracker_), armor_solver_(armor_solver_), ballistic_solver_(ballistic_solver_),
+    armor_solver_(armor_solver_), ballistic_solver_(ballistic_solver_),
     rest_frame_(rest_frame_), fps_counter(fps_counter) {
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
@@ -70,6 +71,56 @@ public:
         fire_data_predictor_fit_step = (*config_file_ptr)["fire_data_predictor_fit_step"].as<int>();
 
         last_com_time = std::chrono::steady_clock::now();
+
+        
+        /// ========== 新的 EKF 和 Tracker 初始化 (9D模型修改) ==========
+        double dt = 1.0 / std::max(1.0f, (*config_file_ptr)["frame_rate"].as<float>());
+
+        // 1. 新增：从配置文件加载9D EKF参数
+        EKFParams ekf_params;
+        const auto& ekf_config = (*config_file_ptr)["ekf_params"];
+
+        ekf_params.s2qx = ekf_config["sigma2_q_x"].as<double>();
+        ekf_params.s2qy = ekf_config["sigma2_q_y"].as<double>();
+        ekf_params.s2qz = ekf_config["sigma2_q_z"].as<double>();
+        ekf_params.s2qyaw = ekf_config["sigma2_q_yaw"].as<double>(); // 新增
+        ekf_params.s2qr = ekf_config["sigma2_q_r"].as<double>();     // 新增
+
+        ekf_params.r_x = ekf_config["r_x_coeff"].as<double>();
+        ekf_params.r_y = ekf_config["r_y_coeff"].as<double>();
+        ekf_params.r_z = ekf_config["r_z_coeff"].as<double>();
+        ekf_params.r_yaw = ekf_config["r_yaw_val"].as<double>();   // 新增
+
+        ekf_params.p0 = ekf_config["p0_init_val"].as<double>();
+
+        // 2. 创建Tracker，传入新参数
+        EKF_tracker_ = std::make_shared<Tracker>(dt, ekf_params);
+        RCLCPP_INFO(node->get_logger(), "New 9D EKF Tracker initialized with dt=%.4f and params from config.", dt);
+        // ========== 初始化结束 ==========
+
+        // // ========== EKF 和 Tracker 初始化 (6D模型修改) ==========
+        // double dt = 1.0 / std::max(1.0f, frame_rate_);
+        
+        // // 1. 从配置文件加载新的EKF参数
+        // EKFParams ekf_params;
+        // const auto& ekf_config = (*config_file_ptr)["ekf_params"];
+        
+        // // 过程噪声，对应加速度的标准差
+        // ekf_params.s2qx = ekf_config["sigma2_q_x"].as<double>();
+        // ekf_params.s2qy = ekf_config["sigma2_q_y"].as<double>();
+        // ekf_params.s2qz = ekf_config["sigma2_q_z"].as<double>();
+        
+        // // 测量噪声，对应位置的标准差
+        // ekf_params.r_x = ekf_config["r_x_coeff"].as<double>();
+        // ekf_params.r_y = ekf_config["r_y_coeff"].as<double>();
+        // ekf_params.r_z = ekf_config["r_z_coeff"].as<double>();
+
+        // ekf_params.p0 = ekf_config["p0_init_val"].as<double>();
+
+        // // 2. 创建Tracker，传入新参数
+        // EKF_tracker_ = std::make_unique<Tracker>(dt, ekf_params);
+        // RCLCPP_INFO(this->get_logger(), "New 6D EKF Tracker initialized with dt=%.4f and params from config.", dt);
+        // // ========== 初始化结束 ==========
         
         predictor3d = std::make_shared<PositionPredictor3D>(predictor3d_fit_step);
         predictor3dArmorPredictions.push_back(cv::Point3f(0,0,0));
@@ -95,13 +146,20 @@ public:
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame);
-
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
+
+    bool is_reset = false;
 
 private:
     UsingPredictorType::UsingPredictorType using_predictor_type = UsingPredictorType::RotationMotionModel;
+
     std::shared_ptr<YAML::Node> config_file_ptr; 
     rclcpp::Node* node;
+    std::chrono::time_point<std::chrono::steady_clock> node_start_time;
+    std::shared_ptr<ArmorSolver> armor_solver_;
+    std::shared_ptr<BallisticSolver> ballistic_solver_;
+    std::shared_ptr<RestFrame> rest_frame_;
+    std::shared_ptr<FrameRateCounter> fps_counter;
 
     int current_target_id_ = -1;      // 当前跟踪目标ID - EKF
 
@@ -109,11 +167,7 @@ private:
     float MAX_LOST_TIME;              // 单位：秒
 
     float last_total_delay_ = 0.0;
-    
-    std::shared_ptr<ArmorSolver> armor_solver_;
-    std::shared_ptr<BallisticSolver> ballistic_solver_;
 
-    std::shared_ptr<RestFrame> rest_frame_;
     std::shared_ptr<Oscilloscope> oscilloscope_fire_;
     std::shared_ptr<PeriodicDataPredictor> fire_data_predictor_;
     std::shared_ptr<SimpleDataFilter> pred_fire_data_filter_;
@@ -123,8 +177,6 @@ private:
 
     std::shared_ptr<RotationMotionModel> rotation_motion_model_;
 
-    std::chrono::time_point<std::chrono::steady_clock> node_start_time;
-    
     float bullet_velocity_;
     float delta_x_;
     float delta_y_;
@@ -134,10 +186,7 @@ private:
     float total_yaw_rad_delayed_ = 0;
 
     // EKF/Tracker 相关新增成员
-    std::shared_ptr<Tracker> tracker_;
-
-    // 帧率计算器
-    std::shared_ptr<FrameRateCounter> fps_counter;
+    std::shared_ptr<Tracker> EKF_tracker_;
 
     float pitch_integration = 0.0;
     float yaw_integration = 0.0;

@@ -61,3 +61,16 @@ std::vector<double> linearInterpolation(const std::vector<double>& data, int ref
     
     return result;
 }
+
+double meanSquaredError(const std::vector<double>& pred_value, const std::vector<double>& true_value) {
+    double result = 0.0;
+    size_t value_num = std::min(pred_value.size(), true_value.size());
+    if (value_num == 0) {
+        return 0.0;
+    }
+    for (size_t value_index = 0; value_index < value_num; value_index++) {
+        double value_error = pred_value[value_index] - true_value[value_index];
+        result += value_error * value_error;
+    }
+    return result / static_cast<double>(value_num);
+}
