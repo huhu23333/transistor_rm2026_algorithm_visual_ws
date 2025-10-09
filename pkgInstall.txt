@@ -11,13 +11,14 @@ sudo apt install libceres-dev
 
 - cmake 3.24
     cd ~
+    mkdir makeInstall && cd makeInstall
     mkdir cmake && cd cmake
     wget https://github.com/Kitware/CMake/releases/download/v3.24.1/cmake-3.24.1-linux-x86_64.tar.gz
     tar -xvf ./cmake-3.24.1-linux-x86_64.tar.gz
 
 - Sophus库 (G2O库依赖)
    ```bash
-   cd ~
+   cd ~/makeInstall
    git clone https://github.com/strasdat/Sophus
    cd Sophus
 修改CMakeLists.txt
@@ -26,18 +27,18 @@ option(BUILD_SOPHUS_TESTS "Build tests." ON)
 为
 option(BUILD_SOPHUS_TESTS "Build tests." OFF)
    mkdir build && cd build
-   ~/cmake/cmake-3.24.1-linux-x86_64/bin/cmake ..
+   ~/makeInstall/cmake/cmake-3.24.1-linux-x86_64/bin/cmake ..
    make -j4
    sudo make install
    ```
 - G2O库 (优化装甲板Yaw角度)
     ```bash
-    cd ~
+    cd ~/makeInstall
     sudo apt install libeigen3-dev libspdlog-dev libsuitesparse-dev qtdeclarative5-dev qt5-qmake libqglviewer-dev-qt5
     git clone https://github.com/RainerKuemmerle/g2o
     cd g2o
     mkdir build && cd build
-    ~/cmake/cmake-3.24.1-linux-x86_64/bin/cmake ..
+    ~/makeInstall/cmake/cmake-3.24.1-linux-x86_64/bin/cmake ..
     make -j4
     sudo make install
     ```
