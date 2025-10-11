@@ -69,7 +69,7 @@ private:
     double center_z;
     int max_history;
     int refine_multiple;
-    double jump_period_frames;
+    double jump_period_frames = 1.0;
     double rotation_period;
     double current_phase;
     int n_armors;

@@ -54,7 +54,7 @@ delta_z_ : 142.5 #  181.30f  114.34f
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 
-video_relative_path : "InputVideo/outpost1_8m.mp4" # 使用视频输入时的视频路径
+video_relative_path : "InputVideo/robosoul.mp4" # 使用视频输入时的视频路径
 images_relative_path : "InputImages" # 使用图片输入时的图片文件夹路径
 
 frame_rate : 30.0

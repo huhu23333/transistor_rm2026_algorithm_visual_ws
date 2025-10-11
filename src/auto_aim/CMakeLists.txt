@@ -68,6 +68,8 @@ add_library(armor_detector SHARED
     src/predictor/PeriodicDataPredictor.cpp
     src/predictor/RotationMotionModel.cpp
     src/predictor/AllPredictor.cpp
+    src/predictor/PredictorSwitcher.cpp
+    src/predictor/PredictorMain.cpp
     src/visualizer/DataVisualizer.cpp
     src/communication/SharedMemoryTorch.cpp
     src/communication/Com.cpp
