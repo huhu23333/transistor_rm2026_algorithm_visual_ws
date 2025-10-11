@@ -48,7 +48,7 @@ void ArmorSolver::initArmorPoints() {
 }
 
 cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const {
-    // 确保相机参数已初始化
+    // 确保相机参数已初始化0
     if (camera_matrix.empty() || dist_coeffs.empty()) {
         throw std::runtime_error("Camera parameters not initialized!");
     }
@@ -79,8 +79,12 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
     int number = armor_result.number;
     
     // 计算相机到水平系的旋转矩阵
-    Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(0, last_pitch_rad_, last_yaw_rad_));
-    RCLCPP_INFO(logger_p, "\ncamera yaw&pitch : (%.2f, %.2f)" , last_pitch_rad_, last_yaw_rad_);
+    Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(last_pitch_rad_, last_yaw_rad_, 0));
+
+    // Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(2, 1, 0));
+    // auto rpy_wc = ba_ -> rotationMatrixToRPY(R_imu_camera);
+    // RCLCPP_INFO(logger_p, "\n YPR WC: (%.2f, %.2f, %.2f)" , rpy_wc[0], rpy_wc[1], rpy_wc[2]);
+    // RCLCPP_DEBUG(logger_p, "\ncamera yaw&pitch : (%.2f, %.2f)" , last_pitch_rad_, last_yaw_rad_);
 
     try {
         bool is_large_armor = armor_result.is_large;

@@ -26,9 +26,8 @@ EdgeProjection::EdgeProjection(const Sophus::SO3d &R_camera_imu,
 void EdgeProjection::computeError() {
   // Get the rotation
   double yaw = static_cast<VertexYaw *>(_vertices[0])->estimate();
-  // Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, 0, yaw));
-  Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, yaw, 0));    // 更改尝试11111111111111111111111111
-  Sophus::SO3d R = R_camera_imu_ * R_yaw * R_pitch_; 
+  Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, yaw, 0));    // yaw的位置
+  Sophus::SO3d R = R_camera_imu_ * R_yaw * R_pitch_;                     // ；这里到底对不对。。。
 
   // Get the 3D point
   Eigen::Vector3d p_3d =

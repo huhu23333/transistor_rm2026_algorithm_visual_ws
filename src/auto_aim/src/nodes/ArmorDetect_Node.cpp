@@ -623,6 +623,7 @@ private:
                 if (it != classifyResults.end()) {
                     auto best_result = *it;
                     AimResult aim = armor_solver_->solveArmor(best_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
+
                     if (aim.valid) {
                         // 将pnp结果转换至静止坐标系以稳定预测
                         std::vector<float> cam_normal_pos = rest_frame_ -> pnpResultToNormalFrame(aim.position.x, aim.position.y, aim.position.z);

@@ -60,6 +60,7 @@ std::vector<double> getNormalYawPitchRollFromRvec(const cv::Mat& rvec) {
     return result;
 }
 
+
 class ArmorSolver {
     
 public:

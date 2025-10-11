@@ -61,7 +61,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   double armor_pitch =
       armor.number == 6 ? 0.2617994 : -0.2617994; //
   // Sophus::SO3d R_pitch = Sophus::SO3d::exp(Eigen::Vector3d(0, armor_pitch, 0));
-  Sophus::SO3d R_pitch = Sophus::SO3d::exp(Eigen::Vector3d(armor_pitch, 0, 0));            // 更改尝试11111111111111 ；这里的-1
+  Sophus::SO3d R_pitch = Sophus::SO3d::exp(Eigen::Vector3d(armor_pitch, 0, 0));            // 更改尝试pitch位置
 
 
   // Get the 3D points of the armor
@@ -71,7 +71,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
           : Eigen::Vector2d( 230.0 , 127.0 );
   const auto object_points =
     buildObjectPoints<Eigen::Vector3d>(armor_size(0), armor_size(1));
-    RCLCPP_INFO(logger_b, "pitch: %.2f, is_large: %.2f", armor_pitch, armor.is_large);       // 调试行：装甲板俯仰角和装甲板大小判断
+    RCLCPP_DEBUG(logger_b, "pitch: %.2f, is_large: %.2f", armor_pitch, armor.is_large);       // 调试行：装甲板俯仰角和装甲板大小判断
     
   // Fill the optimizer
   size_t id_counter = 0;
@@ -137,12 +137,12 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
                 i, uv_pred.x(), uv_pred.y(), i, uv_obs.x, uv_obs.y);
   }
 
-  Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, 0, yaw_optimized));
+  Sophus::SO3d R_yaw = Sophus::SO3d::exp(Eigen::Vector3d(0, yaw_optimized, 0));
   RCLCPP_DEBUG(logger_b, "Yaw before trans: %.2f", yaw_optimized);
 
   RCLCPP_DEBUG(logger_b, "Yaw angle is valid after optimization");
 
-  // Eigen::Matrix3d R_testM= RPYTorotationMatrix(Eigen::Vector3d(0, 0.3, 0.7)); // 测试矩阵
+  // Eigen::Matrix3d R_testM= RPYTorotationMatrix(Eigen::Vector3d(1 ,1 ,0)); // 测试矩阵
   // Sophus::SO3d R_testS = Sophus::SO3d(R_testM);
   // return (R_testS * R_yaw * R_pitch).matrix();                                        // 测试返回
 
