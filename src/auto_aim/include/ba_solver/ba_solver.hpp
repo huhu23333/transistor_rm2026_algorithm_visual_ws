@@ -52,6 +52,25 @@ public:
 Eigen::Vector3d rotationMatrixToRPY(const Eigen::Matrix3d& R) {
   Eigen::Vector3d rpy;
 
+  // // 数值稳定：对 asin 的输入做夹取
+  // double sp = R(2, 1);
+  // if (sp >  1.0) sp =  1.0;
+  // if (sp < -1.0) sp = -1.0;
+
+  // const double eps = 1e-6;
+
+  // double pitch = std::asin(sp);
+  // double cp = std::cos(pitch);
+
+  // double yaw, roll;
+  // if (std::abs(cp) > eps) {
+  //   yaw  = std::atan2( R(0, 1), R(1, 1));
+  //   roll = std::atan2( R(2, 0), R(2, 2));
+  // } else {
+  //   roll = 0.0;
+  //   yaw  = std::atan2(-R(1, 0), R(0, 0));
+  // }
+
   // 数值稳定：对 asin 的输入做夹取
   double sp = -R(1, 2);
   if (sp >  1.0) sp =  1.0;
@@ -106,6 +125,18 @@ Eigen::Matrix3d RPYTorotationMatrix(const Eigen::Vector3d& PYR) {
   R(2,0) =  sp*sr*cy + sy*cr;
   R(2,1) =  sp*cr*cy - sr*sy;
   R(2,2) =  cp*cy;
+
+  // R(0,0) =  cy*cr -sy*sp*sr;
+  // R(0,1) =  sy*cp;
+  // R(0,2) = -cy*sr -sy*sp*cr;
+
+  // R(1,0) = -sy*cr -cy*sp*sr;
+  // R(1,1) =  cy*cp;
+  // R(1,2) =  sy*sr -cy*sp*cr;
+
+  // R(2,0) =  cp*sr;
+  // R(2,1) =  sp;
+  // R(2,2) =  cp*cr;
 
   return R;
 }
