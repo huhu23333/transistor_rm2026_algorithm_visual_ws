@@ -169,10 +169,10 @@ class ShmPytorchProcessorNode(Node):
                     # ============== 可视化部分 ==============
                     # ============== 可视化部分 ==============
                     # 创建窗口用于显示图像
-                    #cv2.namedWindow("Shared Memory Image", cv2.WINDOW_NORMAL)
-                    #cv2.resizeWindow("Shared Memory Image", 320, 240)  # 放大显示
-                    #cv2.imshow("Shared Memory Image", image_list[0])  # 显示图像
-                    #key = cv2.waitKey(1)  # 图像显示1ms  # 等待按键或短暂延迟
+                    cv2.namedWindow("Shared Memory Image", cv2.WINDOW_NORMAL)
+                    cv2.resizeWindow("Shared Memory Image", 320, 240)  # 放大显示
+                    cv2.imshow("Shared Memory Image", image_list[0])  # 显示图像
+                    key = cv2.waitKey(1)  # 图像显示1ms  # 等待按键或短暂延迟
 
                     
                     t_1 = time.time()
