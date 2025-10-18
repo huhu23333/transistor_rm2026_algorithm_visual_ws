@@ -35,7 +35,7 @@
 namespace fs = std::filesystem;
 
 
-#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 //#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 //#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 //#define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
@@ -51,7 +51,7 @@ public:
     ArmorDetectNode() : Node("armor_detect_node") {
         node_start_time = std::chrono::steady_clock::now();
 
-        // 1. 获取可执行文件路径
+        // 1. 获取可执行文件路径    
         char exec_path[PATH_MAX];
         ssize_t len = readlink("/proc/self/exe", exec_path, sizeof(exec_path) - 1);
         if (len == -1) {
@@ -263,7 +263,7 @@ private:
         last_pitch_rad_ = current_pitch_;
         last_yaw_rad_ = current_yaw_;
 
-        RCLCPP_INFO(this->get_logger(), 
+        RCLCPP_DEBUG(this->get_logger(), 
             "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f",
             bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str(),
             yaw_circle_, total_yaw_rad_);
