@@ -84,7 +84,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
     // Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(2, 1, 0));
     // auto rpy_wc = ba_ -> rotationMatrixToRPY(R_imu_camera);
     // RCLCPP_INFO(logger_p, "\n YPR WC: (%.2f, %.2f, %.2f)" , rpy_wc[0], rpy_wc[1], rpy_wc[2]);
-    // RCLCPP_DEBUG(logger_p, "\ncamera yaw&pitch : (%.2f, %.2f)" , last_pitch_rad_, last_yaw_rad_);
+    RCLCPP_INFO(logger_p, "\ncamera yaw&pitch : (%.2f, %.2f)" , last_pitch_rad_, last_yaw_rad_);
 
     try {
         bool is_large_armor = armor_result.is_large;
