@@ -34,6 +34,8 @@ struct AimResult {
     cv::Mat rvec;        // 装甲板旋转向量
 
     std::vector<double> normal_euler_angles; // RestFrame中定义的坐标系下的欧拉角
+
+    std::vector<double> ba_global_ypr;
 };
 
 struct Armor {

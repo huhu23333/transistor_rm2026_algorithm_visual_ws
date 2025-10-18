@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <tuple>
 #include <vector>
+#include <cmath>
 // 3rd party
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -45,39 +46,101 @@ public:
                           const Eigen::Matrix3d &R_camera_armor, // 相机系下的旋转
                           const Eigen::Matrix3d &R_imu_camera) noexcept; //外参矩阵
   
-    // 小工具：将旋转矩阵转化为ROoll、Roll、Yaw、Pitch。
-  Eigen::Vector3d rotationMatrixToRPY(const Eigen::Matrix3d& R) {
-    Eigen::Vector3d rpy;
+   
 
-    // 数值稳定：对 asin 的输入做夹取
-    double sp = -R(2,0);
-    if (sp >  1.0) sp =  1.0;
-    if (sp < -1.0) sp = -1.0;
+// 将旋转矩阵转化为Roll、Yaw、Pitch。
+Eigen::Vector3d rotationMatrixToRPY(const Eigen::Matrix3d& R) {
+  Eigen::Vector3d rpy;
 
-    rpy[1] = std::asin(sp);                // pitch
-    rpy[0] = std::atan2(R(2,1), R(2,2));   // roll
-    rpy[2] = std::atan2(R(1,0), R(0,0));   // yaw
-    return rpy; 
-  }// 单位：弧度;
+  // // 数值稳定：对 asin 的输入做夹取
+  // double sp = R(2, 1);
+  // if (sp >  1.0) sp =  1.0;
+  // if (sp < -1.0) sp = -1.0;
 
-    // 小工具：将rpy转化成旋转矩阵
-  Eigen::Matrix3d RPYTorotationMatrix(const Eigen::Vector3d& rpy) {
-    // rpy = [roll, pitch, yaw] (rad)
-    const double roll  = rpy[0];
-    const double pitch = rpy[1];
-    const double yaw   = rpy[2];
+  // const double eps = 1e-6;
 
-    const double cr = std::cos(roll),  sr = std::sin(roll);
-    const double cp = std::cos(pitch), sp = std::sin(pitch);
-    const double cy = std::cos(yaw),   sy = std::sin(yaw);
+  // double pitch = std::asin(sp);
+  // double cp = std::cos(pitch);
 
-    // ZYX: R = Rz(yaw) * Ry(pitch) * Rx(roll)
-    Eigen::Matrix3d R;
-    R <<  cy*cp,            cy*sp*sr - sy*cr,   cy*sp*cr + sy*sr,
-          sy*cp,            sy*sp*sr + cy*cr,   sy*sp*cr - cy*sr,
-          -sp,              cp*sr,              cp*cr;
-    return R;
+  // double yaw, roll;
+  // if (std::abs(cp) > eps) {
+  //   yaw  = std::atan2( R(0, 1), R(1, 1));
+  //   roll = std::atan2( R(2, 0), R(2, 2));
+  // } else {
+  //   roll = 0.0;
+  //   yaw  = std::atan2(-R(1, 0), R(0, 0));
+  // }
+
+  // 数值稳定：对 asin 的输入做夹取
+  double sp = -R(1, 2);
+  if (sp >  1.0) sp =  1.0;
+  if (sp < -1.0) sp = -1.0;
+
+  const double eps = 1e-6;
+
+  double pitch = std::asin(sp);
+  double cp = std::cos(pitch);
+
+  double yaw, roll;
+  if (std::abs(cp) > eps) {
+    yaw  = std::atan2(-R(0, 2), R(2, 2));
+    roll = std::atan2( R(1, 0), R(1, 1));
+  } else {
+    roll = 0.0;
+    yaw  = std::atan2( R(2, 0), R(0, 0));
   }
+
+  // 返回顺序保持不变：rpy[0]=pitch, rpy[1]=yaw, rpy[2]=roll
+  rpy[0] = yaw;
+  rpy[1] = pitch;
+  rpy[2] = roll;
+  return rpy;
+}
+
+  
+
+Eigen::Matrix3d RPYTorotationMatrix(const Eigen::Vector3d& PYR) {
+  const double pitch = PYR[0]; // 绕 x
+  const double yaw   = PYR[1]; // 绕 z
+  const double roll  = PYR[2]; // 绕 y
+
+  const double sp = std::sin(pitch), cp = std::cos(pitch);
+  const double sy = std::sin(yaw),   cy = std::cos(yaw);
+  const double sr = std::sin(roll),  cr = std::cos(roll);
+
+  Eigen::Matrix3d R;
+  // 与提取公式：
+  // pitch = asin(-R(1,2))
+  // yaw   = atan2(-R(0,2), R(2,2))
+  // roll  = atan2( R(1,0), R(1,1))
+  // 互为逆（非奇异处）
+  R(0,0) = -sp*sr*sy + cr*cy;
+  R(0,1) = -sp*sy*cr - sr*cy;
+  R(0,2) = -sy*cp;
+
+  R(1,0) =  sr*cp;
+  R(1,1) =  cp*cr;
+  R(1,2) = -sp;
+
+  R(2,0) =  sp*sr*cy + sy*cr;
+  R(2,1) =  sp*cr*cy - sr*sy;
+  R(2,2) =  cp*cy;
+
+  // R(0,0) =  cy*cr -sy*sp*sr;
+  // R(0,1) =  sy*cp;
+  // R(0,2) = -cy*sr -sy*sp*cr;
+
+  // R(1,0) = -sy*cr -cy*sp*sr;
+  // R(1,1) =  cy*cp;
+  // R(1,2) =  sy*sr -cy*sp*cr;
+
+  // R(2,0) =  cp*sr;
+  // R(2,1) =  sp;
+  // R(2,2) =  cp*cr;
+
+  return R;
+}
+
 
   template<typename TPoint3>
   inline std::vector<TPoint3> buildObjectPoints(double w, double h) noexcept {
@@ -89,10 +152,10 @@ public:
     };
     // 注意顺序：左上开始逆时针
     return {
-        make(0, +w/2, +h/2),
-        make(0, +w/2, -h/2),
-        make(0, -w/2, -h/2),
-        make(0, -w/2, +h/2),
+        make(-w/2, -h/2, 0),
+        make(-w/2, h/2, 0),
+        make(w/2, h/2, 0),
+        make(w/2, -h/2, 0),
     };
 }
 
@@ -104,10 +167,6 @@ private:
 
     // 设置logger
   rclcpp::Logger logger_b = rclcpp::get_logger("ba_solver");
-
-  
-  
-
 };
 }
 

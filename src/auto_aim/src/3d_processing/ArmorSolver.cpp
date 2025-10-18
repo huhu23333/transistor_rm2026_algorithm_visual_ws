@@ -80,14 +80,14 @@ void ArmorSolver::initArmorPoints() {
     
     armor_points_3d = {
         cv::Point3f(-HALF_WIDTH, -HALF_HEIGHT, 0.0f),  // 左上
-        cv::Point3f(HALF_WIDTH, -HALF_HEIGHT, 0.0f),   // 右上
+        cv::Point3f(-HALF_WIDTH, HALF_HEIGHT, 0.0f),   // 右上
         cv::Point3f(HALF_WIDTH, HALF_HEIGHT, 0.0f),    // 右下
-        cv::Point3f(-HALF_WIDTH, HALF_HEIGHT, 0.0f)    // 左下
+        cv::Point3f(HALF_WIDTH, -HALF_HEIGHT, 0.0f)    // 左下
     };
 }
 
 cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const {
-    // 确保相机参数已初始化
+    // 确保相机参数已初始化0
     if (camera_matrix.empty() || dist_coeffs.empty()) {
         throw std::runtime_error("Camera parameters not initialized!");
     }
@@ -110,6 +110,7 @@ cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const 
 
 // 修改solveArmor函数实现
 AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_) const {
+    
     AimResult result;
     result.valid = false;
     
@@ -117,8 +118,12 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
     int number = armor_result.number;
     
     // 计算相机到水平系的旋转矩阵
-    Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(0, last_pitch_rad_, last_yaw_rad_));
-    
+    Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(last_pitch_rad_, last_yaw_rad_, 0));
+
+    // Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(2, 1, 0));
+    // auto rpy_wc = ba_ -> rotationMatrixToRPY(R_imu_camera);
+    // RCLCPP_INFO(logger_p, "\n YPR WC: (%.2f, %.2f, %.2f)" , rpy_wc[0], rpy_wc[1], rpy_wc[2]);
+    RCLCPP_INFO(logger_p, "\ncamera yaw&pitch : (%.2f, %.2f)" , last_pitch_rad_, last_yaw_rad_);
 
     try {
         bool is_large_armor = armor_result.is_large;
@@ -139,7 +144,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
         };
 
         cv::Mat rvec, tvec;
-        bool solve_success = cv::solvePnP(armor_points_3d, armor.corners, 
+        bool solve_success = cv::solvePnP(armor_points_3d, armor_result.corners, 
                                         camera_matrix, dist_coeffs, 
                                         rvec, tvec, false, cv::SOLVEPNP_IPPE);
 
@@ -159,25 +164,34 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             cv::Rodrigues(rvec, rmat);
             Eigen::Matrix3d R = fyt::utils::cvToEigen(rmat);
 
-            // 现打印ba优化之前的yaw
-
+            // 现打印ba优化之前的参数
             auto rpy_before = ba_ -> rotationMatrixToRPY(R);
-            RCLCPP_DEBUG(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
-            RCLCPP_DEBUG(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
-            RCLCPP_DEBUG(logger_p, "roll before ba: %.2f" , rpy_before[2]);
+
+            RCLCPP_INFO(logger_p, "\nHUHU YPR PNP: (%.2f, %.2f, %.2f)" , result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
+            RCLCPP_INFO(logger_p, "\nYPR PNP: (%.2f, %.2f, %.2f)" , rpy_before[0], rpy_before[1], rpy_before[2]);
+            // RCLCPP_INFO(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
+            // RCLCPP_INFO(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
+            // RCLCPP_INFO(logger_p, "roll before ba: %.2f" , rpy_before[2]);
 
             Eigen::Vector3d t = fyt::utils::cvToEigen(tvec);
 
             R = ba_-> solveBa(armor_result, t, R, R_imu_camera);
             // 将优化后的旋转矩阵转化为RPY
             auto rpy = ba_ -> rotationMatrixToRPY(R);
+
+            // 打印优化之后的参数
+            RCLCPP_INFO(logger_p, "\nRPY BA : (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
+            // RCLCPP_INFO(logger_p, "pitch before ba: %.2f" , rpy[0]);
+            // RCLCPP_INFO(logger_p, "yaw before ba: %.2f" , rpy[1]);
+            // RCLCPP_INFO(logger_p, "roll before ba: %.2f" , rpy[2]);
             
             // 填充所有的result
             result.valid = true;
-            //result.yaw = rpy[2]; // <<--- 填充yaw
+            //result.yaw = rpy[2]; // <<--- 填充ba优化后的yaw
             result.position = cv::Point3f(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
             result.rvec = rvec.clone(); // <<--- 填充rvec
 
+            result.ba_global_ypr = {rpy[0], rpy[1], rpy[2]};
 
         } else {
             std::cerr << "PnP solve failed!" << std::endl;

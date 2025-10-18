@@ -23,6 +23,11 @@
 #include <Eigen/Geometry> // For Quaternion and rotation matrix math
 
 
+double getYawFromRvec(const cv::Mat& rvec);
+
+std::vector<double> getNormalYawPitchRollFromRvec(const cv::Mat& rvec);
+
+
 class ArmorSolver {
     
 public:
@@ -35,7 +40,7 @@ public:
     // 新增3D到像素坐标投影函数
     cv::Point2f project3DToPixel(const cv::Point3f& world_point) const;
 
-    AimResult solveArmor(const ArmorResult& armor_resul, const double last_pitch_rad_, const double last_yaw_rad_) const; // 增加number参数
+    AimResult solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_) const; // 增加number参数
     
     
  

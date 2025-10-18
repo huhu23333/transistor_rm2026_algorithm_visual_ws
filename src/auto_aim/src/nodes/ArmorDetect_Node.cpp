@@ -197,30 +197,30 @@ public:
 
 private:
     void debug_code() {
-        while (true) {
-            static double debug_time_count = 0.0;
-            double debug_freq = 0.3;
-            double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
-            double debug_pitch = std::sin(debug_time_count*M_PI*debug_freq) * M_PI / 6;
-            serial_communication_->sendData(debug_pitch, debug_yaw);
-            RCLCPP_INFO(this->get_logger(), "send debug data: yaw[%.2f] pitch[%.2f]", debug_yaw, debug_pitch);
-            RCLCPP_INFO(this->get_logger(), "received data: yaw[%.2f] pitch[%.2f]", last_yaw_rad_delayed_, last_pitch_rad_delayed_);
-            cv::Mat frame;
-            pthread_mutex_lock(&g_mutex);
-            if (!g_image.empty()) {
-                frame = g_image.clone();
-                image_used = true;
-            }
-            pthread_mutex_unlock(&g_mutex);
-            if (!frame.empty()) {
-                cv::imshow("debug_code", frame);
-                cv::waitKey(1);
-            }
-            auto start = std::chrono::steady_clock::now();
-            std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
-            debug_time_count += 0.033;
-        }
-        /* std::thread([&]() {
+        // while (true) {
+        //     static double debug_time_count = 0.0;
+        //     double debug_freq = 0.3;
+        //     double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
+        //     double debug_pitch = std::sin(debug_time_count*M_PI*debug_freq) * M_PI / 6;
+        //     serial_communication_->sendData(debug_pitch, debug_yaw);
+        //     RCLCPP_INFO(this->get_logger(), "send debug data: yaw[%.2f] pitch[%.2f]", debug_yaw, debug_pitch);
+        //     RCLCPP_INFO(this->get_logger(), "received data: yaw[%.2f] pitch[%.2f]", last_yaw_rad_delayed_, last_pitch_rad_delayed_);
+        //     cv::Mat frame;
+        //     pthread_mutex_lock(&g_mutex);
+        //     if (!g_image.empty()) {
+        //         frame = g_image.clone();
+        //         image_used = true;
+        //     }
+        //     pthread_mutex_unlock(&g_mutex);
+        //     if (!frame.empty()) {
+        //         cv::imshow("debug_code", frame);
+        //         cv::waitKey(1);
+        //     }
+        //     auto start = std::chrono::steady_clock::now();
+        //     std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
+        //     debug_time_count += 0.033;
+        // }
+        std::thread([&]() {
             double debug_time_count = 0.0;
             while (true) {
                 auto start = std::chrono::steady_clock::now();
@@ -236,7 +236,7 @@ private:
                 std::this_thread::sleep_until(start + std::chrono::microseconds(10000));  // 大约10ms周期
                 debug_time_count += 0.01;
             }
-        }).detach(); */
+        }).detach();
     }
 
     void serialDataCallback(const SerialData& msg) {
