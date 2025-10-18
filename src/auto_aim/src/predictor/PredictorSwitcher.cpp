@@ -79,8 +79,9 @@ UsingPredictorType::UsingPredictorType PredictorSwitcher::step(bool is_seen, cv:
     float mean_period = (std::accumulate(P3D_periods.begin(), P3D_periods.end(), 0.0) + 
                          std::accumulate(RMM_periods.begin(), RMM_periods.end(), 0.0)) / 
                          static_cast<float>(P3D_periods.size() + RMM_periods.size());
-    if (((P3D_period_variance < 10.0) || (RMM_period_variance < 10.0)) && (mean_period < 40.0)) {
-        if (mean_period < 10.0) {
+    if (((P3D_period_variance < 10.0) || (RMM_period_variance < 10.0)) && 
+        (mean_period > 2) && (mean_period < 40.0)) {
+        if (mean_period < 10.0 || (RMM_mse > P3D_mse * 3.0)) {
             return UsingPredictorType::FirePredictor;
         } else {
             return UsingPredictorType::RotationMotionModel;
