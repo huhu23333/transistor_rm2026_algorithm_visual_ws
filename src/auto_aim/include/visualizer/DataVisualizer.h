@@ -8,6 +8,7 @@
 #include <mutex>
 #include <string>
 #include <algorithm>
+#include "macro/AutoAimMacro.h"
 
 class Oscilloscope {
 private:

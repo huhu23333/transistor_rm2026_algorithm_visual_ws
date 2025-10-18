@@ -86,8 +86,10 @@ void Oscilloscope::update() {
 
 // 显示窗口
 void Oscilloscope::show() {
+#ifdef SHOW_WINDOWS
     cv::imshow(window_name, display);
     cv::waitKey(1);
+#endif
 }
 
 // 设置垂直缩放

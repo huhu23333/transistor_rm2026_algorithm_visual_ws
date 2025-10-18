@@ -51,3 +51,7 @@ pitch轴范围上电校准/取消积分控制
 rpy改ypr
 
 使用ArmorSolver的distance
+
+同步C++|Python可视化开关/分离至参数文件
+
+增加可视化绘制部分开关

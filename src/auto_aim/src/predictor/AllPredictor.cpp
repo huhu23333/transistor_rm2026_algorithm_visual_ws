@@ -125,7 +125,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 800-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
                         cv::Scalar(0, 0, 255), 2);
                 }
+#ifdef SHOW_WINDOWS
                 cv::imshow("RMM visualize", RMM_visualize_frame);
+#endif
             }
             // ==========================RotationMotionModel=========================== END
             // 统一转换回pnp相机坐标系
@@ -438,7 +440,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 800-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
                         cv::Scalar(0, 0, 255), 2);
                 }
+#ifdef SHOW_WINDOWS
                 cv::imshow("RMM visualize", RMM_visualize_frame);
+#endif
                 // ========================== RotationMotionModel =========================== END
 
                 // 统一转换回pnp相机坐标系    

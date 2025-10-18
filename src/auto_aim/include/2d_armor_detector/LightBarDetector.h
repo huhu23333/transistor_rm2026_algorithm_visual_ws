@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <execution>
 #include <thread>
+#include "macro/AutoAimMacro.h"
 
 
 /**

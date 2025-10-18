@@ -21,6 +21,7 @@
 #include "utils/SimpleDataFilter.h"
 #include "predictor/RotationMotionModel.h"
 #include "predictor/PredictorSwitcher.h"
+#include "macro/AutoAimMacro.h"
 
 struct PredictorResult {
     bool reset = true;
