@@ -1,6 +1,101 @@
 // ArmorSolver.cpp
 #include "3d_processing/ArmorSolver.h"
+#include <fstream>
+#include <sstream>
+#include <mutex>
+#include <string>
+#include <iomanip>
+#include <cctype>   // std::isdigit
+#include <cmath>
 
+// 取得当前源文件所在目录（__FILE__ 是编译期绝对/相对路径）
+static inline std::string __src_dir__() {
+  std::string p = __FILE__;
+  size_t pos = p.find_last_of("/\\");
+  return (pos == std::string::npos) ? std::string(".") : p.substr(0, pos);
+}
+
+namespace {
+std::mutex      g_ypr_mtx;
+std::ofstream   g_ypr_ofs;
+std::size_t     g_line_no = 0;      // 当前行对应的 frame 编号（会自动从现有文件续上）
+bool            g_inited  = false;
+std::string     g_log_path;
+
+// 从已存在的文件里读到“最后一个 frame 编号”
+static std::size_t read_last_index(const std::string& path) {
+  std::ifstream ifs(path);
+  if (!ifs.is_open()) return 0;
+  std::size_t last = 0;
+  std::string line;
+  while (std::getline(ifs, line)) {
+    // 行形如：frame123: pnp(...), ba(...)
+    if (line.rfind("frame", 0) == 0) {
+      std::size_t i = 5; // 跳过 "frame"
+      std::size_t num = 0; bool any = false;
+      while (i < line.size() && std::isdigit(static_cast<unsigned char>(line[i]))) {
+        any = true;
+        num = num * 10 + (line[i] - '0');
+        ++i;
+      }
+      if (any) last = num;
+    }
+  }
+  return last;
+}
+
+// 确保日志就绪：定位路径（同目录优先），读最后编号，再以追加模式打开
+static void ensure_log_ready() {
+  if (g_inited) return;
+  std::lock_guard<std::mutex> lk(g_ypr_mtx);
+
+  if (g_inited) return; // 双重检查
+  // 1) 同目录优先
+  std::string path_same_dir = __src_dir__() + "/ypr_log.txt";
+  // 先读最后编号
+  std::size_t last_idx = read_last_index(path_same_dir);
+
+  g_ypr_ofs.open(path_same_dir, std::ios::out | std::ios::app);
+  if (g_ypr_ofs.good()) {
+    g_log_path = path_same_dir;
+    g_line_no  = last_idx;
+    g_inited   = true;
+    return;
+  }
+
+  // 2) 回退到运行目录
+  std::string path_run_dir = "ypr_log.txt";
+  last_idx = read_last_index(path_run_dir);
+  g_ypr_ofs.clear();
+  g_ypr_ofs.open(path_run_dir, std::ios::out | std::ios::app);
+  if (g_ypr_ofs.good()) {
+    g_log_path = path_run_dir;
+    g_line_no  = last_idx;
+    g_inited   = true;
+    return;
+  }
+
+  // 3) 仍失败就保持未初始化（不会崩，只是写不进去）
+}
+
+// 追加一行：frameN: pnp(p,y,r), ba(p,y,r)
+// 这里默认输出**弧度**；若想用“度”，把 val() 改成返回 x*180/M_PI。
+static inline void append_ypr(double pnp_pitch, double pnp_yaw, double pnp_roll,
+                              double  ba_pitch, double  ba_yaw, double  ba_roll) {
+  if (!g_inited) ensure_log_ready();
+  std::lock_guard<std::mutex> lk(g_ypr_mtx);
+  if (!g_ypr_ofs.is_open()) return; // 打不开就静默返回（不影响主流程）
+
+  auto val = [](double x){ return x; }; // 输出弧度；若需“度”，用：return x * 180.0 / M_PI;
+
+  ++g_line_no; // 自动：1,2,3,…（会从已有文件的最后编号继续递增）
+  g_ypr_ofs << "frame" << g_line_no << ": "
+            << "pnp(" << std::fixed << std::setprecision(2)
+            << val(pnp_pitch) << ", " << val(pnp_yaw) << ", " << val(pnp_roll) << "), "
+            << "ba("  << val(ba_pitch)  << ", " << val(ba_yaw)  << ", " << val(ba_roll)  << ")\n";
+  g_ypr_ofs.flush();
+}
+} // namespace
 
 double getYawFromRvec(const cv::Mat& rvec) {
     if (rvec.empty()) return 0.0;
@@ -15,6 +110,7 @@ double getYawFromRvec(const cv::Mat& rvec) {
                                      std::pow(rmat.at<double>(1, 0), 2)));
     return yaw;
 }
+
 
 std::vector<double> getNormalYawPitchRollFromRvec(const cv::Mat& rvec) {
     std::vector<double> result = {0.0, 0.0, 0.0};
@@ -181,9 +277,9 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
 
             // 打印优化之后的参数
             RCLCPP_INFO(logger_p, "\nRPY BA : (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
-            // RCLCPP_DEBUG(logger_p, "pitch before ba: %.2f" , rpy[0]);
-            // RCLCPP_DEBUG(logger_p, "yaw before ba: %.2f" , rpy[1]);
-            // RCLCPP_DEBUG(logger_p, "roll before ba: %.2f" , rpy[2]);
+
+            append_ypr(result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2],
+            rpy[0],  rpy[1],  rpy[2]);
             
             // 填充所有的result
             result.valid = true;
