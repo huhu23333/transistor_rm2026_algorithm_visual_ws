@@ -53,7 +53,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   // 在世界坐标系下的 假设没有roll和pitch时候的装甲板的yaw
   
   double initial_armor_yaw;
-  initial_armor_yaw = std::atan2(-R_imu_armor(0,2), R_imu_armor(2,2));
+  initial_armor_yaw = std::atan2(R_imu_armor(0,2), R_imu_armor(2,2));  //这里的负号不要了11111111111111111
 
   RCLCPP_DEBUG(logger_b, "Yaw beforeOptimize :%.2f", initial_armor_yaw);                     // 调试行：世界系下的yaw对不对
 
