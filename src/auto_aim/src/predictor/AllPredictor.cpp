@@ -222,14 +222,14 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
                 // 将pnp结果转换至静止坐标系以稳定预测
                 cv::Point3f rest_frame_pos = rest_frame_ -> pnpToWorldP3f(aim.position);
-                std::vector<float> rest_frame_euler_angles = rest_frame_ -> getWorldEulerAnglesFromCam(
-                    aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]
-                );
-                // std::vector<float> rest_frame_euler_angles = {
-                //     static_cast<float>(aim.ba_global_ypr[0]),
-                //     static_cast<float>(aim.ba_global_ypr[1]),
-                //     static_cast<float>(aim.ba_global_ypr[2])
-                // };
+                // std::vector<float> rest_frame_euler_angles = rest_frame_ -> getWorldEulerAnglesFromCam(
+                //     aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]
+                // );
+                std::vector<float> rest_frame_euler_angles = {
+                    static_cast<float>(aim.ba_global_ypr[0]),
+                    static_cast<float>(aim.ba_global_ypr[1]),
+                    static_cast<float>(aim.ba_global_ypr[2])
+                };
                 RCLCPP_DEBUG(node->get_logger(), "camera euler angles: yaw=%.2f, pitch=%.2f, roll=%.2f", aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]);
                 RCLCPP_DEBUG(node->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0]);
 
