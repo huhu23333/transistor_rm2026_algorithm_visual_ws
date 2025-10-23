@@ -112,6 +112,7 @@ bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target, bo
         memcpy(&tx_data[4], &pitch_target, sizeof(float));  // 4字节float
         
         // 处理yaw_target (2字节)
+        yaw_target = -yaw_target;
         int16_t yaw_int16 = static_cast<int16_t>(yaw_target * 4096 / M_PI);  // 将float转换为定点数
         while (yaw_int16 > 4095) {
             yaw_int16 -= 8192;

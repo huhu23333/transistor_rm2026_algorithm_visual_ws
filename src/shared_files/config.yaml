@@ -60,8 +60,8 @@ images_relative_path : "InputImages" # 使用图片输入时的图片文件夹�
 frame_rate : 30.0
 serial_delay_time : 30.0 # ms
 
-yaw_rad_to_x_pixel_ratio : 1300.0
-pitch_rad_to_y_pixel_ratio : 1350.0
+yaw_rad_to_x_pixel_ratio : 3412.5 # 1300.0
+pitch_rad_to_y_pixel_ratio : 3412.5 # 1350.0
 
 reset_com_time : 1500.0 # ms
 
@@ -130,10 +130,10 @@ min_armor_confidence : 0.3   # 最小置信度阈值 # 0.3
 #  - [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
 #dist_coeffs: [-0.08153923,  0.49331671,  0.0017929,  -0.00437156, -1.28439103] # 畸变系数
 camera_matrix: # 相机内参矩阵
-  - [1.31280460e+03, 0.00000000e+00, 6.38736364e+02]
-  - [0.00000000e+00, 1.31309593e+03, 5.34133502e+02]
+  - [3.65703763e+03, 0.00000000e+00, 7.02333377e+02]
+  - [0.00000000e+00, 3.65405866e+03, 5.21555676e+02]
   - [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
-dist_coeffs: [-0.05392145, -0.02516686, -0.00222499, -0.00149047,  0.43693918] # 畸变系数
+dist_coeffs: [-4.04955462e-01,  2.26197532e+00,  1.29448324e-03, -3.48454807e-04, -3.01050035e+01] # 畸变系数
 max_expected_small_distance_mismatch_ratio : 0.35
 max_expected_large_distance_mismatch_ratio : 0.35
 

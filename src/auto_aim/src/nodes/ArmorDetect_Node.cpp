@@ -237,8 +237,8 @@ private:
 
     void serialDataCallback(const SerialData& msg) {
         bullet_velocity_ = msg.bullet_velocity;
-        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180; // 测定pitch轴传入数据1.8大约对应30°
-        current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
+        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180 * 1.18; // 测定pitch轴传入数据1.8大约对应30°
+        current_yaw_ = - ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
         enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -281,13 +281,13 @@ private:
         last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
         total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
 
-        ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
+        ground_stable_point = cv::Point2f(1000+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
 
         rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
         predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
         
-        RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
+        RCLCPP_INFO(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
 
     }
 
@@ -463,13 +463,13 @@ private:
 
             PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame);
             if (predictor_result.reset) {
-                // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
+                RCLCPP_DEBUG(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 serial_communication_->sendData(0.0, 0.0, false);
             } else {
-                // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
+                RCLCPP_DEBUG(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             }
-            
+            //serial_communication_->sendData(1.0, 1.0, true);
             //计算帧率
             fps_counter->tick();
             
