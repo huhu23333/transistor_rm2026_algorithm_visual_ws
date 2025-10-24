@@ -469,7 +469,7 @@ private:
                 RCLCPP_DEBUG(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             }
-            //serial_communication_->sendData(1.0, 1.0, true);
+            //serial_communication_->sendData(last_pitch_rad_delayed_, predictor_result.command_yaw, true);
             //计算帧率
             fps_counter->tick();
             
