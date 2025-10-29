@@ -205,7 +205,7 @@ private:
     int fire_data_predictor_fit_step;
 
     std::shared_ptr<PredictorSwitcher> predictor_switcher_;
-    int predictor_switcher_check_frames_ = 10;
+    int predictor_switcher_check_frames_ = 30;
 
     cv::Point3f last_rest_frame_pos = {0.0, 0.0, 0.0};
 };

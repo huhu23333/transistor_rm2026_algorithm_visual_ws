@@ -1,6 +1,6 @@
-// SharedMemoryTorch.h
-#ifndef SHARED_MEMORY_TORCH_H
-#define SHARED_MEMORY_TORCH_H
+// SharedMemoryClassifier.h
+#ifndef SHARED_MEMORY_CLASSIFIER_H
+#define SHARED_MEMORY_CLASSIFIER_H
 
 #include <vector>
 #include <opencv2/opencv.hpp>
@@ -10,10 +10,10 @@
 #include <cstring>
 #include <yaml-cpp/yaml.h>
 
-class SharedMemoryTorch {
+class SharedMemoryClassifier {
 public:
-    SharedMemoryTorch(std::shared_ptr<YAML::Node> config_file_ptr);
-    ~SharedMemoryTorch();
+    SharedMemoryClassifier(std::shared_ptr<YAML::Node> config_file_ptr);
+    ~SharedMemoryClassifier();
     
     // 向共享内存写入图像并等待处理结果
     std::vector<std::vector<float>> processImages(const std::vector<cv::Mat>& images);
@@ -36,11 +36,11 @@ private:
     int shm_id_;
     SharedData* shared_data_;
     const size_t MAX_IMAGES = 100;
-    int SHM_KEY; // 共享内存键值
+    int CLASSIFIER_SHM_KEY; // 共享内存键值
     
     void attachSharedMemory();
     void detachSharedMemory();
     void waitForProcessing();
 };
 
-#endif // SHARED_MEMORY_TORCH_H
+#endif // SHARED_MEMORY_CLASSIFIER_H

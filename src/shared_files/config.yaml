@@ -34,11 +34,14 @@ ekf_params:
 # 其他参数...
 RESET_DISTANCE_THRESHOLD : 8.0e32 # 单位：mm
 
-# SharedMemoryTorch参数
-SHM_KEY : 0x1234
+# SharedMemoryClassifier参数
+CLASSIFIER_SHM_KEY : 0x0250
+classifier_model_relative_path : "src/shared_files/models/model_rm2026.pt"
+
+YOLO_POSE_SHM_KEY : 0x0070
+yolo_pose_model_relative_path : "src/shared_files/models/armor-oneclass-yolo11n-pose-best_openvino_model"
 
 # ArmorDetect_Node 参数
-model_relative_path : "src/shared_files/models/model_rm2026.pt"
 enemy_color : "BLUE"
 
 MAX_LOST_TIME : 0.5              # 单位：秒

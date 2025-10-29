@@ -1,11 +1,11 @@
-// SharedMemoryTorch.cpp
-#include "communication/SharedMemoryTorch.h"
+// SharedMemoryClassifier.cpp
+#include "communication/SharedMemoryClassifier.h"
 
-SharedMemoryTorch::SharedMemoryTorch(std::shared_ptr<YAML::Node> config_file_ptr) {
-    SHM_KEY = (*config_file_ptr)["SHM_KEY"].as<int>();
+SharedMemoryClassifier::SharedMemoryClassifier(std::shared_ptr<YAML::Node> config_file_ptr) {
+    CLASSIFIER_SHM_KEY = (*config_file_ptr)["CLASSIFIER_SHM_KEY"].as<int>();
     // 创建或附加共享内存
     size_t shm_size = sizeof(SharedData);
-    shm_id_ = shmget(SHM_KEY, shm_size, IPC_CREAT | 0666);
+    shm_id_ = shmget(CLASSIFIER_SHM_KEY, shm_size, IPC_CREAT | 0666);
     if (shm_id_ == -1) {
         throw std::runtime_error("Failed to create shared memory");
     }
@@ -13,30 +13,30 @@ SharedMemoryTorch::SharedMemoryTorch(std::shared_ptr<YAML::Node> config_file_ptr
     attachSharedMemory();
 }
 
-SharedMemoryTorch::~SharedMemoryTorch() {
+SharedMemoryClassifier::~SharedMemoryClassifier() {
     detachSharedMemory();
 }
 
-void SharedMemoryTorch::attachSharedMemory() {
+void SharedMemoryClassifier::attachSharedMemory() {
     shared_data_ = static_cast<SharedData*>(shmat(shm_id_, nullptr, 0));
     if (shared_data_ == reinterpret_cast<void*>(-1)) {
         throw std::runtime_error("Failed to attach shared memory");
     }
 }
 
-void SharedMemoryTorch::detachSharedMemory() {
+void SharedMemoryClassifier::detachSharedMemory() {
     if (shmdt(shared_data_) == -1) {
         // 处理错误但不抛出异常，防止在析构中产生问题
     }
 }
 
-void SharedMemoryTorch::waitForProcessing() {
+void SharedMemoryClassifier::waitForProcessing() {
     while (!shared_data_->is_processed) {
         usleep(1000); // 1ms休眠减少CPU占用
     }
 }
 
-std::vector<std::vector<float>> SharedMemoryTorch::processImages(const std::vector<cv::Mat>& images) {
+std::vector<std::vector<float>> SharedMemoryClassifier::processImages(const std::vector<cv::Mat>& images) {
     // 1. 准备数据
     int num_images = std::min(images.size(), MAX_IMAGES);
     shared_data_->num_images = num_images;

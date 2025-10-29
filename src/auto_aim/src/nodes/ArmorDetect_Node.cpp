@@ -31,6 +31,7 @@
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
 #include "predictor/PredictorMain.h"
+#include "2d_armor_detector/YOLOPoseArmorDetector.h"
 
 namespace fs = std::filesystem;
 
@@ -160,6 +161,8 @@ public:
         predictor_main_ = std::make_shared<PredictorMain>(
             config_file_ptr, this, node_start_time, armor_solver_,
             ballistic_solver_, rest_frame_, fps_counter);
+
+        yolo_pose_armor_detector = std::make_shared<YOLOPoseArmorDetector>(config_file_ptr, this);
 
 
         // 初始化串口通信器
@@ -457,6 +460,8 @@ private:
             // 检测装甲板
             armors = armor_detector_->detectArmors(lights);
 
+            armors = yolo_pose_armor_detector -> detectArmors(frame, false);
+
             classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
@@ -542,6 +547,8 @@ private:
     float pitch_rad_to_y_pixel_ratio;
 
     std::shared_ptr<PredictorMain> predictor_main_;
+
+    std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

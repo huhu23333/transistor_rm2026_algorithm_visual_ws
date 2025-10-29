@@ -69,6 +69,9 @@ UsingPredictorType::UsingPredictorType PredictorSwitcher::step(bool is_seen, cv:
     float RMM_mse = meanSquaredErrorPoint3f(seen_None, seen_RMM);
     float EKF_variance = variancePoint3f(seen_EKF);
 
+    RCLCPP_DEBUG(node->get_logger(), "real_variance: %f, None_mse: %f, EKF_mse: %f, P3D_mse: %f, RMM_mse: %f, EKF_variance: %f, ", 
+        real_variance, None_mse, EKF_mse, P3D_mse, RMM_mse, EKF_variance);
+
     if ((real_variance < 2500.0 && None_mse < 2500.0) || 
         (None_mse < EKF_mse && None_mse < P3D_mse && None_mse < RMM_mse)) {
         return UsingPredictorType::None;
@@ -81,7 +84,7 @@ UsingPredictorType::UsingPredictorType PredictorSwitcher::step(bool is_seen, cv:
                          static_cast<float>(P3D_periods.size() + RMM_periods.size());
     if (((P3D_period_variance < 10.0) || (RMM_period_variance < 10.0)) && 
         (mean_period > 2) && (mean_period < 40.0)) {
-        if (mean_period < 10.0 || (RMM_mse > P3D_mse * 3.0)) {
+        if (mean_period < 10.0 || (RMM_mse > 200000.0)) {
             return UsingPredictorType::FirePredictor;
         } else {
             return UsingPredictorType::RotationMotionModel;

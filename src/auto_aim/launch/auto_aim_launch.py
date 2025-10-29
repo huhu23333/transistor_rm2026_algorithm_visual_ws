@@ -1,6 +1,7 @@
 # auto_aim_launch.py
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import ExecuteProcess
 
 def generate_launch_description():
     return LaunchDescription([
@@ -21,9 +22,19 @@ def generate_launch_description():
             #arguments = ['--ros-args', '--log-level', 'DEBUG']
         ),
         Node(
-            package='shm_pytorch_processor_pkg',
-            executable='shm_pytorch_processor_node',
-            name='shm_pytorch_processor_node',
+            package='shm_python_processor_pkg',
+            executable='shm_classifier_node',
+            name='shm_classifier_node',
             #arguments = ['--ros-args', '--log-level', 'DEBUG']
+        ),
+        # Node(
+        #     package='shm_python_processor_pkg',
+        #     executable='shm_yolo_pose_node',
+        #     name='shm_yolo_pose_node',
+        #     #arguments = ['--ros-args', '--log-level', 'DEBUG']
+        # ),
+        ExecuteProcess(
+            cmd=['taskset', '-c', "0,1", 'ros2', 'run', 'shm_python_processor_pkg', 'shm_yolo_pose_node'],
+            output='screen'
         )
     ])
