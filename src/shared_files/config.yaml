@@ -78,7 +78,7 @@ fire_data_predictor_fit_step : 90
 
 pred_fire_data_smooth_factor : 0.2
 
-armor_distance_smooth_factor : 0.05
+armor_distance_smooth_factor : 1.0 # 0.05
 
 # Params.h 参数设置
 min_light_height : 8 # 8

@@ -23,6 +23,11 @@ namespace ArmorConstants {
     // 灯条距离和高度的比值
     constexpr float LARGE_DISTANCE_RATIO = LARGE_ARMOR_WIDTH / LIGHT_HEIGHT;
     constexpr float SMALL_DISTANCE_RATIO = SMALL_ARMOR_WIDTH / LIGHT_HEIGHT;
+
+    // 新增用于pnp的灯条顶点参数
+    constexpr float PNP_LIGHT_HEIGHT = 40.0f;       // pnp用灯条高度 // 待修正
+    constexpr float SMALL_ARMOR_LIGHT_DISTANCE = 130.0f; // 待修正
+    constexpr float LARGE_ARMOR_LIGHT_DISTANCE = 225.0f; // 待修正
 }
 
 struct AimResult {
@@ -75,6 +80,8 @@ struct Armor {
     cv::Vec2f pointToVec(const cv::Point2f& point);
 
     cv::Point2f computeIntersection(const std::vector<cv::Point2f>& corners);
+
+    std::vector<cv::Point2f> light_bar_corners;
 };
 
 struct ArmorResult {

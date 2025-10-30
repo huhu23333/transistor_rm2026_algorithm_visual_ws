@@ -342,6 +342,13 @@ private:
                         cv::FONT_HERSHEY_SIMPLEX, 0.5, 
                         cv::Scalar(0, 255, 255), 1);
             }
+
+            // 绘制灯条顶点
+            for (size_t i = 0; i < armor.light_bar_corners.size() && i < 4; i++) {
+                cv::line(result, armor.light_bar_corners[i], 
+                        armor.light_bar_corners[(i+1)%4], 
+                        cv::Scalar(255, 0, 0), 2);
+            }
         }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
@@ -576,7 +583,7 @@ private:
     std::shared_ptr<PredictorMain> predictor_main_;
 
     std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
-    bool use_yolo_pose = true;
+    bool use_yolo_pose = false;
     int max_history_frame = 10;
     int history_frame_identifier_loop = 30;
     int now_history_frame_identifier = 0;

@@ -224,13 +224,19 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
     try {
         bool is_large_armor = armor_result.is_large;
         
-        float half_width = is_large_armor ? 
-            ArmorConstants::LARGE_ARMOR_WIDTH / 2.0f :
-            ArmorConstants::SMALL_ARMOR_WIDTH / 2.0f;
+        // float half_width = is_large_armor ? 
+        //     ArmorConstants::LARGE_ARMOR_WIDTH / 2.0f :
+        //     ArmorConstants::SMALL_ARMOR_WIDTH / 2.0f;
             
-        float half_height = is_large_armor ? 
-            ArmorConstants::LARGE_ARMOR_HEIGHT / 2.0f :
-            ArmorConstants::SMALL_ARMOR_HEIGHT / 2.0f;
+        // float half_height = is_large_armor ? 
+        //     ArmorConstants::LARGE_ARMOR_HEIGHT / 2.0f :
+        //     ArmorConstants::SMALL_ARMOR_HEIGHT / 2.0f;
+
+        // 改为使用灯条顶点
+        float half_width = is_large_armor ? 
+            ArmorConstants::LARGE_ARMOR_LIGHT_DISTANCE / 2.0f :
+            ArmorConstants::SMALL_ARMOR_LIGHT_DISTANCE / 2.0f;
+        float half_height = ArmorConstants::PNP_LIGHT_HEIGHT / 2.0f;
             
         std::vector<cv::Point3f> armor_points_3d = {
             cv::Point3f(-half_width, -half_height, 0.0f),
@@ -240,7 +246,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
         };
 
         cv::Mat rvec, tvec;
-        bool solve_success = cv::solvePnP(armor_points_3d, armor_result.corners, 
+        bool solve_success = cv::solvePnP(armor_points_3d, armor_result.armor.light_bar_corners, // armor_result.corners, 
                                         camera_matrix, dist_coeffs, 
                                         rvec, tvec, false, cv::SOLVEPNP_IPPE);
 
