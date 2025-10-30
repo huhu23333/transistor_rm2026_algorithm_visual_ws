@@ -276,7 +276,7 @@ private:
         now_serial_infos.push_time = current_time;
         serial_infos_delay_.push(now_serial_infos);
         while (serial_infos_delay_.size() > 1 && 
-               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - serial_infos_delay_.front().push_time).count() > serial_delay_time) {
+               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - serial_infos_delay_.front().push_time).count() > serial_delay_time + extra_info_delay_time_ms) {
             serial_infos_delay_.pop();
         }
         DelayInfos delayed_serial_infos = serial_infos_delay_.front();
@@ -451,6 +451,7 @@ private:
             std::vector<ArmorResult> classifyResults;
             std::vector<ArmorResult> classifyResults_forFourierPredict;
             std::vector<std::vector<ArmorResult>> classifyResults_expanded;
+            std::vector<Armor> yolo_armors;
 
             // 检测灯条
             light_detector_->detectLights(frame);
@@ -460,9 +461,35 @@ private:
             // 检测装甲板
             armors = armor_detector_->detectArmors(lights);
 
-            armors = yolo_pose_armor_detector -> detectArmors(frame, false);
+            if (use_yolo_pose) {
+                now_history_frame_identifier += 1;
+                if (now_history_frame_identifier == history_frame_identifier_loop) {
+                    now_history_frame_identifier = 0;
+                }
+                history_frames.push_back(HistoryFrame({now_history_frame_identifier, frame.clone()}));
+                if (history_frames.size() == max_history_frame) {
+                    history_frames.pop_front();
+                }
+                yolo_armors = yolo_pose_armor_detector -> detectArmors(frame, false, now_history_frame_identifier);
+                int history_frame_index = history_frames.size() - 1 - yolo_delay_frame;
+                if (yolo_armors.size() > 0) {
+                    Armor& yolo_armor = yolo_armors[0];
+                    for (int delay_frame = 0; delay_frame < history_frames.size(); delay_frame += 1) {
+                        history_frame_index = history_frames.size() - 1 - delay_frame;
+                        yolo_delay_frame = delay_frame;
+                        if (yolo_armor.delayed_result.history_frame_identifier == history_frames[history_frame_index].identifier) {
+                            break;
+                        }
+                    }
+                }
+                RCLCPP_INFO(this->get_logger(), "yolo_delay_frame: %d", yolo_delay_frame);
+                extra_info_delay_time_ms = fps_counter -> avg_frame_time() * yolo_delay_frame * 1000.0;
+                classifyResults_expanded = classifier_->classify(history_frames[history_frame_index].frame, yolo_armors, ground_stable_point);
+            } else {
+                extra_info_delay_time_ms = 0.0;
+                classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
+            }
 
-            classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
@@ -549,6 +576,17 @@ private:
     std::shared_ptr<PredictorMain> predictor_main_;
 
     std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
+    bool use_yolo_pose = true;
+    int max_history_frame = 10;
+    int history_frame_identifier_loop = 30;
+    int now_history_frame_identifier = 0;
+    struct HistoryFrame {
+        int identifier;
+        cv::Mat frame;
+    };
+    std::deque<HistoryFrame> history_frames;
+    int yolo_delay_frame = 0;
+    float extra_info_delay_time_ms = 0.0;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

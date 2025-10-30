@@ -17,12 +17,14 @@ public:
     : node(node), config_file_ptr(config_file_ptr) {
         shm_python_yolo_pose = std::make_shared<SharedMemoryYOLOPose>(config_file_ptr, node);
     }
-    std::vector<Armor> detectArmors(const cv::Mat& frame, bool block);
+    std::vector<Armor> detectArmors(const cv::Mat& frame, bool block, int now_history_frame_identifier);
 private:
     std::shared_ptr<YAML::Node> config_file_ptr;
     rclcpp::Node* node;
 
     std::shared_ptr<SharedMemoryYOLOPose> shm_python_yolo_pose;
+
+    float lightBarLengthScale = 0.8;
 };
 
 

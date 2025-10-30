@@ -14,6 +14,7 @@ struct DetectionResult {
     float keypoints[8];  // 4个关键点，每个关键点(x,y)归一化坐标 (x1,y1,x2,y2,x3,y3,x4,y4)
     float confidence;    // 检测置信度
     int class_id;       // 类别ID
+    int history_frame_identifier;
 };
 
 class SharedMemoryYOLOPose {
@@ -22,7 +23,7 @@ public:
     ~SharedMemoryYOLOPose();
     
     // 处理单张图像，返回检测结果
-    std::vector<DetectionResult> processImage(const cv::Mat& image, bool block);
+    std::vector<DetectionResult> processImage(const cv::Mat& image, bool block, int now_history_frame_identifier);
 
 private:
     rclcpp::Node* node;
@@ -38,10 +39,12 @@ private:
         
         // 传入数据区: 单张640x640 RGB图像
         unsigned char image_data[640 * 640 * 3];
+        int input_history_frame_identifier;
         
         // 返回数据区
         struct {
             int num_detections;    // 检测到的目标数量 (4字节)
+            int return_history_frame_identifier;
             // 结果存储区：最多50个目标，每个目标包含4个关键点(8个坐标)+置信度+类别ID
             struct {
                 float keypoints[8];  // 4个关键点的归一化坐标 (x1,y1,x2,y2,x3,y3,x4,y4)

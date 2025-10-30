@@ -117,7 +117,7 @@ THRES_MAX_COLOR_BLUE : 100
 
 # ArmorDetector 参数
 corners_expand_ratio : 2.0 # 装甲板角点坐标扩大比例
-height_correct_ratio_small : 1.02 # 角点坐标修正比例系数 # 1.02 # 0.98 # 1.24
+height_correct_ratio_small : 1.22 # 角点坐标修正比例系数 # 1.02 # 0.98 # 1.24 # 1.02
 width_correct_ratio_small : 1.12 # 1.12
 height_correct_ratio_large : 1.26 # 1.04
 width_correct_ratio_large : 1.06

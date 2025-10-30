@@ -54,12 +54,17 @@ struct Armor {
     float width_correct_ratio_large;
     rclcpp::Node* node;
 
+    struct {
+        bool is_delayed_result = false;
+        int history_frame_identifier;
+    } delayed_result;
+
     // 默认构造函数
     Armor() : confidence(0.0f) {}
     
     // 带参数的构造函数
-    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
-    
+    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, int history_frame_identifier = -1);
+
     // ROI计算函数
     void calculateROI();
     

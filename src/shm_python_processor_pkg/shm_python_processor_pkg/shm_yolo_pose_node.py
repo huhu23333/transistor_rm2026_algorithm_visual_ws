@@ -57,12 +57,13 @@ class ShmYOLOPoseProcessorNode(Node):
         # 计算各个区域的偏移量
         self.CONTROL_DATA_SIZE = 8  # is_processed(1) + reserved1(1) + reserved2(1) + reserved3(1) + reserved4(4)
         self.IMAGE_DATA_SIZE = 640 * 640 * 3
-        self.RETURN_DATA_HEADER_SIZE = 4  # num_detections(4)
+        self.INPUT_DATA_SIZE = self.IMAGE_DATA_SIZE + 4
+        self.RETURN_DATA_HEADER_SIZE = 8  # num_detections(4)
         self.PER_DETECTION_SIZE = 8 * 4 + 4 + 4 + 4  # keypoints(8*float32) + confidence(4) + class_id(4) + reserved(4)
         self.TOTAL_RETURN_DATA_SIZE = self.RETURN_DATA_HEADER_SIZE + self.MAX_DETECTIONS * self.PER_DETECTION_SIZE
         
         self.IMAGE_DATA_OFFSET = self.CONTROL_DATA_SIZE
-        self.RETURN_DATA_OFFSET = self.CONTROL_DATA_SIZE + self.IMAGE_DATA_SIZE
+        self.RETURN_DATA_OFFSET = self.CONTROL_DATA_SIZE + self.INPUT_DATA_SIZE
         
         self.attach_shared_memory()
 
@@ -81,7 +82,7 @@ class ShmYOLOPoseProcessorNode(Node):
     
     def attach_shared_memory(self):
         try:
-            total_size = self.CONTROL_DATA_SIZE + self.IMAGE_DATA_SIZE + self.TOTAL_RETURN_DATA_SIZE
+            total_size = self.CONTROL_DATA_SIZE + self.INPUT_DATA_SIZE + self.TOTAL_RETURN_DATA_SIZE
             self.shm = SharedMemory(self.YOLO_POSE_SHM_KEY, flags=0, size=0)
             # 验证共享内存大小是否足够
             if self.shm.size < total_size:
@@ -89,7 +90,7 @@ class ShmYOLOPoseProcessorNode(Node):
                 raise ValueError("Shared memory size mismatch")
         except:
             # 首次运行时创建共享内存
-            total_size = self.CONTROL_DATA_SIZE + self.IMAGE_DATA_SIZE + self.TOTAL_RETURN_DATA_SIZE
+            total_size = self.CONTROL_DATA_SIZE + self.INPUT_DATA_SIZE + self.TOTAL_RETURN_DATA_SIZE
             self.shm = SharedMemory(self.YOLO_POSE_SHM_KEY, IPC_CREAT, size=total_size)
             self.get_logger().info(f"Shared memory created successfully, size: {total_size}")
 
@@ -109,6 +110,8 @@ class ShmYOLOPoseProcessorNode(Node):
                     
                     # 转换为numpy数组并reshape为图像
                     image_np = np.frombuffer(img_data, dtype=np.uint8).reshape((640, 640, 3))
+
+                    history_frame_identifier = np.frombuffer(self.shm.read(4, offset=self.IMAGE_DATA_OFFSET + self.IMAGE_DATA_SIZE), dtype=np.int32)
                     
                     # 2. 使用YOLO进行姿态估计
                     results = self.model(image_np, verbose=False)
@@ -166,6 +169,8 @@ class ShmYOLOPoseProcessorNode(Node):
                     # 写入检测数量到返回数据区开头
                     num_detections_bytes = np.int32(num_detections).tobytes()
                     self.shm.write(num_detections_bytes, offset=self.RETURN_DATA_OFFSET)
+                    self.get_logger().debug(f"python history_frame_identifier: {history_frame_identifier}")
+                    self.shm.write(history_frame_identifier.tobytes(), offset=self.RETURN_DATA_OFFSET + 4)
                     
                     # 写入每个检测结果
                     results_offset = self.RETURN_DATA_OFFSET + self.RETURN_DATA_HEADER_SIZE

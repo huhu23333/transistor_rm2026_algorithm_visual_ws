@@ -3,7 +3,7 @@
 
 
 // 带参数的构造函数
-Armor::Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) 
+Armor::Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, int history_frame_identifier) 
     : leftLight(left), rightLight(right), confidence(0.0f), node(node) {
     corners_expand_ratio = (*config_file_ptr)["corners_expand_ratio"].as<float>();
     height_correct_ratio_small = (*config_file_ptr)["height_correct_ratio_small"].as<float>();
@@ -11,6 +11,11 @@ Armor::Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::sha
     height_correct_ratio_large = (*config_file_ptr)["height_correct_ratio_large"].as<float>();
     width_correct_ratio_large = (*config_file_ptr)["width_correct_ratio_large"].as<float>();
     calculateROI();
+
+    if (history_frame_identifier != -1) {
+        delayed_result.is_delayed_result = true;
+        delayed_result.history_frame_identifier = history_frame_identifier;
+    }
 }
 
 // ROI计算函数

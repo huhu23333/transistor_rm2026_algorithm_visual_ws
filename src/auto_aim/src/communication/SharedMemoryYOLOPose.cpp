@@ -65,7 +65,7 @@ cv::Mat SharedMemoryYOLOPose::preprocessImage(const cv::Mat& image) {
     return processed;
 }
 
-std::vector<DetectionResult> SharedMemoryYOLOPose::processImage(const cv::Mat& image, bool block) {
+std::vector<DetectionResult> SharedMemoryYOLOPose::processImage(const cv::Mat& image, bool block, int now_history_frame_identifier) {
     // 1. 预处理图像
     cv::Mat processed_image = preprocessImage(image);
     
@@ -83,6 +83,8 @@ std::vector<DetectionResult> SharedMemoryYOLOPose::processImage(const cv::Mat& i
         std::memcpy(shared_data_->image_data, continuous_img.data, data_size);
     }
     
+    shared_data_->input_history_frame_identifier = now_history_frame_identifier;
+
     // 3. 重置处理状态和检测数量
     shared_data_->is_processed = false;
     //shared_data_->return_data.num_detections = 0;
@@ -100,6 +102,8 @@ std::vector<DetectionResult> SharedMemoryYOLOPose::processImage(const cv::Mat& i
         std::memcpy(det.keypoints, shared_data_->return_data.results[i].keypoints, 8 * sizeof(float));
         det.confidence = shared_data_->return_data.results[i].confidence;
         det.class_id = shared_data_->return_data.results[i].class_id;
+        det.history_frame_identifier = shared_data_->return_data.return_history_frame_identifier;
+        RCLCPP_DEBUG(node->get_logger(), "return_history_frame_identifier: %d", shared_data_->return_data.return_history_frame_identifier);
         results.push_back(det);
     }
 
