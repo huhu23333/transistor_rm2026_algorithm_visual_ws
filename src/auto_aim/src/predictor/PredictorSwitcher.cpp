@@ -69,7 +69,7 @@ UsingPredictorType::UsingPredictorType PredictorSwitcher::step(bool is_seen, cv:
     float RMM_mse = meanSquaredErrorPoint3f(seen_None, seen_RMM);
     float EKF_variance = variancePoint3f(seen_EKF);
 
-    RCLCPP_DEBUG(node->get_logger(), "real_variance: %f, None_mse: %f, EKF_mse: %f, P3D_mse: %f, RMM_mse: %f, EKF_variance: %f, ", 
+    RCLCPP_INFO(node->get_logger(), "real_variance: %f, None_mse: %f, EKF_mse: %f, P3D_mse: %f, RMM_mse: %f, EKF_variance: %f, ", 
         real_variance, None_mse, EKF_mse, P3D_mse, RMM_mse, EKF_variance);
 
     if ((real_variance < 2500.0 && None_mse < 2500.0) || 

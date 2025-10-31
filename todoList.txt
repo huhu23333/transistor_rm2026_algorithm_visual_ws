@@ -59,3 +59,5 @@ rpy改ypr
 自动选择YOLO使用cpu线程数
 
 修改box范围后重新训练yolo模型
+
+yolo+RMM旋转反向问题/预测器切换逻辑问题

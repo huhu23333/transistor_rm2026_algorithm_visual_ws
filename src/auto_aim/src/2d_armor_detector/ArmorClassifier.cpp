@@ -148,7 +148,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         
         bool not_slant = not_slant_probability > NOT_SLANT_THRESHOLD; // TODO：倾斜目标纠正网络
 
-        if (is_ture_armor && not_slant) {
+        if (is_ture_armor) {
             bool is_large = is_large_probability > IS_LARGE_THRESHOLD;
             float armor_type_confidence = 1.0 - is_large_probability;
             if (is_large)
