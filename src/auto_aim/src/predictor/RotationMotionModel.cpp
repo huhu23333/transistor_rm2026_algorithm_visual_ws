@@ -2,7 +2,9 @@
 
 using namespace Eigen;
 
-RotationMotionModel::RotationMotionModel(const ObservedData& initObservedData) {
+RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_)
+    : rest_frame_(rest_frame_) {
+    initObservedData.theoreticYaw = getTheoreticYaw(initObservedData.x, initObservedData.y);
     observedDataHistory.push_back(initObservedData);
     center_vx = 0.0;
     center_vy = 0.0;
@@ -36,7 +38,8 @@ void RotationMotionModel::emptyUpdate(double update_time) {
 }
 
 
-void RotationMotionModel::update(const ObservedData& observedData) {
+void RotationMotionModel::update(ObservedData& observedData) {
+    observedData.theoreticYaw = getTheoreticYaw(observedData.x, observedData.y);
     observedDataHistory.push_back(observedData);
     if (observedDataHistory.size() > max_history) {
         observedDataHistory = std::vector<ObservedData>(
@@ -94,7 +97,7 @@ void RotationMotionModel::calculateR() {
     }
     
     r = sum / n;
-    r = std::max(std::min(r, 800.0), 100.0);
+    r = std::max(std::min(r, 800.0), 200.0);
 }
 
 fitCenterXYResult RotationMotionModel::fitCenterXY(const std::vector<double>& armorYaw,
@@ -270,20 +273,21 @@ void RotationMotionModel::fitRotationParameters() {
         vyaw = (rotation_period > 0) ? (2 * M_PI / rotation_period) : 0.0;
     }
     
-    std::vector<double> TheoreticYawData(observedDataHistory.size());
+    std::vector<double> TheoreticYawDataInCam(observedDataHistory.size());
     for (size_t i = 0; i < observedDataHistory.size(); i++) {
-        TheoreticYawData[i] = (getTheoreticYaw(observedDataHistory[i].x, observedDataHistory[i].y));
+        TheoreticYawDataInCam[i] = (getTheoreticYawFacingArmor(observedDataHistory[i].x, observedDataHistory[i].y));
     }
     std::vector<double> dataToFit, fittedData;
-    std::vector<int> midPoints = findMidYaw(TheoreticYawData, jump_period_frames, dataToFit, fittedData);
-    rotation_direction = getRotationDirection(TheoreticYawData);
+    std::vector<int> midPoints = findMidYaw(TheoreticYawDataInCam, jump_period_frames, dataToFit, fittedData);
+    rotation_direction = getRotationDirection(TheoreticYawDataInCam);
     vyaw *= rotation_direction;
     
     if (!midPoints.empty()) {
         int last_mid_idx = midPoints.back();
         if (last_mid_idx < tData.size()) {
             double time_since_mid = tData.back() - tData[last_mid_idx];
-            current_phase = fmod(time_since_mid * vyaw + delta_phase * rotation_direction, 2 * M_PI);
+            double camToCenterYaw = getCamToCenterYaw();
+            current_phase = fmod(time_since_mid * vyaw + delta_phase * rotation_direction + camToCenterYaw, 2 * M_PI);
         }
     }
 }
@@ -386,9 +390,12 @@ double RotationMotionModel::centerResiduals(const std::vector<double>& params,
 PredictResult RotationMotionModel::predict(double predictTime) {
     PredictResult result;
     std::vector<double> start_yaw_distances(n_armors);
-    double latest_yaw = observedDataHistory.back().yaw;
+    double latest_yaw = observedDataHistory.back().theoreticYaw;
     for (int i = 0; i < n_armors; i++) {
-        start_yaw_distances[i] = std::abs(current_phase + i * jump_rad - latest_yaw);
+        start_yaw_distances[i] = std::min(std::min(
+            std::abs(current_phase + i * jump_rad - latest_yaw),
+            std::abs(current_phase + i * jump_rad - latest_yaw + 2 * M_PI)),
+            std::abs(current_phase + i * jump_rad - latest_yaw - 2 * M_PI));
     }
     auto start_yaw_distances_min_iter = std::min_element(start_yaw_distances.begin(), start_yaw_distances.end());
     int start_yaw_distances_min_index = std::distance(start_yaw_distances.begin(), start_yaw_distances_min_iter);
@@ -414,8 +421,35 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     return result;
 }
 
+double RotationMotionModel::getCamToCenterYaw() {
+    std::vector<float> cam_center = rest_frame_ -> getCamPosition();
+    std::vector<double> cam_to_rotation_center_vector = {center_x - cam_center[0], center_y - cam_center[1]};
+    double cam_to_rotation_center_yaw = std::atan2(-cam_to_rotation_center_vector[0], cam_to_rotation_center_vector[1]);
+    return cam_to_rotation_center_yaw;
+}
+
 double RotationMotionModel::getTheoreticYaw(double armor_x, double armor_y) {
-    return std::atan2(-(center_x - armor_x), center_y - armor_y);
+    double theoreticYawFacingArmor = getTheoreticYawFacingArmor(armor_x, armor_y);
+    std::vector<float> cam_center = rest_frame_ -> getCamPosition();
+    std::vector<double> cam_to_rotation_center_vector = {center_x - cam_center[0], center_y - cam_center[1]};
+    double cam_to_rotation_center_yaw = getCamToCenterYaw();
+    return cam_to_rotation_center_yaw + theoreticYawFacingArmor;
+}
+
+double RotationMotionModel::getTheoreticYawFacingArmor(double armor_x, double armor_y) {
+    std::vector<float> cam_center = rest_frame_ -> getCamPosition();
+    std::vector<double> cam_to_rotation_center_vector = {center_x - cam_center[0], center_y - cam_center[1]};
+    double cam_to_rotation_center_vector_len = std::sqrt(cam_to_rotation_center_vector[0] * cam_to_rotation_center_vector[0] + cam_to_rotation_center_vector[1] * cam_to_rotation_center_vector[1]);
+    std::vector<double> right_unit_v = {cam_to_rotation_center_vector[1] / cam_to_rotation_center_vector_len, - cam_to_rotation_center_vector[0] / cam_to_rotation_center_vector_len};
+    std::vector<double> center_armor_v = {armor_x - center_x, armor_y - center_y};
+    double right_shift = right_unit_v[0] * center_armor_v[0] + right_unit_v[1] * center_armor_v[1];
+    if (right_shift > r) {
+        return M_PI / 2.0;
+    }
+    if (right_shift < -r) {
+        return - M_PI / 2.0;
+    }
+    return std::asin(right_shift / r);
 }
 
 RotationMotionState RotationMotionModel::getState() {

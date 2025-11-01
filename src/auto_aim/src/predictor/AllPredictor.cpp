@@ -9,6 +9,8 @@ void AllPredictor::update_serial_info(float bullet_velocity, float last_pitch_ra
 
 PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame)
 {
+    total_yaw_rad_delayed_filter_ -> addPoint(total_yaw_rad_delayed_);
+
     PredictorResult result;
     if (classifyResults.empty()) {
         if (EKF_tracker_->state != Tracker::LOST) {
@@ -65,7 +67,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(255, 0, 255), 2);
 
                 cv::Mat RMM_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
-                cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
+                cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
                 for (int RMM_pred_now_armor_i = 0; RMM_pred_now_armor_i < RMM_pred_now_data.armors.size(); RMM_pred_now_armor_i += 1) {
                     SimpleArmor& RMM_pred_now_armor = RMM_pred_now_data.armors[RMM_pred_now_armor_i];
                     cv::Point3f RMM_pred_now_armor_p3f = rest_frame_ -> worldToPnpP3f({
@@ -77,11 +79,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::circle(frame, RMM_pred_now_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
                     // cv::line(frame, RMM_pred_now_center_pixel, RMM_pred_now_armor_pixel, cv::Scalar(0, 255, 0), 2);
                     
-                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 800-RMM_pred_now_armor.y/10), 8, 
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 8, 
                         cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                     // cv::line(RMM_visualize_frame, 
-                    //     cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 
-                    //     cv::Point2f(400+RMM_pred_now_armor.x/10, 800-RMM_pred_now_armor.y/10), 
+                    //     cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 
+                    //     cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 
                     //     cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                 }
                 RotationMotionState RMM_state = rotation_motion_model_ -> getState();
@@ -122,9 +124,34 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     predicted_aim_pos = predicted_armor_pos;
                     result.fire_flag = true;
                     cv::circle(RMM_visualize_frame, 
-                        cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 800-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
+                        cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
                         cv::Scalar(0, 0, 255), 2);
+                    cv::putText(RMM_visualize_frame, 
+                        "r:"+std::to_string(RMM_pred_aim_data.r), 
+                        cv::Point2f(20,110), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
                 }
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400, 400), 
+                    cv::Point2f(400 - std::sin(total_yaw_rad_delayed_)*150, 
+                                400 - std::cos(total_yaw_rad_delayed_)*150),
+                    cv::Scalar(255, 255, 0), 2);
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400, 400), 
+                    cv::Point2f(400 - std::sin(total_yaw_rad_delayed_filter_ -> getExponentialValue())*150, 
+                                400 - std::cos(total_yaw_rad_delayed_filter_ -> getExponentialValue())*150),
+                    cv::Scalar(0, 255, 0), 2);
+                cv::putText(RMM_visualize_frame, 
+                    "total_yaw:"+std::to_string(total_yaw_rad_delayed_), 
+                    cv::Point2f(20,140), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "total_yaw_filter:"+std::to_string(total_yaw_rad_delayed_filter_ -> getExponentialValue()), 
+                    cv::Point2f(20,170), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
 #ifdef SHOW_WINDOWS
                 cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
@@ -343,7 +370,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     RMM_update_time
                 });
                 if (!rotation_motion_model_) {
-                    rotation_motion_model_ = std::make_unique<RotationMotionModel>(RMM_update_data);
+                    rotation_motion_model_ = std::make_unique<RotationMotionModel>(RMM_update_data, rest_frame_);
                 } else {
                     if (best_result.is_tracked_now) {
                         rotation_motion_model_ -> update(RMM_update_data);
@@ -367,9 +394,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
                 cv::Mat RMM_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
                 if (best_result.is_tracked_now) {
-                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 8, cv::Scalar(0, 255, 0), 2);
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 8, cv::Scalar(0, 255, 0), 2);
                 } else {
-                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
                 }
                 for (int RMM_pred_now_armor_i = 0; RMM_pred_now_armor_i < RMM_pred_now_data.armors.size(); RMM_pred_now_armor_i += 1) {
                     SimpleArmor& RMM_pred_now_armor = RMM_pred_now_data.armors[RMM_pred_now_armor_i];
@@ -382,24 +409,24 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::circle(frame, RMM_pred_now_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
                     // cv::line(frame, RMM_pred_now_center_pixel, RMM_pred_now_armor_pixel, cv::Scalar(0, 255, 0), 2);
                     
-                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 800-RMM_pred_now_armor.y/10), 8, 
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 8, 
                         cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                     // cv::line(RMM_visualize_frame, 
-                    //     cv::Point2f(400+RMM_pred_now_data.center_x/10, 800-RMM_pred_now_data.center_y/10), 
-                    //     cv::Point2f(400+RMM_pred_now_armor.x/10, 800-RMM_pred_now_armor.y/10), 
+                    //     cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 
+                    //     cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 
                     //     cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                 }
-                cv::circle(RMM_visualize_frame, cv::Point2f(400+rest_frame_pos.x/10, 800-rest_frame_pos.y/10), 8, cv::Scalar(255, 255, 0), 2);
+                cv::circle(RMM_visualize_frame, cv::Point2f(400+rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 8, cv::Scalar(255, 255, 0), 2);
                 cv::line(RMM_visualize_frame, 
-                    cv::Point2f(400 + rest_frame_pos.x/10, 800-rest_frame_pos.y/10), 
+                    cv::Point2f(400 + rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 
                     cv::Point2f(400 + rest_frame_pos.x/10 + std::sin(rest_frame_euler_angles[0])*50, 
-                                800 - (rest_frame_pos.y/10 - std::cos(rest_frame_euler_angles[0])*50)),
+                                400 - (rest_frame_pos.y/10 - std::cos(rest_frame_euler_angles[0])*50)),
                     cv::Scalar(255, 255, 0), 2);
                 double theoretic_yaw = rotation_motion_model_ -> getTheoreticYaw(rest_frame_pos.x, rest_frame_pos.y);
                 cv::line(RMM_visualize_frame, 
-                    cv::Point2f(400 + rest_frame_pos.x/10, 800-rest_frame_pos.y/10), 
+                    cv::Point2f(400 + rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 
                     cv::Point2f(400 + rest_frame_pos.x/10 + std::sin(theoretic_yaw)*50, 
-                                800 - (rest_frame_pos.y/10 - std::cos(theoretic_yaw)*50)),
+                                400 - (rest_frame_pos.y/10 - std::cos(theoretic_yaw)*50)),
                     cv::Scalar(0, 255, 0), 2);
                 RotationMotionState RMM_state = rotation_motion_model_ -> getState();
                 cv::putText(RMM_visualize_frame, 
@@ -437,13 +464,38 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     predicted_aim_pos = predicted_armor_pos;
                     fire_flag = true;
                     cv::circle(RMM_visualize_frame, 
-                        cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 800-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
+                        cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
                         cv::Scalar(0, 0, 255), 2);
+                    cv::putText(RMM_visualize_frame, 
+                        "r:"+std::to_string(RMM_pred_aim_data.r), 
+                        cv::Point2f(20,110), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
                 }
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400, 400), 
+                    cv::Point2f(400 - std::sin(total_yaw_rad_delayed_)*150, 
+                                400 - std::cos(total_yaw_rad_delayed_)*150),
+                    cv::Scalar(255, 255, 0), 2);
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400, 400), 
+                    cv::Point2f(400 - std::sin(total_yaw_rad_delayed_filter_ -> getExponentialValue())*150, 
+                                400 - std::cos(total_yaw_rad_delayed_filter_ -> getExponentialValue())*150),
+                    cv::Scalar(0, 255, 0), 2);
+                cv::putText(RMM_visualize_frame, 
+                    "total_yaw:"+std::to_string(total_yaw_rad_delayed_), 
+                    cv::Point2f(20,140), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "total_yaw_filter:"+std::to_string(total_yaw_rad_delayed_filter_ -> getExponentialValue()), 
+                    cv::Point2f(20,170), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
 #ifdef SHOW_WINDOWS
                 cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
-                // ========================== RotationMotionModel =========================== END
+                // ========================== RotationMotionModsel =========================== END
 
                 // 统一转换回pnp相机坐标系    
                 predicted_aim_pos = rest_frame_ -> worldToPnpP3f(predicted_aim_pos);

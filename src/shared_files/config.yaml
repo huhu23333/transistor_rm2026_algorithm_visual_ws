@@ -80,6 +80,8 @@ pred_fire_data_smooth_factor : 0.2
 
 armor_distance_smooth_factor : 1.0 # 0.05
 
+total_yaw_rad_delayed_smooth_factor : 0.1
+
 # Params.h 参数设置
 min_light_height : 8 # 8
 light_slope_offset : 30
@@ -150,7 +152,7 @@ NOT_SLANT_THRESHOLD : 0.5
 CLASSIFY_THRESHOLD : 0.5
 INPUT_HEIGHT : 48
 INPUT_WIDTH : 64
-MAX_TRACKING_AGE_MS : 300  # 最大跟踪时间100ms // DEBUG // 100
+MAX_TRACKING_AGE_MS : 100  # 最大跟踪时间100ms // DEBUG // 100 // 300
 MIN_TRACKING_COUNT : 2     # 最小连续跟踪次数           // 2
 IS_NEAR_MAX_DIST_RATIO : 1.5     # 50.0
 fit_step : 5

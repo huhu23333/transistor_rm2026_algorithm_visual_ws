@@ -138,6 +138,9 @@ public:
         armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
 
         predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node, predictor_switcher_check_frames_);
+
+        total_yaw_rad_delayed_filter_ = std::make_shared<SimpleDataFilter>(1);
+        total_yaw_rad_delayed_filter_ -> setExponentialAlpha((*config_file_ptr)["total_yaw_rad_delayed_smooth_factor"].as<float>());
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame);
@@ -180,6 +183,7 @@ private:
     float last_pitch_rad_delayed_ = 0;
     float last_yaw_rad_delayed_ = 0;
     float total_yaw_rad_delayed_ = 0;
+    std::shared_ptr<SimpleDataFilter> total_yaw_rad_delayed_filter_;
 
     // EKF/Tracker 相关新增成员
     std::shared_ptr<Tracker> EKF_tracker_;
