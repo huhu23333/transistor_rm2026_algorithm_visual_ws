@@ -8,6 +8,7 @@ import cv2
 import os
 import yaml
 from ultralytics import YOLO
+import openvino as ov
 
 class FrameRateCounter:
     def __init__(self, window_size = 30):
@@ -49,6 +50,12 @@ class ShmYOLOPoseProcessorNode(Node):
         self.YOLO_POSE_SHM_KEY = int(config_data["YOLO_POSE_SHM_KEY"])
         yolo_pose_model_relative_path = config_data["yolo_pose_model_relative_path"]
         model_path = os.path.join(ws_dir_path, yolo_pose_model_relative_path)
+
+        openvino_core = ov.Core()
+        if "GPU" in openvino_core.available_devices:
+            self.openvino_device = "intel:gpu"
+        else:
+            self.openvino_device = "intel:cpu"
         
         # 定义与C++完全一致的内存结构
         self.shm = None
@@ -114,7 +121,7 @@ class ShmYOLOPoseProcessorNode(Node):
                     history_frame_identifier = np.frombuffer(self.shm.read(4, offset=self.IMAGE_DATA_OFFSET + self.IMAGE_DATA_SIZE), dtype=np.int32)
                     
                     # 2. 使用YOLO进行姿态估计
-                    results = self.model(image_np, verbose=False)
+                    results = self.model(image_np, verbose=False, device=self.openvino_device)
                     
                     # 3. 处理检测结果
                     all_detections = []
