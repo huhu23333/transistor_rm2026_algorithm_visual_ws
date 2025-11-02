@@ -331,7 +331,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 // ========================== FirePredictor ===========================
                 predictor3d -> addPoint(rest_frame_pos);
                 predictor3d -> fitFourier(predictor3d_fit_step, predictor3d_fourier_fit_order);
-                predictor3dCenterPredictions = std::vector<cv::Point3f>(predictor3d_predict_step, cv::Point3f(predictor3d -> getAveragePosition())); //predictor3d -> predictLinear(predictor3d_predict_step); // predictFourier | predictLinear
+                predictor3dCenterPredictions = predictor3d -> predictLinear(predictor3d_predict_step);//std::vector<cv::Point3f>(predictor3d_predict_step, cv::Point3f(predictor3d -> getAveragePosition())); //predictor3d -> predictLinear(predictor3d_predict_step); // predictFourier | predictLinear
                 predictor3dArmorPredictions = predictor3d -> predictFourier(predictor3d_predict_step); // predictFourier | predictLinear
                 predictor3dPrediction_nowIndex = 0;
                 size_t predictor3dPrediction_indexToAim = std::min(predictor3d_predict_step-1, (int)(total_delay * fps_counter->fps())); // total_delay

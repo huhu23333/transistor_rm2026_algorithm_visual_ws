@@ -231,7 +231,7 @@ private:
                     // static_cast<int16_t>(60.0 * 4095.0 / 180.0);
                     // static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 2 * M_PI), std::cos(debug_time_count * 2 * M_PI)) * 4095.0 / M_PI / 12); 
                     // static_cast<int16_t>(static_cast<float>((std::atan2(std::sin(debug_time_count * 1.0), std::cos(debug_time_count * 1.0)) > 0) - 0.5) * 4095); 
-                    static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 0.01), std::cos(debug_time_count * 0.01)) * 4095.0 / M_PI);
+                    static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 0.3), std::cos(debug_time_count * 0.3)) * 4095.0 / M_PI);
                     // static_cast<int16_t>(std::cos(debug_time_count * 0.5 * (2*M_PI)) * 4095 / 180 * 15);       // 云台当前偏航角
                 fakeSerialData.color = 1;            // 敌方颜色(0:红色, 1:蓝色)
 
