@@ -2,15 +2,14 @@
 
 using namespace Eigen;
 
-RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_)
-    : rest_frame_(rest_frame_) {
+RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost)
+    : rest_frame_(rest_frame_), is_outpost(is_outpost) {
     initObservedData.theoreticYaw = getTheoreticYaw(initObservedData.x, initObservedData.y);
     observedDataHistory.push_back(initObservedData);
     center_vx = 0.0;
     center_vy = 0.0;
     center_vz = 0.0;
     vyaw = 0.0;
-    r = 250.0;
     center_x = initObservedData.x - r * sin(initObservedData.yaw);
     center_y = initObservedData.y + r * cos(initObservedData.yaw);
     center_z = initObservedData.z;
@@ -18,10 +17,17 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     refine_multiple = 30;
     rotation_period = 0.0;
     current_phase = 0.0;
-    n_armors = 3;
+    if (is_outpost) {
+        n_armors = 3;
+        r = 276.5;
+        delta_phase = 25.0 * M_PI / 180.0;
+    } else {
+        n_armors = 4;
+        r = 250.0;
+        delta_phase = 25.0 * M_PI / 180.0; // todo
+    }
     rotation_direction = 1;
     jump_rad = M_PI * 2.0 / n_armors;
-    delta_phase = 25.0 * M_PI / 180.0;
 }
 
 void RotationMotionModel::emptyUpdate(double update_time) {
@@ -63,7 +69,10 @@ void RotationMotionModel::update(ObservedData& observedData) {
     center_vx = centerResult.center_vx;
     center_vy = centerResult.center_vy;
     
-    calculateR();
+
+    if (!is_outpost) {
+        calculateR();
+    }
     fitRotationParameters();
 }
 

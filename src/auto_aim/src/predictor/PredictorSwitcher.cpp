@@ -1,7 +1,7 @@
 #include "predictor/PredictorSwitcher.h"
 
-namespace UsingPredictorType {
-    std::vector<std::string> UsingPredictorTypeStrings = {
+namespace PredictorType {
+    std::vector<std::string> PredictorTypeStrings = {
         "None",
         "EKF",
         "FP",
@@ -17,7 +17,7 @@ void PredictorSwitcher::clearHistory() {
 }
 
 
-UsingPredictorType::UsingPredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f real_point, 
+PredictorType::PredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f real_point, 
     cv::Point3f None_result, cv::Point3f EKF_result, cv::Point3f P3D_result, cv::Point3f RMM_result, 
     float P3D_period, float RMM_period) {
 
@@ -37,7 +37,7 @@ UsingPredictorType::UsingPredictorType PredictorSwitcher::step(bool is_seen, cv:
     }
     
     if (static_cast<int>(predictors_results.size()) - check_frames < min_check_frames) {
-        return UsingPredictorType::None;
+        return PredictorType::None;
     }
     int seen_real_point_count = 0;
     for (int seen_real_point_index = 0; seen_real_point_index < real_points.size(); seen_real_point_index++) {
@@ -47,7 +47,7 @@ UsingPredictorType::UsingPredictorType PredictorSwitcher::step(bool is_seen, cv:
         }
     }
     if (seen_real_point_count < min_check_frames) {
-        return UsingPredictorType::None;
+        return PredictorType::None;
     }
 
     std::vector<cv::Point3f> seen_real, seen_None, seen_EKF, seen_P3D, seen_RMM;
@@ -74,7 +74,7 @@ UsingPredictorType::UsingPredictorType PredictorSwitcher::step(bool is_seen, cv:
 
     if ((real_variance < 2500.0 && None_mse < 2500.0) || 
         (None_mse < EKF_mse && None_mse < P3D_mse && None_mse < RMM_mse)) {
-        return UsingPredictorType::None;
+        return PredictorType::None;
     }
 
     float P3D_period_variance = variance(P3D_periods);
@@ -85,15 +85,15 @@ UsingPredictorType::UsingPredictorType PredictorSwitcher::step(bool is_seen, cv:
     if (((P3D_period_variance < 10.0) || (RMM_period_variance < 10.0)) && 
         (mean_period > 2) && (mean_period < 40.0)) {
         if (mean_period < 10.0 || (RMM_mse > 200000.0)) {
-            return UsingPredictorType::FirePredictor;
+            return PredictorType::FirePredictor;
         } else {
-            return UsingPredictorType::RotationMotionModel;
+            return PredictorType::RotationMotionModel;
         }
     }
 
     if (EKF_variance < real_variance && EKF_mse < None_mse) {
-        return UsingPredictorType::EKF;
+        return PredictorType::EKF;
     }
 
-    return UsingPredictorType::None;
+    return PredictorType::None;
 }

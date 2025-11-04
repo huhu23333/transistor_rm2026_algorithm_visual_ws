@@ -32,6 +32,7 @@
 #include <cmath>
 #include "predictor/PredictorMain.h"
 #include "2d_armor_detector/YOLOPoseArmorDetector.h"
+#include "predictor/PredictorSwitcher.h"
 
 namespace fs = std::filesystem;
 
@@ -511,7 +512,7 @@ private:
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame);
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame, PredictorType::AutoSwitch); // Todo
             if (predictor_result.reset) {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 serial_communication_->sendData(0.0, 0.0, false);

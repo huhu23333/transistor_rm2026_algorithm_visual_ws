@@ -7,6 +7,7 @@
 #include <Eigen/Dense>
 #include <Eigen/SVD>
 #include "3d_processing/RestFrame.h"
+#include "2d_armor_detector/Armor.h"
 
 
 
@@ -92,9 +93,11 @@ private:
 
     std::shared_ptr<RestFrame> rest_frame_;
 
+    bool is_outpost;
+
 public:
 
-    RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_);
+    RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost);
     void update(ObservedData& observedData);
     PredictResult predict(double predictTime);
     fitCenterXYResult fitCenterXY(const std::vector<double>& armorYaw, 

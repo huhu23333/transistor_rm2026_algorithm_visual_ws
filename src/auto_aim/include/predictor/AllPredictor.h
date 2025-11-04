@@ -37,7 +37,7 @@ public:
         std::shared_ptr<ArmorSolver> armor_solver_,
         std::shared_ptr<BallisticSolver> ballistic_solver_,
         std::shared_ptr<RestFrame> rest_frame_, std::shared_ptr<FrameRateCounter> fps_counter,
-        int armor_class
+        ArmorType::ArmorType armor_class
     ) : config_file_ptr(config_file_ptr), node(node), node_start_time(node_start_time), 
     armor_solver_(armor_solver_), ballistic_solver_(ballistic_solver_),
     rest_frame_(rest_frame_), fps_counter(fps_counter), armor_class(armor_class) {
@@ -143,14 +143,14 @@ public:
         total_yaw_rad_delayed_filter_ -> setExponentialAlpha((*config_file_ptr)["total_yaw_rad_delayed_smooth_factor"].as<float>());
     }
 
-    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame);
+    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
 
     bool is_reset = false;
 
 private:
-    UsingPredictorType::UsingPredictorType using_predictor_type = UsingPredictorType::None;
-    int armor_class;
+    PredictorType::PredictorType using_predictor_type = PredictorType::None;
+    ArmorType::ArmorType armor_class;
 
     std::shared_ptr<YAML::Node> config_file_ptr; 
     rclcpp::Node* node;

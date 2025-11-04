@@ -8,6 +8,20 @@
 #include <yaml-cpp/yaml.h>
 #include <opencv2/opencv.hpp>
 
+namespace ArmorType {
+    enum ArmorType {
+        Hero = 0,
+        Engineer,
+        Infantry1,
+        Infantry2,
+        Infantry3, // 5号
+        Sentry,
+        Outpost,
+        Base
+    };
+    extern std::vector<std::string> ArmorTypeStrings;
+}
+
 // 物理尺寸常量
 namespace ArmorConstants {
     constexpr float LIGHT_HEIGHT = 55.0f;       // 灯条高度

@@ -1,6 +1,18 @@
 // Armor.cpp
 #include "2d_armor_detector/Armor.h"
 
+namespace ArmorType {
+    std::vector<std::string> ArmorTypeStrings = {
+        "Hero",
+        "Engineer",
+        "Infantry1",
+        "Infantry2",
+        "Infantry3",
+        "Sentry",
+        "Outpost",
+        "Base"
+    };
+}
 
 // 带参数的构造函数
 Armor::Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, int history_frame_identifier) 
