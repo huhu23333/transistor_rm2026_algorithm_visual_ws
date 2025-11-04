@@ -110,10 +110,10 @@ MAX_DETECT_CNT : 2
 MAX_LOST_CNT : 3
 
 # LightBarDetector 参数
-binary_img_THRESHOLD : 240 # 128 # 180
+binary_img_THRESHOLD : 180 # 128 # 180 # 240
 color_rect_expand_FACTOR : 1.5
-mean_color_diff_THRESHOLD_BLUE : 15.0
-mean_color_diff_THRESHOLD_RED : 5.0
+mean_color_diff_THRESHOLD_BLUE : 20.0
+mean_color_diff_THRESHOLD_RED : 10.0
 THRES_MAX_COLOR_RED : 60
 THRES_MAX_COLOR_BLUE : 100
 

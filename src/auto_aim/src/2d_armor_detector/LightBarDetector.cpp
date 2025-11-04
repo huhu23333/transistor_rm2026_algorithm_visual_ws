@@ -368,7 +368,7 @@ void LightBarDetector::detectLights(cv::Mat& img) {
             float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
 
             // 4. 移除小于阈值的图像
-            RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
+            RCLCPP_INFO(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
             float mean_color_diff_THRESHOLD;
             if (params.enemy_color == Params::BLUE) {
                 mean_color_diff_THRESHOLD = mean_color_diff_THRESHOLD_BLUE;
@@ -495,12 +495,12 @@ cv::Mat LightBarDetector::extractColorChannelDiff(const cv::Mat& img) {
         case Params::RED:
             // 红色装甲板：R通道减B通道
             cv::subtract(channels[2], channels[0], color_diff);
-            cv::threshold(color_diff, color_diff, THRES_MAX_COLOR_RED, 255, cv::THRESH_BINARY);
+            //cv::threshold(color_diff, color_diff, THRES_MAX_COLOR_RED, 255, cv::THRESH_BINARY);
             break;
         case Params::BLUE:
             // 蓝色装甲板：B通道减R通道
             cv::subtract(channels[0], channels[2], color_diff);
-            cv::threshold(color_diff, color_diff, THRES_MAX_COLOR_BLUE, 255, cv::THRESH_BINARY);
+            //cv::threshold(color_diff, color_diff, THRES_MAX_COLOR_BLUE, 255, cv::THRESH_BINARY);
             break;
         case Params::BOTH:
             // 识别两者：上述两者最大值
