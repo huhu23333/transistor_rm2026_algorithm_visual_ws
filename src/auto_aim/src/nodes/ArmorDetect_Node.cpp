@@ -33,6 +33,7 @@
 #include "predictor/PredictorMain.h"
 #include "2d_armor_detector/YOLOPoseArmorDetector.h"
 #include "predictor/PredictorSwitcher.h"
+#include "2d_armor_detector/Armor.h"
 
 namespace fs = std::filesystem;
 
@@ -512,7 +513,12 @@ private:
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame, PredictorType::AutoSwitch); // Todo
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch); // Todo
+            cv::putText(frame, 
+                "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
+                cv::Point2f(0, 100), 
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
             if (predictor_result.reset) {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 serial_communication_->sendData(0.0, 0.0, false);

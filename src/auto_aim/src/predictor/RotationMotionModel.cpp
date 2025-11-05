@@ -106,7 +106,7 @@ void RotationMotionModel::calculateR() {
     }
     
     r = sum / n;
-    r = std::max(std::min(r, 800.0), 200.0);
+    r = std::max(std::min(r, 600.0), 100.0);
 }
 
 fitCenterXYResult RotationMotionModel::fitCenterXY(const std::vector<double>& armorYaw,

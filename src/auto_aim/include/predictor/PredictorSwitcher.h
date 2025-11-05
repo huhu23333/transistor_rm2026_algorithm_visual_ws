@@ -14,7 +14,7 @@
 
 namespace PredictorType {
     enum PredictorType {
-        None,   // 直接瞄准装甲板
+        None = 0,   // 直接瞄准装甲板
         EKF,
         FirePredictor,
         RotationMotionModel,

@@ -368,7 +368,7 @@ void LightBarDetector::detectLights(cv::Mat& img) {
             float mean_color_diff = calculateMeanInRotatedRect(color_diff, expandedRect);
 
             // 4. 移除小于阈值的图像
-            RCLCPP_INFO(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
+            RCLCPP_DEBUG(node->get_logger(), "mean_color_diff: %f\n", mean_color_diff);
             float mean_color_diff_THRESHOLD;
             if (params.enemy_color == Params::BLUE) {
                 mean_color_diff_THRESHOLD = mean_color_diff_THRESHOLD_BLUE;

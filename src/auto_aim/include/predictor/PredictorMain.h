@@ -29,7 +29,7 @@ public:
         } 
     }
 
-    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type);
+    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
 
 private:

@@ -27,6 +27,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             rotation_motion_model_.reset();
             is_reset = true;
             predictor_switcher_ -> clearHistory();
+            last_pixel_horizontal_center_distance = 1e10;
         } else {
             
             result.reset = false;
@@ -243,6 +244,12 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
         auto it = std::max_element(
             classifyResults.begin(), classifyResults.end(),
             [](const ArmorResult& a, const ArmorResult& b) {
+                if (a.is_tracked_now && !b.is_tracked_now) {
+                    return false;
+                }
+                if (!a.is_tracked_now && b.is_tracked_now) {
+                    return true;
+                }
                 return a.confidence < b.confidence;
             }
         );
@@ -250,6 +257,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             auto best_result = *it;
             AimResult aim = armor_solver_->solveArmor(best_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
             if (aim.valid) {
+
+                last_pixel_horizontal_center_distance = std::abs(best_result.center.x - static_cast<float>(frame.cols)/2.0);
+                
                 // 查看并滤波z轴距离轴数据
                 armor_distance_filter_ -> addPoint(aim.position.z);
                 aim.position.z = armor_distance_filter_ -> getExponentialValue();
@@ -670,5 +680,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
         cv::Point2f(frame.cols - 200, 50 + 30 * armor_class), 
         cv::FONT_HERSHEY_COMPLEX, 0.7, 
         cv::Scalar(0, 255, 0), 1, 8, false);
+    result.predictor_type = using_predictor_type;
+    result.armor_type = armor_class;
+    result.pixel_horizontal_center_distance = last_pixel_horizontal_center_distance;
     return result;
 }

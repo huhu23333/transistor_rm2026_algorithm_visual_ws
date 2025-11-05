@@ -28,6 +28,9 @@ struct PredictorResult {
     float command_pitch = 0.0;
     float command_yaw = 0.0;
     bool fire_flag = false;
+    PredictorType::PredictorType predictor_type = PredictorType::None;
+    ArmorType::ArmorType armor_type = ArmorType::Hero;
+    float pixel_horizontal_center_distance = 1e10;
 };
 
 class AllPredictor {
@@ -212,4 +215,6 @@ private:
     int predictor_switcher_check_frames_ = 30;
 
     cv::Point3f last_rest_frame_pos = {0.0, 0.0, 0.0};
+
+    float last_pixel_horizontal_center_distance = 1e10;
 };

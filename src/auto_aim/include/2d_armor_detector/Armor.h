@@ -17,7 +17,8 @@ namespace ArmorType {
         Infantry3, // 5号
         Sentry,
         Outpost,
-        Base
+        Base,
+        AutoSwitch
     };
     extern std::vector<std::string> ArmorTypeStrings;
 }

@@ -5,7 +5,8 @@ namespace PredictorType {
         "None",
         "EKF",
         "FP",
-        "RMM"
+        "RMM",
+        "AutoSwitch(should not be used)"
     };
 }
 

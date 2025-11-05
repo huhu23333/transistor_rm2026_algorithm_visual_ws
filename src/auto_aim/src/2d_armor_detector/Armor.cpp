@@ -10,7 +10,8 @@ namespace ArmorType {
         "Infantry3",
         "Sentry",
         "Outpost",
-        "Base"
+        "Base",
+        "AutoSwitch(should not be used)"
     };
 }
 
