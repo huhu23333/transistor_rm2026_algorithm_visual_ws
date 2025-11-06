@@ -46,10 +46,6 @@ public:
     rest_frame_(rest_frame_), fps_counter(fps_counter), armor_class(armor_class) {
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
-
-        delta_x_ = (*config_file_ptr)["delta_x_"].as<float>();
-        delta_y_ = (*config_file_ptr)["delta_y_"].as<float>();
-        delta_z_ = (*config_file_ptr)["delta_z_"].as<float>();
         
         yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
         pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
@@ -180,9 +176,6 @@ private:
     std::shared_ptr<RotationMotionModel> rotation_motion_model_;
 
     float bullet_velocity_;
-    float delta_x_;
-    float delta_y_;
-    float delta_z_;
     float last_pitch_rad_delayed_ = 0;
     float last_yaw_rad_delayed_ = 0;
     float total_yaw_rad_delayed_ = 0;

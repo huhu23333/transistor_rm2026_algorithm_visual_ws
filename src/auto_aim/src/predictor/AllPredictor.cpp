@@ -529,9 +529,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     predicted_aim_pos.x, 
                     predicted_aim_pos.y, 
                     predicted_aim_pos.z,
-                    /* delta_x_,
-                    delta_y_,
-                    delta_z_, */
                     bullet_velocity_,
                     last_pitch_rad_delayed_,//pitch_integration | last_pitch_rad_delayed_ #todo
                     last_yaw_rad_delayed_

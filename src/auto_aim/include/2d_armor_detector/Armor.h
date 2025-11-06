@@ -46,7 +46,7 @@ namespace ArmorConstants {
 }
 
 struct AimResult {
-    cv::Point3f position;  // 装甲板中心在相机坐标系下的位置
+    cv::Point3f position;  // 装甲板中心在枪口坐标系下的位置
     double distance;       // 距离
     bool valid;           // 解算是否有效
 

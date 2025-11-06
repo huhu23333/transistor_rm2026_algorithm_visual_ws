@@ -307,9 +307,13 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
         
         // 计算距离
         result.distance = cv::norm(result.position);
+
+        // 修正为枪口坐标系
+        result.position.x -= delta_x_;
+        result.position.y += delta_z_;
+        result.position.z -= delta_y_;
         
         // 标记解算成功
-        
         result.valid = true;
         
     } catch (const std::exception& e) {
