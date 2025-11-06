@@ -165,10 +165,10 @@ class ShmYOLOPoseProcessorNode(Node):
                     
                     # ============== 可视化部分 ==============
                     # 创建窗口用于显示图像
-                    cv2.namedWindow("YOLO Pose Image", cv2.WINDOW_NORMAL)
-                    cv2.resizeWindow("YOLO Pose Image", 640, 640)
-                    cv2.imshow("YOLO Pose Image", results[0].plot())
-                    key = cv2.waitKey(1)
+                    # cv2.namedWindow("YOLO Pose Image", cv2.WINDOW_NORMAL)
+                    # cv2.resizeWindow("YOLO Pose Image", 640, 640)
+                    # cv2.imshow("YOLO Pose Image", results[0].plot())
+                    # key = cv2.waitKey(1)
                     
                     # 4. 准备写入返回数据
                     num_detections = len(all_detections)
