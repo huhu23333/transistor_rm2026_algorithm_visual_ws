@@ -48,9 +48,9 @@ bullet_velocity_ : 15.0
 current_pitch_ : 0.0
 current_yaw_ : 0.0
 # 相机光心相对枪口的偏移（xyz分别为相机系下向右、向前、向上）
-delta_x_ : 50.0   # 待修正
-delta_y_ : -50.0  # 待测
-delta_z_ : 30.0   # 待修正
+delta_x_ : 0.0
+delta_y_ : -150.0  # 待测
+delta_z_ : 100.0   # 待修正
 
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
