@@ -583,7 +583,7 @@ private:
     std::shared_ptr<PredictorMain> predictor_main_;
 
     std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
-    bool use_yolo_pose = true;
+    bool use_yolo_pose = false;
     int max_history_frame = 10;
     int history_frame_identifier_loop = 30;
     int now_history_frame_identifier = 0;

@@ -154,10 +154,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
         {
             Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
             double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-            double future_yaw = future_state(6), future_r = future_state(8);
             EKF_to_check = {
-                static_cast<float>(future_xc - future_r * sin(future_yaw)),
-                static_cast<float>(future_yc + future_r * cos(future_yaw)),
+                static_cast<float>(future_xc),
+                static_cast<float>(future_yc),
                 static_cast<float>(future_zc) 
             };
         }
@@ -251,30 +250,31 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 // ========================== EKF 逻辑 (9D模型修改) ===========================
                 // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
                 Tracker::Measurement z;
-                z << rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0];
+                z << rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z;
 
                 // 2. EKF 状态机逻辑
-                if (EKF_tracker_->state == Tracker::LOST) {
-                    EKF_tracker_->reset(z);
-                    current_target_id_ = best_result.number;
-                } else {
-                    // 跳变处理：通过ID或距离判断
-                    Eigen::Vector3d pred_armor_pos = EKF_tracker_->getArmorPosition();
-                    double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z)).norm();
-
-                    if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
-                        if(best_result.number != current_target_id_) {
-                            RCLCPP_DEBUG(node->get_logger(), "ID switched, resetting tracker.");
+                        if (EKF_tracker_->state == Tracker::LOST) {
+                            // 如果是丢失状态，用当前测量值重置滤波器
+                            EKF_tracker_->reset(z);
+                            current_target_id_ = best_result.number;
                         } else {
-                            RCLCPP_DEBUG(node->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
+                            // 跳变处理
+                            Eigen::Vector3d pred_armor_pos = EKF_tracker_->getArmorPosition();
+                            double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z)).norm();
+
+                            if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
+                                if(best_result.number != current_target_id_) {
+                                    RCLCPP_WARN(node->get_logger(), "ID switched, resetting tracker.");
+                                } else {
+                                    RCLCPP_WARN(node->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
+                                }
+                                EKF_tracker_->reset(z);
+                                current_target_id_ = best_result.number;
+                            } else {
+                                EKF_tracker_->predict();
+                                EKF_tracker_->update(z);
+                            }
                         }
-                        EKF_tracker_->reset(z);
-                        current_target_id_ = best_result.number;
-                    } else {
-                        EKF_tracker_->predict();
-                        EKF_tracker_->update(z);
-                    }
-                }
                 
                 if (using_predictor_type == UsingPredictorType::EKF) {
 
@@ -283,11 +283,10 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     
                     // 从预测的机器人中心状态，反解出未来时刻装甲板的位置
                     double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-                    double future_yaw = future_state(6), future_r = future_state(8);
 
                     predicted_armor_pos = {
-                        static_cast<float>(future_xc - future_r * sin(future_yaw)),
-                        static_cast<float>(future_yc + future_r * cos(future_yaw)),
+                        static_cast<float>(future_xc),
+                        static_cast<float>(future_yc),
                         static_cast<float>(future_zc) 
                     };
                     predicted_aim_pos = predicted_armor_pos;
@@ -537,10 +536,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             {
                 Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
                 double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-                double future_yaw = future_state(6), future_r = future_state(8);
                 EKF_to_check = {
-                    static_cast<float>(future_xc - future_r * sin(future_yaw)),
-                    static_cast<float>(future_yc + future_r * cos(future_yaw)),
+                    static_cast<float>(future_xc),
+                    static_cast<float>(future_yc),
                     static_cast<float>(future_zc) 
                 };
             }
