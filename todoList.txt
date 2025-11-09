@@ -71,3 +71,5 @@ RMM四装甲板调参
 ！！！相机-枪口位置修正！！！
 
 解决小陀螺yaw偏移问题（去掉yaw积分）
+
+adjust ballistic params
