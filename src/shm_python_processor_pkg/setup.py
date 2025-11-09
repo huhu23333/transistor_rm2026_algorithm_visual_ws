@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'shm_pytorch_processor_pkg'
+package_name = 'shm_python_processor_pkg'
 
 setup(
     name=package_name,
@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'shm_pytorch_processor_node = shm_pytorch_processor_pkg.shm_pytorch_processor_node:main'
+            'shm_classifier_node = shm_python_processor_pkg.shm_classifier_node:main',
+            'shm_yolo_pose_node = shm_python_processor_pkg.shm_yolo_pose_node:main'
         ],
     },
 )

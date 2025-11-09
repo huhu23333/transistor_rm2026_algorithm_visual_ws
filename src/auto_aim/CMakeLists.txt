@@ -56,6 +56,7 @@ add_library(armor_detector SHARED
     src/2d_armor_detector/ArmorClassifier.cpp
     src/2d_armor_detector/ArmorTracker.cpp
     src/2d_armor_detector/UnwarpUtils.cpp
+    src/2d_armor_detector/YOLOPoseArmorDetector.cpp
     src/3d_processing/ArmorSolver.cpp
     src/3d_processing/BallisticSolver.cpp
     src/3d_processing/RestFrame.cpp
@@ -71,7 +72,8 @@ add_library(armor_detector SHARED
     src/predictor/PredictorSwitcher.cpp
     src/predictor/PredictorMain.cpp
     src/visualizer/DataVisualizer.cpp
-    src/communication/SharedMemoryTorch.cpp
+    src/communication/SharedMemoryClassifier.cpp
+    src/communication/SharedMemoryYOLOPose.cpp
     src/communication/Com.cpp
     src/communication/CRC.cpp
     src/utils/FrameRateCounter.cpp

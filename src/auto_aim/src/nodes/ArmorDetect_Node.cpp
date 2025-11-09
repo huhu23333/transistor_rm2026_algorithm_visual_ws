@@ -31,14 +31,13 @@
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
 #include "predictor/PredictorMain.h"
+#include "2d_armor_detector/YOLOPoseArmorDetector.h"
+#include "predictor/PredictorSwitcher.h"
+#include "2d_armor_detector/Armor.h"
 
 namespace fs = std::filesystem;
 
-
-//#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
-//#define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
-//#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
-//#define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
+#include "macro/AutoAimMacro.h"
 
 // 全局变量定义
 cv::Mat g_image;
@@ -51,7 +50,7 @@ public:
     ArmorDetectNode() : Node("armor_detect_node") {
         node_start_time = std::chrono::steady_clock::now();
 
-        // 1. 获取可执行文件路径
+        // 1. 获取可执行文件路径    
         char exec_path[PATH_MAX];
         ssize_t len = readlink("/proc/self/exe", exec_path, sizeof(exec_path) - 1);
         if (len == -1) {
@@ -165,6 +164,8 @@ public:
             config_file_ptr, this, node_start_time, armor_solver_,
             ballistic_solver_, rest_frame_, fps_counter);
 
+        yolo_pose_armor_detector = std::make_shared<YOLOPoseArmorDetector>(config_file_ptr, this);
+
 
         // 初始化串口通信器
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
@@ -197,38 +198,43 @@ public:
 
 private:
     void debug_code() {
-        while (true) {
-            static double debug_time_count = 0.0;
-            double debug_freq = 0.3;
-            double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
-            double debug_pitch = std::sin(debug_time_count*M_PI*debug_freq) * M_PI / 6;
-            serial_communication_->sendData(false, debug_pitch, debug_yaw, false);
-            RCLCPP_INFO(this->get_logger(), "send debug data: yaw[%.2f] pitch[%.2f]", debug_yaw, debug_pitch);
-            RCLCPP_INFO(this->get_logger(), "received data: yaw[%.2f] pitch[%.2f]", last_yaw_rad_delayed_, last_pitch_rad_delayed_);
-            cv::Mat frame;
-            pthread_mutex_lock(&g_mutex);
-            if (!g_image.empty()) {
-                frame = g_image.clone();
-                image_used = true;
-            }
-            pthread_mutex_unlock(&g_mutex);
-            if (!frame.empty()) {
-                cv::imshow("debug_code", frame);
-                cv::waitKey(1);
-            }
-            auto start = std::chrono::steady_clock::now();
-            std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
-            debug_time_count += 0.033;
-        }
-        /* std::thread([&]() {
+        // while (true) {
+        //     static double debug_time_count = 0.0;
+        //     double debug_freq = 0.3;
+        //     double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
+        //     double debug_pitch = std::sin(debug_time_count*M_PI*debug_freq) * M_PI / 6;
+        //     serial_communication_->sendData(debug_pitch, debug_yaw);
+        //     RCLCPP_INFO(this->get_logger(), "send debug data: yaw[%.2f] pitch[%.2f]", debug_yaw, debug_pitch);
+        //     RCLCPP_INFO(this->get_logger(), "received data: yaw[%.2f] pitch[%.2f]", last_yaw_rad_delayed_, last_pitch_rad_delayed_);
+        //     cv::Mat frame;
+        //     pthread_mutex_lock(&g_mutex);
+        //     if (!g_image.empty()) {
+        //         frame = g_image.clone();
+        //         image_used = true;
+        //     }
+        //     pthread_mutex_unlock(&g_mutex);
+        //     if (!frame.empty()) {
+        //         cv::imshow("debug_code", frame);
+        //         cv::waitKey(1);
+        //     }
+        //     auto start = std::chrono::steady_clock::now();
+        //     std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
+        //     debug_time_count += 0.033;
+        // }
+        std::thread([&]() {
             double debug_time_count = 0.0;
             while (true) {
                 auto start = std::chrono::steady_clock::now();
 
                 SerialData fakeSerialData;
                 fakeSerialData.bullet_velocity = 25.0;  // 子弹速度
-                fakeSerialData.bullet_angle = std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
-                fakeSerialData.gimbal_yaw = static_cast<int16_t>(std::cos(debug_time_count * 0.5 * (2*M_PI)) * 4095 / 180 * 15);       // 云台当前偏航角
+                fakeSerialData.gimbal_yaw = 0 * M_PI / 180; // std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
+                fakeSerialData.gimbal_yaw =  
+                    // static_cast<int16_t>(60.0 * 4095.0 / 180.0);
+                    // static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 2 * M_PI), std::cos(debug_time_count * 2 * M_PI)) * 4095.0 / M_PI / 12); 
+                    // static_cast<int16_t>(static_cast<float>((std::atan2(std::sin(debug_time_count * 1.0), std::cos(debug_time_count * 1.0)) > 0) - 0.5) * 4095); 
+                    static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 0.3), std::cos(debug_time_count * 0.3)) * 4095.0 / M_PI);
+                    // static_cast<int16_t>(std::cos(debug_time_count * 0.5 * (2*M_PI)) * 4095 / 180 * 15);       // 云台当前偏航角
                 fakeSerialData.color = 1;            // 敌方颜色(0:红色, 1:蓝色)
 
                 serialDataCallback(fakeSerialData);
@@ -236,7 +242,7 @@ private:
                 std::this_thread::sleep_until(start + std::chrono::microseconds(10000));  // 大约10ms周期
                 debug_time_count += 0.01;
             }
-        }).detach(); */
+        }).detach();
     }
 
     void serialDataCallback(const SerialData& msg) {
@@ -263,7 +269,7 @@ private:
         last_pitch_rad_ = current_pitch_;
         last_yaw_rad_ = current_yaw_;
 
-        RCLCPP_INFO(this->get_logger(), 
+        RCLCPP_DEBUG(this->get_logger(), 
             "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f",
             bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str(),
             yaw_circle_, total_yaw_rad_);
@@ -277,7 +283,7 @@ private:
         now_serial_infos.push_time = current_time;
         serial_infos_delay_.push(now_serial_infos);
         while (serial_infos_delay_.size() > 1 && 
-               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - serial_infos_delay_.front().push_time).count() > serial_delay_time) {
+               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - serial_infos_delay_.front().push_time).count() > serial_delay_time + extra_info_delay_time_ms) {
             serial_infos_delay_.pop();
         }
         DelayInfos delayed_serial_infos = serial_infos_delay_.front();
@@ -343,6 +349,13 @@ private:
                         cv::FONT_HERSHEY_SIMPLEX, 0.5, 
                         cv::Scalar(0, 255, 255), 1);
             }
+
+            // 绘制灯条顶点
+            for (size_t i = 0; i < armor.light_bar_corners.size() && i < 4; i++) {
+                cv::line(result, armor.light_bar_corners[i], 
+                        armor.light_bar_corners[(i+1)%4], 
+                        cv::Scalar(255, 0, 0), 2);
+            }
         }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
@@ -401,8 +414,10 @@ private:
         }
 
         // 在窗口中显示图像
+#ifdef SHOW_WINDOWS
         cv::imshow("Armor Detection", result);
         cv::waitKey(1);  // 确保窗口刷新
+#endif
     }
 
     void processImage() {
@@ -450,6 +465,7 @@ private:
             std::vector<ArmorResult> classifyResults;
             std::vector<ArmorResult> classifyResults_forFourierPredict;
             std::vector<std::vector<ArmorResult>> classifyResults_expanded;
+            std::vector<Armor> yolo_armors;
 
             // 检测灯条
             light_detector_->detectLights(frame);
@@ -459,11 +475,44 @@ private:
             // 检测装甲板
             armors = armor_detector_->detectArmors(lights);
 
-            classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
+            if (use_yolo_pose) {
+                now_history_frame_identifier += 1;
+                if (now_history_frame_identifier == history_frame_identifier_loop) {
+                    now_history_frame_identifier = 0;
+                }
+                history_frames.push_back(HistoryFrame({now_history_frame_identifier, frame.clone()}));
+                if (history_frames.size() == max_history_frame) {
+                    history_frames.pop_front();
+                }
+                yolo_armors = yolo_pose_armor_detector -> detectArmors(frame, false, now_history_frame_identifier);
+                int history_frame_index = history_frames.size() - 1 - yolo_delay_frame;
+                if (yolo_armors.size() > 0) {
+                    Armor& yolo_armor = yolo_armors[0];
+                    for (int delay_frame = 0; delay_frame < history_frames.size(); delay_frame += 1) {
+                        history_frame_index = history_frames.size() - 1 - delay_frame;
+                        yolo_delay_frame = delay_frame;
+                        if (yolo_armor.delayed_result.history_frame_identifier == history_frames[history_frame_index].identifier) {
+                            break;
+                        }
+                    }
+                }
+                RCLCPP_INFO(this->get_logger(), "yolo_delay_frame: %d", yolo_delay_frame);
+                extra_info_delay_time_ms = fps_counter -> avg_frame_time() * yolo_delay_frame * 1000.0;
+                classifyResults_expanded = classifier_->classify(history_frames[history_frame_index].frame, yolo_armors, ground_stable_point);
+            } else {
+                extra_info_delay_time_ms = 0.0;
+                classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
+            }
+
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame);
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch); // Todo
+            cv::putText(frame, 
+                "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
+                cv::Point2f(0, 100), 
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
             if (predictor_result.reset) {
                 RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 serial_communication_->sendData(true, 0.0, 0.0, false);
@@ -545,6 +594,19 @@ private:
     float pitch_rad_to_y_pixel_ratio;
 
     std::shared_ptr<PredictorMain> predictor_main_;
+
+    std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
+    bool use_yolo_pose = false;
+    int max_history_frame = 10;
+    int history_frame_identifier_loop = 30;
+    int now_history_frame_identifier = 0;
+    struct HistoryFrame {
+        int identifier;
+        cv::Mat frame;
+    };
+    std::deque<HistoryFrame> history_frames;
+    int yolo_delay_frame = 0;
+    float extra_info_delay_time_ms = 0.0;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

@@ -1,9 +1,22 @@
 // Armor.cpp
 #include "2d_armor_detector/Armor.h"
 
+namespace ArmorType {
+    std::vector<std::string> ArmorTypeStrings = {
+        "Hero",
+        "Engineer",
+        "Infantry1",
+        "Infantry2",
+        "Infantry3",
+        "Sentry",
+        "Outpost",
+        "Base",
+        "AutoSwitch(should not be used)"
+    };
+}
 
 // 带参数的构造函数
-Armor::Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) 
+Armor::Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, int history_frame_identifier) 
     : leftLight(left), rightLight(right), confidence(0.0f), node(node) {
     corners_expand_ratio = (*config_file_ptr)["corners_expand_ratio"].as<float>();
     height_correct_ratio_small = (*config_file_ptr)["height_correct_ratio_small"].as<float>();
@@ -11,6 +24,11 @@ Armor::Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::sha
     height_correct_ratio_large = (*config_file_ptr)["height_correct_ratio_large"].as<float>();
     width_correct_ratio_large = (*config_file_ptr)["width_correct_ratio_large"].as<float>();
     calculateROI();
+
+    if (history_frame_identifier != -1) {
+        delayed_result.is_delayed_result = true;
+        delayed_result.history_frame_identifier = history_frame_identifier;
+    }
 }
 
 // ROI计算函数
@@ -69,9 +87,10 @@ void Armor::calculateCorners() {
         vertical_relative_right_vertices[i] = right_length_direction * relative_right_vertices[i].dot(right_length_direction);
     }
 
+
     // 获取灯条顶点坐标中靠近装甲板中心的四个点的相对中心点坐标的沿长边和短边两部分
     cv::Vec2f left_up_horizontal, left_up_vertical, left_down_horizontal, left_down_vertical, 
-                right_up_horizontal, right_up_vertical, right_down_horizontal, right_down_vertical; 
+                right_up_horizontal, right_up_vertical, right_down_horizontal, right_down_vertical;
     for (int i = 0; i < 4; i+=1) {
         if (horizontal_relative_left_vertices[i].dot(left_width_direction) >= 0)
         {
@@ -100,6 +119,12 @@ void Armor::calculateCorners() {
             }
         }
     }
+
+    // 获取灯条短边中心点作为灯条顶点，用于pnp
+    light_bar_corners.push_back(left_center + vecToPoint(left_up_vertical));
+    light_bar_corners.push_back(left_center + vecToPoint(left_down_vertical));
+    light_bar_corners.push_back(right_center + vecToPoint(right_down_vertical));
+    light_bar_corners.push_back(right_center + vecToPoint(right_up_vertical));
 
     // 沿长边部分使用小装甲板比例获得装甲板高度相对坐标
     left_up_vertical *= ArmorConstants::SMALL_HEIGHT_RATIO;

@@ -1,6 +1,101 @@
 // ArmorSolver.cpp
 #include "3d_processing/ArmorSolver.h"
+#include <fstream>
+#include <sstream>
+#include <mutex>
+#include <string>
+#include <iomanip>
+#include <cctype>   // std::isdigit
+#include <cmath>
 
+// 取得当前源文件所在目录（__FILE__ 是编译期绝对/相对路径）
+static inline std::string __src_dir__() {
+  std::string p = __FILE__;
+  size_t pos = p.find_last_of("/\\");
+  return (pos == std::string::npos) ? std::string(".") : p.substr(0, pos);
+}
+
+namespace {
+std::mutex      g_ypr_mtx;
+std::ofstream   g_ypr_ofs;
+std::size_t     g_line_no = 0;      // 当前行对应的 frame 编号（会自动从现有文件续上）
+bool            g_inited  = false;
+std::string     g_log_path;
+
+// 从已存在的文件里读到“最后一个 frame 编号”
+static std::size_t read_last_index(const std::string& path) {
+  std::ifstream ifs(path);
+  if (!ifs.is_open()) return 0;
+  std::size_t last = 0;
+  std::string line;
+  while (std::getline(ifs, line)) {
+    // 行形如：frame123: pnp(...), ba(...)
+    if (line.rfind("frame", 0) == 0) {
+      std::size_t i = 5; // 跳过 "frame"
+      std::size_t num = 0; bool any = false;
+      while (i < line.size() && std::isdigit(static_cast<unsigned char>(line[i]))) {
+        any = true;
+        num = num * 10 + (line[i] - '0');
+        ++i;
+      }
+      if (any) last = num;
+    }
+  }
+  return last;
+}
+
+// 确保日志就绪：定位路径（同目录优先），读最后编号，再以追加模式打开
+static void ensure_log_ready() {
+  if (g_inited) return;
+  std::lock_guard<std::mutex> lk(g_ypr_mtx);
+
+  if (g_inited) return; // 双重检查
+  // 1) 同目录优先
+  std::string path_same_dir = __src_dir__() + "/ypr_log.txt";
+  // 先读最后编号
+  std::size_t last_idx = read_last_index(path_same_dir);
+
+  g_ypr_ofs.open(path_same_dir, std::ios::out | std::ios::app);
+  if (g_ypr_ofs.good()) {
+    g_log_path = path_same_dir;
+    g_line_no  = last_idx;
+    g_inited   = true;
+    return;
+  }
+
+  // 2) 回退到运行目录
+  std::string path_run_dir = "ypr_log.txt";
+  last_idx = read_last_index(path_run_dir);
+  g_ypr_ofs.clear();
+  g_ypr_ofs.open(path_run_dir, std::ios::out | std::ios::app);
+  if (g_ypr_ofs.good()) {
+    g_log_path = path_run_dir;
+    g_line_no  = last_idx;
+    g_inited   = true;
+    return;
+  }
+
+  // 3) 仍失败就保持未初始化（不会崩，只是写不进去）
+}
+
+// 追加一行：frameN: pnp(p,y,r), ba(p,y,r)
+// 这里默认输出**弧度**；若想用“度”，把 val() 改成返回 x*180/M_PI。
+static inline void append_ypr(double pnp_pitch, double pnp_yaw, double pnp_roll,
+                              double  ba_pitch, double  ba_yaw, double  ba_roll) {
+  if (!g_inited) ensure_log_ready();
+  std::lock_guard<std::mutex> lk(g_ypr_mtx);
+  if (!g_ypr_ofs.is_open()) return; // 打不开就静默返回（不影响主流程）
+
+  auto val = [](double x){ return x; }; // 输出弧度；若需“度”，用：return x * 180.0 / M_PI;
+
+  ++g_line_no; // 自动：1,2,3,…（会从已有文件的最后编号继续递增）
+  g_ypr_ofs << "frame" << g_line_no << ": "
+            << "pnp(" << std::fixed << std::setprecision(2)
+            << val(pnp_pitch) << ", " << val(pnp_yaw) << ", " << val(pnp_roll) << "), "
+            << "ba("  << val(ba_pitch)  << ", " << val(ba_yaw)  << ", " << val(ba_roll)  << ")\n";
+  g_ypr_ofs.flush();
+}
+} // namespace
 
 double getYawFromRvec(const cv::Mat& rvec) {
     if (rvec.empty()) return 0.0;
@@ -15,6 +110,7 @@ double getYawFromRvec(const cv::Mat& rvec) {
                                      std::pow(rmat.at<double>(1, 0), 2)));
     return yaw;
 }
+
 
 std::vector<double> getNormalYawPitchRollFromRvec(const cv::Mat& rvec) {
     std::vector<double> result = {0.0, 0.0, 0.0};
@@ -80,14 +176,14 @@ void ArmorSolver::initArmorPoints() {
     
     armor_points_3d = {
         cv::Point3f(-HALF_WIDTH, -HALF_HEIGHT, 0.0f),  // 左上
-        cv::Point3f(HALF_WIDTH, -HALF_HEIGHT, 0.0f),   // 右上
+        cv::Point3f(-HALF_WIDTH, HALF_HEIGHT, 0.0f),   // 右上
         cv::Point3f(HALF_WIDTH, HALF_HEIGHT, 0.0f),    // 右下
-        cv::Point3f(-HALF_WIDTH, HALF_HEIGHT, 0.0f)    // 左下
+        cv::Point3f(HALF_WIDTH, -HALF_HEIGHT, 0.0f)    // 左下
     };
 }
 
 cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const {
-    // 确保相机参数已初始化
+    // 确保相机参数已初始化0
     if (camera_matrix.empty() || dist_coeffs.empty()) {
         throw std::runtime_error("Camera parameters not initialized!");
     }
@@ -110,6 +206,7 @@ cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const 
 
 // 修改solveArmor函数实现
 AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_) const {
+    
     AimResult result;
     result.valid = false;
     
@@ -117,19 +214,29 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
     int number = armor_result.number;
     
     // 计算相机到水平系的旋转矩阵
-    Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(0, last_pitch_rad_, last_yaw_rad_));
-    
+    Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(last_pitch_rad_, last_yaw_rad_, 0));
+
+    // Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(2, 1, 0));
+    // auto rpy_wc = ba_ -> rotationMatrixToRPY(R_imu_camera);
+    // RCLCPP_DEBUG(logger_p, "\n YPR WC: (%.2f, %.2f, %.2f)" , rpy_wc[0], rpy_wc[1], rpy_wc[2]);
+    RCLCPP_DEBUG(logger_p, "\ncamera yaw&pitch : (%.2f, %.2f)" , last_pitch_rad_, last_yaw_rad_);
 
     try {
         bool is_large_armor = armor_result.is_large;
         
-        float half_width = is_large_armor ? 
-            ArmorConstants::LARGE_ARMOR_WIDTH / 2.0f :
-            ArmorConstants::SMALL_ARMOR_WIDTH / 2.0f;
+        // float half_width = is_large_armor ? 
+        //     ArmorConstants::LARGE_ARMOR_WIDTH / 2.0f :
+        //     ArmorConstants::SMALL_ARMOR_WIDTH / 2.0f;
             
-        float half_height = is_large_armor ? 
-            ArmorConstants::LARGE_ARMOR_HEIGHT / 2.0f :
-            ArmorConstants::SMALL_ARMOR_HEIGHT / 2.0f;
+        // float half_height = is_large_armor ? 
+        //     ArmorConstants::LARGE_ARMOR_HEIGHT / 2.0f :
+        //     ArmorConstants::SMALL_ARMOR_HEIGHT / 2.0f;
+
+        // 改为使用灯条顶点
+        float half_width = is_large_armor ? 
+            ArmorConstants::LARGE_ARMOR_LIGHT_DISTANCE / 2.0f :
+            ArmorConstants::SMALL_ARMOR_LIGHT_DISTANCE / 2.0f;
+        float half_height = ArmorConstants::PNP_LIGHT_HEIGHT / 2.0f;
             
         std::vector<cv::Point3f> armor_points_3d = {
             cv::Point3f(-half_width, -half_height, 0.0f),
@@ -139,7 +246,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
         };
 
         cv::Mat rvec, tvec;
-        bool solve_success = cv::solvePnP(armor_points_3d, armor.corners, 
+        bool solve_success = cv::solvePnP(armor_points_3d, armor_result.armor.light_bar_corners, // armor_result.corners, 
                                         camera_matrix, dist_coeffs, 
                                         rvec, tvec, false, cv::SOLVEPNP_IPPE);
 
@@ -159,25 +266,34 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             cv::Rodrigues(rvec, rmat);
             Eigen::Matrix3d R = fyt::utils::cvToEigen(rmat);
 
-            // 现打印ba优化之前的yaw
-
+            // 现打印ba优化之前的参数
             auto rpy_before = ba_ -> rotationMatrixToRPY(R);
-            RCLCPP_DEBUG(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
-            RCLCPP_DEBUG(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
-            RCLCPP_DEBUG(logger_p, "roll before ba: %.2f" , rpy_before[2]);
+
+            RCLCPP_DEBUG(logger_p, "\nHUHU YPR PNP: (%.2f, %.2f, %.2f)" , result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
+            RCLCPP_DEBUG(logger_p, "\nYPR PNP: (%.2f, %.2f, %.2f)" , rpy_before[0], rpy_before[1], rpy_before[2]);
+            // RCLCPP_DEBUG(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
+            // RCLCPP_DEBUG(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
+            // RCLCPP_DEBUG(logger_p, "roll before ba: %.2f" , rpy_before[2]);
 
             Eigen::Vector3d t = fyt::utils::cvToEigen(tvec);
 
             R = ba_-> solveBa(armor_result, t, R, R_imu_camera);
             // 将优化后的旋转矩阵转化为RPY
             auto rpy = ba_ -> rotationMatrixToRPY(R);
+
+            // 打印优化之后的参数
+            RCLCPP_DEBUG(logger_p, "\nRPY BA : (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
+
+            append_ypr(result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2],
+            rpy[0],  rpy[1],  rpy[2]);
             
             // 填充所有的result
             result.valid = true;
-            //result.yaw = rpy[2]; // <<--- 填充yaw
+            //result.yaw = rpy[2]; // <<--- 填充ba优化后的yaw
             result.position = cv::Point3f(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
             result.rvec = rvec.clone(); // <<--- 填充rvec
 
+            result.ba_global_ypr = {rpy[0], rpy[1], rpy[2]};
 
         } else {
             std::cerr << "PnP solve failed!" << std::endl;
@@ -191,9 +307,13 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
         
         // 计算距离
         result.distance = cv::norm(result.position);
+
+        // 修正为枪口坐标系
+        result.position.x += delta_x_;
+        result.position.y -= delta_z_;
+        result.position.z += delta_y_;
         
         // 标记解算成功
-        
         result.valid = true;
         
     } catch (const std::exception& e) {

@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <execution>
 #include <thread>
+#include "macro/AutoAimMacro.h"
 
 
 /**
@@ -66,7 +67,7 @@ private:
     /**
      * @brief 根据敌方颜色提取颜色通道差值图像
      * @param img 输入图像
-     * @return 处理后的二值图像
+     * @return 处理后的灰度图像
      */
     cv::Mat extractColorChannelDiff(const cv::Mat& img);
 

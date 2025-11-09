@@ -16,12 +16,13 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include "communication/SharedMemoryTorch.h"
+#include "communication/SharedMemoryClassifier.h"
 #include <algorithm>
 #include <execution>
 #include <thread>
 #include <atomic>
 #include "2d_armor_detector/ArmorTracker.h"
+#include "macro/AutoAimMacro.h"
 
 
 class ArmorClassifier {
@@ -31,7 +32,7 @@ public:
 
 private:
     rclcpp::Node* node;                  // 用于打印的节点
-    std::shared_ptr<SharedMemoryTorch> shm_pytorch_processor;
+    std::shared_ptr<SharedMemoryClassifier> shm_python_classifier;
     std::shared_ptr<ArmorTracker> armor_tracker;
     
     int MAX_ROI_SAVE_COUNT;  // 最大保存数量

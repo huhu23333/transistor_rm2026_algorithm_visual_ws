@@ -91,9 +91,9 @@ class ShmPytorchProcessorNode(Node):
         with open(config_file_path, 'r', encoding='utf-8') as config_file:
             config_data = yaml.safe_load(config_file)
 
-        self.SHM_KEY = int(config_data["SHM_KEY"])
-        model_relative_path = config_data["model_relative_path"]
-        model_path = os.path.join(ws_dir_path, model_relative_path)
+        self.CLASSIFIER_SHM_KEY = int(config_data["CLASSIFIER_SHM_KEY"])
+        classifier_model_relative_path = config_data["classifier_model_relative_path"]
+        model_path = os.path.join(ws_dir_path, classifier_model_relative_path)
         
         # 定义与C++完全一致的内存结构
         self.shm = None
@@ -113,7 +113,7 @@ class ShmPytorchProcessorNode(Node):
     
     def attach_shared_memory(self):
         try:
-            self.shm = SharedMemory(self.SHM_KEY, flags=0, size=0)
+            self.shm = SharedMemory(self.CLASSIFIER_SHM_KEY, flags=0, size=0)
         except:
             # 首次运行时创建共享内存
             shm_size = (
@@ -122,7 +122,7 @@ class ShmPytorchProcessorNode(Node):
                 + 100 * 12 * 4  # results (100*12*float32)
                 + 100 * 64 * 48 * 3  # images (100*64*48*3 uint8)
             )
-            self.shm = SharedMemory(self.SHM_KEY, IPC_CREAT, size=shm_size)
+            self.shm = SharedMemory(self.CLASSIFIER_SHM_KEY, IPC_CREAT, size=shm_size)
 
     def run(self):
         """持续监控共享内存并处理图像，添加可视化功能"""
@@ -169,10 +169,10 @@ class ShmPytorchProcessorNode(Node):
                     # ============== 可视化部分 ==============
                     # ============== 可视化部分 ==============
                     # 创建窗口用于显示图像
-                    #cv2.namedWindow("Shared Memory Image", cv2.WINDOW_NORMAL)
-                    #cv2.resizeWindow("Shared Memory Image", 320, 240)  # 放大显示
-                    #cv2.imshow("Shared Memory Image", image_list[0])  # 显示图像
-                    #key = cv2.waitKey(1)  # 图像显示1ms  # 等待按键或短暂延迟
+                    # cv2.namedWindow("Shared Memory Image", cv2.WINDOW_NORMAL)
+                    # cv2.resizeWindow("Shared Memory Image", 320, 240)  # 放大显示
+                    # cv2.imshow("Shared Memory Image", image_list[0])  # 显示图像
+                    # key = cv2.waitKey(1)  # 图像显示1ms  # 等待按键或短暂延迟
 
                     
                     t_1 = time.time()
@@ -222,7 +222,7 @@ class ShmPytorchProcessorNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = ShmPytorchProcessorNode("shm_pytorch_processor_node")
+    node = ShmPytorchProcessorNode("shm_classifier_node")
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()

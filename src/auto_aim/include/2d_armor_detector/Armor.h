@@ -8,6 +8,21 @@
 #include <yaml-cpp/yaml.h>
 #include <opencv2/opencv.hpp>
 
+namespace ArmorType {
+    enum ArmorType {
+        Hero = 0,
+        Engineer,
+        Infantry1,
+        Infantry2,
+        Infantry3, // 5号
+        Sentry,
+        Outpost,
+        Base,
+        AutoSwitch
+    };
+    extern std::vector<std::string> ArmorTypeStrings;
+}
+
 // 物理尺寸常量
 namespace ArmorConstants {
     constexpr float LIGHT_HEIGHT = 55.0f;       // 灯条高度
@@ -23,10 +38,15 @@ namespace ArmorConstants {
     // 灯条距离和高度的比值
     constexpr float LARGE_DISTANCE_RATIO = LARGE_ARMOR_WIDTH / LIGHT_HEIGHT;
     constexpr float SMALL_DISTANCE_RATIO = SMALL_ARMOR_WIDTH / LIGHT_HEIGHT;
+
+    // 新增用于pnp的灯条顶点参数
+    constexpr float PNP_LIGHT_HEIGHT = 43.0f;       // pnp用灯条高度 // 待修正
+    constexpr float SMALL_ARMOR_LIGHT_DISTANCE = 130.0f; // 待修正
+    constexpr float LARGE_ARMOR_LIGHT_DISTANCE = 225.0f; // 待修正
 }
 
 struct AimResult {
-    cv::Point3f position;  // 装甲板中心在相机坐标系下的位置
+    cv::Point3f position;  // 装甲板中心在枪口坐标系下的位置
     double distance;       // 距离
     bool valid;           // 解算是否有效
 
@@ -34,6 +54,8 @@ struct AimResult {
     cv::Mat rvec;        // 装甲板旋转向量
 
     std::vector<double> normal_euler_angles; // RestFrame中定义的坐标系下的欧拉角
+
+    std::vector<double> ba_global_ypr;
 };
 
 struct Armor {
@@ -52,12 +74,17 @@ struct Armor {
     float width_correct_ratio_large;
     rclcpp::Node* node;
 
+    struct {
+        bool is_delayed_result = false;
+        int history_frame_identifier;
+    } delayed_result;
+
     // 默认构造函数
     Armor() : confidence(0.0f) {}
     
     // 带参数的构造函数
-    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
-    
+    Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, int history_frame_identifier = -1);
+
     // ROI计算函数
     void calculateROI();
     
@@ -68,6 +95,8 @@ struct Armor {
     cv::Vec2f pointToVec(const cv::Point2f& point);
 
     cv::Point2f computeIntersection(const std::vector<cv::Point2f>& corners);
+
+    std::vector<cv::Point2f> light_bar_corners;
 };
 
 struct ArmorResult {
