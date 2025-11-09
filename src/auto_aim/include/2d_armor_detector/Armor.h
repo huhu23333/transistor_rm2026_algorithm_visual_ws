@@ -8,6 +8,21 @@
 #include <yaml-cpp/yaml.h>
 #include <opencv2/opencv.hpp>
 
+namespace ArmorType {
+    enum ArmorType {
+        Hero = 0,
+        Engineer,
+        Infantry1,
+        Infantry2,
+        Infantry3, // 5号
+        Sentry,
+        Outpost,
+        Base,
+        AutoSwitch
+    };
+    extern std::vector<std::string> ArmorTypeStrings;
+}
+
 // 物理尺寸常量
 namespace ArmorConstants {
     constexpr float LIGHT_HEIGHT = 55.0f;       // 灯条高度
@@ -25,13 +40,13 @@ namespace ArmorConstants {
     constexpr float SMALL_DISTANCE_RATIO = SMALL_ARMOR_WIDTH / LIGHT_HEIGHT;
 
     // 新增用于pnp的灯条顶点参数
-    constexpr float PNP_LIGHT_HEIGHT = 40.0f;       // pnp用灯条高度 // 待修正
+    constexpr float PNP_LIGHT_HEIGHT = 43.0f;       // pnp用灯条高度 // 待修正
     constexpr float SMALL_ARMOR_LIGHT_DISTANCE = 130.0f; // 待修正
     constexpr float LARGE_ARMOR_LIGHT_DISTANCE = 225.0f; // 待修正
 }
 
 struct AimResult {
-    cv::Point3f position;  // 装甲板中心在相机坐标系下的位置
+    cv::Point3f position;  // 装甲板中心在枪口坐标系下的位置
     double distance;       // 距离
     bool valid;           // 解算是否有效
 

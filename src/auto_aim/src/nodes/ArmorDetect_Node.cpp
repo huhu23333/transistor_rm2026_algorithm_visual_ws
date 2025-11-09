@@ -32,6 +32,8 @@
 #include <cmath>
 #include "predictor/PredictorMain.h"
 #include "2d_armor_detector/YOLOPoseArmorDetector.h"
+#include "predictor/PredictorSwitcher.h"
+#include "2d_armor_detector/Armor.h"
 
 namespace fs = std::filesystem;
 
@@ -226,8 +228,13 @@ private:
 
                 SerialData fakeSerialData;
                 fakeSerialData.bullet_velocity = 25.0;  // 子弹速度
-                fakeSerialData.bullet_angle = std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
-                fakeSerialData.gimbal_yaw = static_cast<int16_t>(std::cos(debug_time_count * 0.5 * (2*M_PI)) * 4095 / 180 * 15);       // 云台当前偏航角
+                fakeSerialData.bullet_angle = 0 * 1.8 / 30; // std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
+                fakeSerialData.gimbal_yaw =  
+                    // static_cast<int16_t>(60.0 * 4095.0 / 180.0);
+                    // static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 2 * M_PI), std::cos(debug_time_count * 2 * M_PI)) * 4095.0 / M_PI / 12); 
+                    // static_cast<int16_t>(static_cast<float>((std::atan2(std::sin(debug_time_count * 1.0), std::cos(debug_time_count * 1.0)) > 0) - 0.5) * 4095); 
+                    static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 0.3), std::cos(debug_time_count * 0.3)) * 4095.0 / M_PI);
+                    // static_cast<int16_t>(std::cos(debug_time_count * 0.5 * (2*M_PI)) * 4095 / 180 * 15);       // 云台当前偏航角
                 fakeSerialData.color = 1;            // 敌方颜色(0:红色, 1:蓝色)
 
                 serialDataCallback(fakeSerialData);
@@ -242,6 +249,12 @@ private:
         bullet_velocity_ = msg.bullet_velocity;
         current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180; // 测定pitch轴传入数据1.8大约对应30°
         current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
+        while (current_yaw_ < -M_PI) {
+            current_yaw_ += 2 * M_PI;
+        }
+        while (current_yaw_ > M_PI) {
+            current_yaw_ -= 2 * M_PI;
+        }
         enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -500,7 +513,12 @@ private:
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame);
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch); // Todo
+            cv::putText(frame, 
+                "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
+                cv::Point2f(0, 100), 
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
             if (predictor_result.reset) {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 serial_communication_->sendData(0.0, 0.0, false);

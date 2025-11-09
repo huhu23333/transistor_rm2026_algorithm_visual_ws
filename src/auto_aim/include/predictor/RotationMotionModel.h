@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <Eigen/Dense>
 #include <Eigen/SVD>
+#include "3d_processing/RestFrame.h"
+#include "2d_armor_detector/Armor.h"
 
 
 
@@ -15,6 +17,8 @@ struct ObservedData {
     double z;
     double yaw;
     double t;
+
+    double theoreticYaw;
     
     ObservedData(double x_val, double y_val, double z_val, double yaw_val, double t_val)
         : x(x_val), y(y_val), z(z_val), yaw(yaw_val), t(t_val) {}
@@ -87,10 +91,14 @@ private:
     double centerResiduals(const std::vector<double>& params, double armorYaw, double armorX, 
                           double armorY, double dataT);
 
+    std::shared_ptr<RestFrame> rest_frame_;
+
+    bool is_outpost;
+
 public:
 
-    RotationMotionModel(const ObservedData& initObservedData);
-    void update(const ObservedData& observedData);
+    RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost);
+    void update(ObservedData& observedData);
     PredictResult predict(double predictTime);
     fitCenterXYResult fitCenterXY(const std::vector<double>& armorYaw, 
                                  const std::vector<double>& armorX,
@@ -103,5 +111,7 @@ public:
     double getJumpPeriod();
     void emptyUpdate(double update_time);
     double getTheoreticYaw(double armor_x, double armor_y);
+    double getTheoreticYawFacingArmor(double armor_x, double armor_y);
+    double getCamToCenterYaw();
     RotationMotionState getState();
 };

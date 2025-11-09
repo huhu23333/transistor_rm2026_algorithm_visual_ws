@@ -36,7 +36,7 @@ CLASSIFIER_SHM_KEY : 0x0250
 classifier_model_relative_path : "src/shared_files/models/model_rm2026.pt"
 
 YOLO_POSE_SHM_KEY : 0x0070
-yolo_pose_model_relative_path : "src/shared_files/models/armor-oneclass-yolo11n-pose-best_openvino_model"
+yolo_pose_model_relative_path : "src/shared_files/models/armor-oneclass-yolo11n-pose-best_int8_openvino_model"
 
 # ArmorDetect_Node 参数
 enemy_color : "BLUE"
@@ -47,9 +47,10 @@ camera_Gain : 16.0            # 16.0
 bullet_velocity_ : 15.0
 current_pitch_ : 0.0
 current_yaw_ : 0.0
-delta_x_ : 0.0 #    0.0f     48.72f
-delta_y_ : 42.8 #   78.31f   -29.14f
-delta_z_ : 142.5 #  181.30f  114.34f
+# 相机光心相对枪口的偏移（xyz分别为相机系下向右、向前、向上）
+delta_x_ : 50.0   # 待修正
+delta_y_ : -50.0  # 待测
+delta_z_ : 30.0   # 待修正
 
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
@@ -76,6 +77,8 @@ fire_data_predictor_fit_step : 90
 pred_fire_data_smooth_factor : 0.2
 
 armor_distance_smooth_factor : 1.0 # 0.05
+
+total_yaw_rad_delayed_smooth_factor : 0.1
 
 # Params.h 参数设置
 min_light_height : 8 # 8
@@ -105,10 +108,10 @@ MAX_DETECT_CNT : 2
 MAX_LOST_CNT : 3
 
 # LightBarDetector 参数
-binary_img_THRESHOLD : 240 # 128 # 180
+binary_img_THRESHOLD : 180 # 128 # 180 # 240
 color_rect_expand_FACTOR : 1.5
-mean_color_diff_THRESHOLD_BLUE : 15.0
-mean_color_diff_THRESHOLD_RED : 5.0
+mean_color_diff_THRESHOLD_BLUE : 20.0
+mean_color_diff_THRESHOLD_RED : 10.0
 THRES_MAX_COLOR_RED : 60
 THRES_MAX_COLOR_BLUE : 100
 
@@ -147,7 +150,7 @@ NOT_SLANT_THRESHOLD : 0.5
 CLASSIFY_THRESHOLD : 0.5
 INPUT_HEIGHT : 48
 INPUT_WIDTH : 64
-MAX_TRACKING_AGE_MS : 300  # 最大跟踪时间100ms // DEBUG // 100
+MAX_TRACKING_AGE_MS : 100  # 最大跟踪时间100ms // DEBUG // 100 // 300
 MIN_TRACKING_COUNT : 2     # 最小连续跟踪次数           // 2
 IS_NEAR_MAX_DIST_RATIO : 1.5     # 50.0
 fit_step : 5
