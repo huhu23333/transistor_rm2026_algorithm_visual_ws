@@ -188,8 +188,14 @@ cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const 
         throw std::runtime_error("Camera parameters not initialized!");
     }
 
+    // 从枪口坐标系换回相机坐标系
+    cv::Point3f cam_world_point;
+    cam_world_point.x = world_point.x - delta_x_;
+    cam_world_point.z = world_point.z + delta_z_;
+    cam_world_point.y = world_point.y - delta_y_;
+
     // 将3D点转换为OpenCV输入格式
-    std::vector<cv::Point3f> object_points = {world_point};
+    std::vector<cv::Point3f> object_points = {cam_world_point};
     std::vector<cv::Point2f> image_points;
 
     // 使用solvePnP投影
@@ -224,13 +230,19 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
     try {
         bool is_large_armor = armor_result.is_large;
         
-        float half_width = is_large_armor ? 
-            ArmorConstants::LARGE_ARMOR_WIDTH / 2.0f :
-            ArmorConstants::SMALL_ARMOR_WIDTH / 2.0f;
+        // float half_width = is_large_armor ? 
+        //     ArmorConstants::LARGE_ARMOR_WIDTH / 2.0f :
+        //     ArmorConstants::SMALL_ARMOR_WIDTH / 2.0f;
             
-        float half_height = is_large_armor ? 
-            ArmorConstants::LARGE_ARMOR_HEIGHT / 2.0f :
-            ArmorConstants::SMALL_ARMOR_HEIGHT / 2.0f;
+        // float half_height = is_large_armor ? 
+        //     ArmorConstants::LARGE_ARMOR_HEIGHT / 2.0f :
+        //     ArmorConstants::SMALL_ARMOR_HEIGHT / 2.0f;
+
+        // 改为使用灯条顶点
+        float half_width = is_large_armor ? 
+            ArmorConstants::LARGE_ARMOR_LIGHT_DISTANCE / 2.0f :
+            ArmorConstants::SMALL_ARMOR_LIGHT_DISTANCE / 2.0f;
+        float half_height = ArmorConstants::PNP_LIGHT_HEIGHT / 2.0f;
             
         std::vector<cv::Point3f> armor_points_3d = {
             cv::Point3f(-half_width, -half_height, 0.0f),
@@ -240,7 +252,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
         };
 
         cv::Mat rvec, tvec;
-        bool solve_success = cv::solvePnP(armor_points_3d, armor_result.corners, 
+        bool solve_success = cv::solvePnP(armor_points_3d, armor_result.armor.light_bar_corners, // armor_result.corners, 
                                         camera_matrix, dist_coeffs, 
                                         rvec, tvec, false, cv::SOLVEPNP_IPPE);
 
@@ -263,8 +275,8 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             // 现打印ba优化之前的参数
             auto rpy_before = ba_ -> rotationMatrixToRPY(R);
 
-            RCLCPP_INFO(logger_p, "\nHUHU YPR PNP: (%.2f, %.2f, %.2f)" , result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
-            RCLCPP_INFO(logger_p, "\nYPR PNP: (%.2f, %.2f, %.2f)" , rpy_before[0], rpy_before[1], rpy_before[2]);
+            RCLCPP_DEBUG(logger_p, "\nHUHU YPR PNP: (%.2f, %.2f, %.2f)" , result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
+            RCLCPP_DEBUG(logger_p, "\nYPR PNP: (%.2f, %.2f, %.2f)" , rpy_before[0], rpy_before[1], rpy_before[2]);
             // RCLCPP_DEBUG(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
             // RCLCPP_DEBUG(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
             // RCLCPP_DEBUG(logger_p, "roll before ba: %.2f" , rpy_before[2]);
@@ -276,7 +288,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             auto rpy = ba_ -> rotationMatrixToRPY(R);
 
             // 打印优化之后的参数
-            RCLCPP_INFO(logger_p, "\nRPY BA : (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
+            RCLCPP_DEBUG(logger_p, "\nRPY BA : (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
 
             append_ypr(result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2],
             rpy[0],  rpy[1],  rpy[2]);
@@ -301,9 +313,13 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
         
         // 计算距离
         result.distance = cv::norm(result.position);
+
+        // 修正为枪口坐标系
+        result.position.x += delta_x_;
+        result.position.y -= delta_z_;
+        result.position.z += delta_y_;
         
         // 标记解算成功
-        
         result.valid = true;
         
     } catch (const std::exception& e) {

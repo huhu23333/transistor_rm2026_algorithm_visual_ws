@@ -16,6 +16,8 @@
 #include "ba_solver/graph_optimizer.hpp" 
 #include "ba_solver/utils.hpp" 
 
+#include "2d_armor_detector/Armor.h"
+
 namespace fyt::auto_aim {
 G2O_USE_OPTIMIZATION_LIBRARY(dense)
 
@@ -66,9 +68,12 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
 
   // Get the 3D points of the armor
   const auto armor_size =
+      // armor.is_large == 0
+      //     ? Eigen::Vector2d( 135.0 , 125.0 )
+      //     : Eigen::Vector2d( 230.0 , 127.0 );
       armor.is_large == 0
-          ? Eigen::Vector2d( 135.0 , 125.0 )
-          : Eigen::Vector2d( 230.0 , 127.0 );
+          ? Eigen::Vector2d( ArmorConstants::SMALL_ARMOR_LIGHT_DISTANCE , ArmorConstants::PNP_LIGHT_HEIGHT )
+          : Eigen::Vector2d( ArmorConstants::LARGE_ARMOR_LIGHT_DISTANCE , ArmorConstants::PNP_LIGHT_HEIGHT );
   const auto object_points =
     buildObjectPoints<Eigen::Vector3d>(armor_size(0), armor_size(1));
     RCLCPP_DEBUG(logger_b, "pitch: %.2f, is_large: %d", armor_pitch, armor.is_large);       // 调试行：装甲板俯仰角和装甲板大小判断
@@ -81,7 +86,8 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   v_yaw->setEstimate(initial_armor_yaw);
   optimizer_.addVertex(v_yaw);
 
-  const auto &landmarks = armor.corners;
+  // const auto &landmarks = armor.corners;
+  const auto &landmarks = armor.armor.light_bar_corners;
 
   std::array<EdgeProjection*, 4> edges{};  // ===== 保存 4 条边，便于读取角点在相机系的 3D 坐标 （角点可视化）
 
@@ -113,7 +119,8 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   optimizer_.computeActiveErrors();
   for (int i = 0; i < 4; ++i) {
     const auto& uv_pred = edges[i]->getLastUV();
-    const auto& uv_obs  = armor.corners[i];
+    // const auto& uv_obs  = armor.corners[i];
+    const auto& uv_obs  = armor.armor.light_bar_corners[i];
     RCLCPP_DEBUG(logger_b, "[BEFORE] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
                 i, uv_pred.x(), uv_pred.y(), i, uv_obs.x, uv_obs.y);
   }
@@ -132,7 +139,8 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
   optimizer_.computeActiveErrors();
   for (int i = 0; i < 4; ++i) {
     const auto& uv_pred = edges[i]->getLastUV();
-    const auto& uv_obs  = armor.corners[i];
+    // const auto& uv_obs  = armor.corners[i];
+    const auto& uv_obs  = armor.armor.light_bar_corners[i];
     RCLCPP_DEBUG(logger_b, "[AFTER ] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
                 i, uv_pred.x(), uv_pred.y(), i, uv_obs.x, uv_obs.y);
   }

@@ -49,7 +49,7 @@ private:
         float bullet_diameter; // 弹丸直径
         float bullet_mass;     // 弹丸质量
         // 添加默认构造函数
-        BallisticParams() : drag_coeff(0.47f), air_density(1.225f), bullet_diameter(17.0*1e-3), bullet_mass(3.2*1e-3) {}
+        BallisticParams() : drag_coeff(0.47f), air_density(1.225f), bullet_diameter(42.0*1e-3), bullet_mass(36.25*1e-3) {}
     };
     struct SimulateTrajectoryInfo {
         float hit_height;

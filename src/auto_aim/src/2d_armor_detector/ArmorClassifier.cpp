@@ -21,7 +21,7 @@ ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rc
     INPUT_HEIGHT = (*config_file_ptr)["INPUT_HEIGHT"].as<int>();
     INPUT_WIDTH = (*config_file_ptr)["INPUT_WIDTH"].as<int>();
 
-    shm_pytorch_processor = std::make_shared<SharedMemoryTorch>(config_file_ptr);
+    shm_python_classifier = std::make_shared<SharedMemoryClassifier>(config_file_ptr);
     armor_tracker = std::make_shared<ArmorTracker>(config_file_ptr, node);
 }
 
@@ -99,7 +99,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         roi_images[roiImageThreadInfo.armor_index] = preprocessROI(img, *roiImageThreadInfo.armor);
     });
     if (process_armors_count > 0) {
-        pytorch_results = shm_pytorch_processor->processImages(roi_images);
+        pytorch_results = shm_python_classifier->processImages(roi_images);
     }
     
     for (size_t i = 0; i < process_armors_count; ++i) {
@@ -148,7 +148,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         
         bool not_slant = not_slant_probability > NOT_SLANT_THRESHOLD; // TODO：倾斜目标纠正网络
 
-        if (is_ture_armor && not_slant) {
+        if (is_ture_armor) {
             bool is_large = is_large_probability > IS_LARGE_THRESHOLD;
             float armor_type_confidence = 1.0 - is_large_probability;
             if (is_large)

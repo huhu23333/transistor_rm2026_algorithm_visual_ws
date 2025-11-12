@@ -6,6 +6,8 @@
 #include <memory>
 
 #include "predictor/AllPredictor.h"
+#include "2d_armor_detector/Armor.h"
+#include "predictor/PredictorSwitcher.h"
 
 class PredictorMain {
 public:
@@ -23,11 +25,11 @@ public:
         for (size_t all_predictors_index = 0; all_predictors_index < classify_classes; all_predictors_index++) {
             all_predictors_.push_back(std::make_shared<AllPredictor>(
                 config_file_ptr, node, node_start_time, armor_solver_,
-                ballistic_solver_, rest_frame_, fps_counter, all_predictors_index));
+                ballistic_solver_, rest_frame_, fps_counter, static_cast<ArmorType::ArmorType>(all_predictors_index)));
         } 
     }
 
-    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame);
+    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
 
 private:

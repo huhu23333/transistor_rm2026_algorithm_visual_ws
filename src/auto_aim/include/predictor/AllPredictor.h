@@ -28,6 +28,9 @@ struct PredictorResult {
     float command_pitch = 0.0;
     float command_yaw = 0.0;
     bool fire_flag = false;
+    PredictorType::PredictorType predictor_type = PredictorType::None;
+    ArmorType::ArmorType armor_type = ArmorType::Hero;
+    float pixel_horizontal_center_distance = 1e10;
 };
 
 class AllPredictor {
@@ -37,16 +40,12 @@ public:
         std::shared_ptr<ArmorSolver> armor_solver_,
         std::shared_ptr<BallisticSolver> ballistic_solver_,
         std::shared_ptr<RestFrame> rest_frame_, std::shared_ptr<FrameRateCounter> fps_counter,
-        int armor_class
+        ArmorType::ArmorType armor_class
     ) : config_file_ptr(config_file_ptr), node(node), node_start_time(node_start_time), 
     armor_solver_(armor_solver_), ballistic_solver_(ballistic_solver_),
     rest_frame_(rest_frame_), fps_counter(fps_counter), armor_class(armor_class) {
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
-
-        delta_x_ = (*config_file_ptr)["delta_x_"].as<float>();
-        delta_y_ = (*config_file_ptr)["delta_y_"].as<float>();
-        delta_z_ = (*config_file_ptr)["delta_z_"].as<float>();
         
         yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
         pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
@@ -138,16 +137,19 @@ public:
         armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
 
         predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node, predictor_switcher_check_frames_);
+
+        total_yaw_rad_delayed_filter_ = std::make_shared<SimpleDataFilter>(1);
+        total_yaw_rad_delayed_filter_ -> setExponentialAlpha((*config_file_ptr)["total_yaw_rad_delayed_smooth_factor"].as<float>());
     }
 
-    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame);
+    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
 
     bool is_reset = false;
 
 private:
-    UsingPredictorType::UsingPredictorType using_predictor_type = UsingPredictorType::None;
-    int armor_class;
+    PredictorType::PredictorType using_predictor_type = PredictorType::None;
+    ArmorType::ArmorType armor_class;
 
     std::shared_ptr<YAML::Node> config_file_ptr; 
     rclcpp::Node* node;
@@ -174,12 +176,10 @@ private:
     std::shared_ptr<RotationMotionModel> rotation_motion_model_;
 
     float bullet_velocity_;
-    float delta_x_;
-    float delta_y_;
-    float delta_z_;
     float last_pitch_rad_delayed_ = 0;
     float last_yaw_rad_delayed_ = 0;
     float total_yaw_rad_delayed_ = 0;
+    std::shared_ptr<SimpleDataFilter> total_yaw_rad_delayed_filter_;
 
     // EKF/Tracker 相关新增成员
     std::shared_ptr<Tracker> EKF_tracker_;
@@ -205,7 +205,9 @@ private:
     int fire_data_predictor_fit_step;
 
     std::shared_ptr<PredictorSwitcher> predictor_switcher_;
-    int predictor_switcher_check_frames_ = 10;
+    int predictor_switcher_check_frames_ = 30;
 
     cv::Point3f last_rest_frame_pos = {0.0, 0.0, 0.0};
+
+    float last_pixel_horizontal_center_distance = 1e10;
 };

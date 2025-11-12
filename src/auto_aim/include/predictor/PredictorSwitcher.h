@@ -12,15 +12,16 @@
 
 #include "utils/DataProcessFuncs.h"
 
-namespace UsingPredictorType {
-    enum UsingPredictorType {
-        None,   // 直接瞄准装甲板
+namespace PredictorType {
+    enum PredictorType {
+        None = 0,   // 直接瞄准装甲板
         EKF,
         FirePredictor,
-        RotationMotionModel
+        RotationMotionModel,
+        AutoSwitch
     };
 
-    extern std::vector<std::string> UsingPredictorTypeStrings;
+    extern std::vector<std::string> PredictorTypeStrings;
 }
 
 class PredictorSwitcher {
@@ -33,7 +34,7 @@ public:
         
     }
 
-    UsingPredictorType::UsingPredictorType step(bool is_seen, cv::Point3f real_point, 
+    PredictorType::PredictorType step(bool is_seen, cv::Point3f real_point, 
         cv::Point3f None_result, cv::Point3f EKF_result, cv::Point3f P3D_result, cv::Point3f RMM_result,
         float P3D_period, float RMM_period);
     void clearHistory();

@@ -8,7 +8,7 @@ void PredictorMain::update_serial_info(float bullet_velocity, float last_pitch_r
     }
 }
 
-PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame) {
+PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor) {
     std::vector<std::vector<ArmorResult>> classified_classifyResults(classify_classes);
     for (ArmorResult& classify_result : classifyResults) {
         classified_classifyResults[classify_result.number].push_back(classify_result);
@@ -17,26 +17,34 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
     std::vector<PredictorResult> classified_predictor_results;
     for (size_t all_predictors_index = 0; all_predictors_index < classify_classes; all_predictors_index++) {
         if (classified_classifyResults[all_predictors_index].size() != 0) {
-            /* if (!all_predictors_[all_predictors_index]) {
-                all_predictors_[all_predictors_index] = std::make_shared<AllPredictor>(
-                                                        config_file_ptr, node, node_start_time, armor_solver_,
-                                                        ballistic_solver_, rest_frame_, fps_counter, all_predictors_index);
-            } */
             all_predictors_[all_predictors_index] -> is_reset = false;
         }
         if (all_predictors_[all_predictors_index] -> is_reset == false) {
             classified_predictor_results.push_back(
-                all_predictors_[all_predictors_index] -> step(classified_classifyResults[all_predictors_index], frame)
+                all_predictors_[all_predictors_index] -> step(classified_classifyResults[all_predictors_index], frame, predictor_type)
             );
             // RCLCPP_INFO(node->get_logger(), "%ld updating", all_predictors_index);
         }
-        // RCLCPP_INFO(node->get_logger(), "%ld is_reset %d", all_predictors_index, predictors_is_reset[all_predictors_index]);
     }
 
-    // todo 结果选择
-    for (PredictorResult predictor_result : classified_predictor_results) {
-        if (predictor_result.reset == false) {
-            return predictor_result;
+    if (priority_armor != ArmorType::AutoSwitch) {
+        for (PredictorResult predictor_result : classified_predictor_results) {
+            if (predictor_result.armor_type == priority_armor && !predictor_result.reset) {
+                return predictor_result;
+            }
+        }
+    }
+    
+    if (!classified_predictor_results.empty()) {
+        auto it = std::min_element(
+            classified_predictor_results.begin(), classified_predictor_results.end(),
+            [](const PredictorResult& a, const PredictorResult& b) {
+                return a.pixel_horizontal_center_distance < b.pixel_horizontal_center_distance;
+            }
+        );
+        if (it != classified_predictor_results.end()) {
+            auto nearest_result = *it;
+            return nearest_result;
         }
     }
     return PredictorResult();
