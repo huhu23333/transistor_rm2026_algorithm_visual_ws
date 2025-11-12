@@ -1,38 +1,34 @@
-# ekf_params:
-#   # Process Noise Q (Model Uncertainty)
-#   sigma2_q_x: 1.e-5
-#   sigma2_q_y: 1.0e5
-#   sigma2_q_z: 1.0e-5
-#   sigma2_q_yaw: 1.e-5
-#   sigma2_q_r: 1.e-5
-#   sigma2_q_d_yc: 1.e-5
-
-#   # Measurement Noise R (Measurement Uncertainty)
-#   r_x_coeff: 1.0e-4
-#   r_y_val: 1.0e-1
-#   r_z_coeff: 1.0e-4
-#   r_yaw_val: 1.0e-4
-
-#   # Initial Covariance P0
-#   p0_init_val: 10.0
-
 ekf_params:
-  sigma2_q_x: 8.0e13     # 过程噪声，从一个较大的值开始调
-  sigma2_q_y: 0.5e13
-  sigma2_q_z: 1.0e13
-  sigma2_q_yaw: 100.0   # Yaw角加速度过程噪声
-  sigma2_q_r: 800.0     # 半径变化过程噪声
-  
+# 过程噪声，可以从一个较大的值开始调
+  sigma2_q_x: 1.0e3
+  sigma2_q_y: 1.0e3 #1.0e4
+  sigma2_q_z: 2.0e3 #1.0e4
   # 测量噪声
-  r_x_coeff: 1.0e-1
-  r_y_coeff: 3.0e-1
-  r_z_coeff: 1.0e-1
-  r_yaw_val: 0.02
+  r_x_coeff: 1.0e-4
+  r_y_coeff: 3.0e-4 #5.0e-6
+  r_z_coeff: 3.0e-5 #5.0e-6
+  p0_init_val: 10.0    # 初始不确定性
 
-  # 初始不确定性
-  p0_init_val: 10.0
 # 其他参数...
-RESET_DISTANCE_THRESHOLD : 8.0e32 # 单位：mm
+RESET_DISTANCE_THRESHOLD : 100.0 # 单位：mm
+
+# ekf_params:
+#   sigma2_q_x: 8.0e13     # 过程噪声，从一个较大的值开始调
+#   sigma2_q_y: 0.5e13
+#   sigma2_q_z: 1.0e13
+#   sigma2_q_yaw: 100.0   # Yaw角加速度过程噪声
+#   sigma2_q_r: 800.0     # 半径变化过程噪声
+  
+#   # 测量噪声
+#   r_x_coeff: 1.0e-1
+#   r_y_coeff: 3.0e-1
+#   r_z_coeff: 1.0e-1
+#   r_yaw_val: 0.02
+
+#   # 初始不确定性
+#   p0_init_val: 10.0
+# # 其他参数...
+# RESET_DISTANCE_THRESHOLD : 8.0e32 # 单位：mm
 
 # SharedMemoryClassifier参数
 CLASSIFIER_SHM_KEY : 0x0250
