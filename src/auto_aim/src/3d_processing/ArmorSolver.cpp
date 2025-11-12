@@ -191,8 +191,8 @@ cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const 
     // 从枪口坐标系换回相机坐标系
     cv::Point3f cam_world_point;
     cam_world_point.x = world_point.x - delta_x_;
-    cam_world_point.z = world_point.z + delta_z_;
-    cam_world_point.y = world_point.y - delta_y_;
+    cam_world_point.y = world_point.y + delta_z_;
+    cam_world_point.z = world_point.z - delta_y_;
 
     // 将3D点转换为OpenCV输入格式
     std::vector<cv::Point3f> object_points = {cam_world_point};
