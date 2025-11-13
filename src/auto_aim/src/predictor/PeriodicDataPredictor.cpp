@@ -1,11 +1,18 @@
 // PeriodicDataPredictor.cpp
 #include "predictor/PeriodicDataPredictor.h"
 
-PeriodicDataPredictor::PeriodicDataPredictor(int max_history) 
-    : max_history_(max_history) {
+PeriodicDataPredictor::PeriodicDataPredictor(int max_history, int fourier_order) 
+    : max_history_(max_history), fourier_order_(fourier_order) {
     if (max_history <= 0) {
         throw std::invalid_argument("max_history must be positive");
     }
+    if (fourier_order <= 0) {
+        throw std::invalid_argument("fourier_order must be positive");
+    }
+    
+    // 初始化系数向量
+    a_coeffs_.resize(fourier_order, 0.0);
+    b_coeffs_.resize(fourier_order, 0.0);
 }
 
 void PeriodicDataPredictor::addPoint(double point) {
@@ -29,7 +36,22 @@ void PeriodicDataPredictor::setPeriod(int period) {
     coefficients_dirty_ = true;
 }
 
+void PeriodicDataPredictor::setFourierOrder(int order) {
+    if (order <= 0) {
+        throw std::invalid_argument("Fourier order must be positive");
+    }
+    
+    if (order != fourier_order_) {
+        fourier_order_ = order;
+        a_coeffs_.resize(order, 0.0);
+        b_coeffs_.resize(order, 0.0);
+        coefficients_dirty_ = true;
+    }
+}
 
+int PeriodicDataPredictor::getFourierOrder() const {
+    return fourier_order_;
+}
 
 void PeriodicDataPredictor::autoFindPeriod() {
     std::vector<double> modified_acf = computeModifiedACF(history_);
@@ -37,7 +59,6 @@ void PeriodicDataPredictor::autoFindPeriod() {
     std::vector<double> acf_stack = lagStackWithDecay(modified_acf);
     auto acf_stack_max_iter = std::max_element(acf_stack.begin(), acf_stack.end());
     period_ = std::distance(acf_stack.begin(), acf_stack_max_iter);
-    
 }
 
 int PeriodicDataPredictor::getPeriod() const {
@@ -59,39 +80,54 @@ double PeriodicDataPredictor::smooth(int time_index) const {
     // 负数表示相对最后一个数据点向前x索引处数据的平滑
     int absolute_index = static_cast<int>(history_.size()) - 1 + time_index;
     
-    // 使用傅里叶级数计算平滑值（阶数为1）
+    // 使用傅里叶级数计算平滑值（多阶）
     double t = static_cast<double>(absolute_index);
-    return a0_ + a1_ * std::cos(2 * M_PI * t / period_) + b1_ * std::sin(2 * M_PI * t / period_);
+    double result = a0_;
+    
+    for (int k = 1; k <= fourier_order_; k++) {
+        double omega_k = 2 * M_PI * k / period_;
+        result += a_coeffs_[k-1] * std::cos(omega_k * t) + b_coeffs_[k-1] * std::sin(omega_k * t);
+    }
+    
+    return result;
 }
 
 bool PeriodicDataPredictor::isRising(int time_index, double compare_threshold) const {
-    // 计算导数并判断是否大于0
-    return computeDerivative(time_index) / std::sqrt(a1_ * a1_ + b1_ * b1_) > compare_threshold;
+    // 计算导数并判断是否大于阈值
+    return computeDerivative(time_index) > compare_threshold;
 }
 
 bool PeriodicDataPredictor::isUpper(int time_index, double compare_threshold) const {
-    // 计算相位是否为正半周期
-    if (history_.empty() || period_ <= 0) {
-        return 0.0;
-    }
-    
-    // 如果需要，重新计算傅里叶系数
-    if (coefficients_dirty_) {
-        computeFourierCoefficients();
-    }
-    
-    // 计算绝对时间索引
-    int absolute_index = static_cast<int>(history_.size()) - 1 + time_index;
-    double t = static_cast<double>(absolute_index);
-    
-    // 计算傅里叶级数的相位
-    // f(t) = a0 + a1*cos(2πt/T) + b1*sin(2πt/T)
-    double omega = 2 * M_PI / period_;
-    return (a1_ * omega * std::cos(omega * t) + b1_ * omega * std::sin(omega * t)) / std::sqrt(a1_ * a1_ + b1_ * b1_) > compare_threshold;
+    // 计算结果并判断是否大于阈值
+    return smooth(time_index) > compare_threshold;
 }
 
 double PeriodicDataPredictor::getA0() const {
     return a0_;
+}
+
+double PeriodicDataPredictor::getCoefficientA(int order) const {
+    if (order < 1 || order > fourier_order_) {
+        throw std::out_of_range("Order out of range");
+    }
+    
+    if (coefficients_dirty_) {
+        computeFourierCoefficients();
+    }
+    
+    return a_coeffs_[order-1];
+}
+
+double PeriodicDataPredictor::getCoefficientB(int order) const {
+    if (order < 1 || order > fourier_order_) {
+        throw std::out_of_range("Order out of range");
+    }
+    
+    if (coefficients_dirty_) {
+        computeFourierCoefficients();
+    }
+    
+    return b_coeffs_[order-1];
 }
 
 void PeriodicDataPredictor::clearHistory() {
@@ -107,8 +143,8 @@ int PeriodicDataPredictor::getPointCount() const {
 void PeriodicDataPredictor::computeFourierCoefficients() const {
     if (history_.empty()) {
         a0_ = 0.0;
-        a1_ = 0.0;
-        b1_ = 0.0;
+        std::fill(a_coeffs_.begin(), a_coeffs_.end(), 0.0);
+        std::fill(b_coeffs_.begin(), b_coeffs_.end(), 0.0);
         coefficients_dirty_ = false;
         return;
     }
@@ -122,18 +158,24 @@ void PeriodicDataPredictor::computeFourierCoefficients() const {
     // 计算a0 (直流分量)
     a0_ = std::accumulate(history_.begin(), history_.end(), 0.0) / n;
     
-    // 计算a1和b1 (基波分量)
-    double sum_cos = 0.0;
-    double sum_sin = 0.0;
+    // 重置系数
+    std::fill(a_coeffs_.begin(), a_coeffs_.end(), 0.0);
+    std::fill(b_coeffs_.begin(), b_coeffs_.end(), 0.0);
     
-    for (int i = 0; i < n; i++) {
-        double theta = 2 * M_PI * i / period_;
-        sum_cos += history_[i] * std::cos(theta);
-        sum_sin += history_[i] * std::sin(theta);
+    // 计算各阶傅里叶系数
+    for (int k = 1; k <= fourier_order_; k++) {
+        double sum_cos = 0.0;
+        double sum_sin = 0.0;
+        
+        for (int i = 0; i < n; i++) {
+            double theta = 2 * M_PI * k * i / period_;
+            sum_cos += history_[i] * std::cos(theta);
+            sum_sin += history_[i] * std::sin(theta);
+        }
+        
+        a_coeffs_[k-1] = 2.0 * sum_cos / n;
+        b_coeffs_[k-1] = 2.0 * sum_sin / n;
     }
-    
-    a1_ = 2.0 * sum_cos / n;
-    b1_ = 2.0 * sum_sin / n;
     
     coefficients_dirty_ = false;
 }
@@ -152,9 +194,15 @@ double PeriodicDataPredictor::computeDerivative(int time_index) const {
     int absolute_index = static_cast<int>(history_.size()) - 1 + time_index;
     double t = static_cast<double>(absolute_index);
     
-    // 计算傅里叶级数的导数
-    // f(t) = a0 + a1*cos(2πt/T) + b1*sin(2πt/T)
-    // f'(t) = -a1*(2π/T)*sin(2πt/T) + b1*(2π/T)*cos(2πt/T)
-    double omega = 2 * M_PI / period_;
-    return -a1_ * omega * std::sin(omega * t) + b1_ * omega * std::cos(omega * t);
+    // 计算傅里叶级数的导数（多阶）
+    // f(t) = a0 + Σ [ak*cos(kωt) + bk*sin(kωt)]
+    // f'(t) = Σ [-ak*kω*sin(kωt) + bk*kω*cos(kωt)]
+    double derivative = 0.0;
+    for (int k = 1; k <= fourier_order_; k++) {
+        double omega_k = 2 * M_PI * k / period_;
+        derivative += -a_coeffs_[k-1] * omega_k * std::sin(omega_k * t) + 
+                       b_coeffs_[k-1] * omega_k * std::cos(omega_k * t);
+    }
+    
+    return derivative;
 }

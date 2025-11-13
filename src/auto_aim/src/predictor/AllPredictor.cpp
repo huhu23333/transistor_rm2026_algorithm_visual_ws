@@ -377,7 +377,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
                     //fire_data_predictor_ -> autoFindPeriod();
                     fire_data_predictor_ -> addPoint(armor_near_flag);
-                    pred_fire_data_filter_ -> addPoint(fire_data_predictor_ -> isUpper(predictor3dPrediction_indexToAim, 0.0) || fire_data_predictor_ -> getA0() > 0.8);
+                    pred_fire_data_filter_ -> addPoint(fire_data_predictor_ -> isUpper(predictor3dPrediction_indexToAim, 0.5) || fire_data_predictor_ -> getA0() > 0.8);
                     if (using_predictor_type == PredictorType::FirePredictor) {
                         fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
                     }
@@ -602,7 +602,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     // 绘制不同时间预测开火波形
                     for (size_t debug_pred_fire_index = 1; debug_pred_fire_index < 6; debug_pred_fire_index += 1) {
                         oscilloscope_common_ -> addDataPoint(
-                            ((float)(fire_data_predictor_ -> isUpper(debug_pred_fire_index*5, 0.0)))/11.0 + 
+                            ((float)(fire_data_predictor_ -> smooth(debug_pred_fire_index*5)))/11.0 + 
                             (float)(debug_pred_fire_index - 1) / 10,
                             debug_pred_fire_index);
                     }

@@ -127,7 +127,7 @@ public:
         oscilloscope_common_ -> setScale(2.0);
         oscilloscope_common_ -> setOffset(-1.0);
 
-        fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(fire_data_predictor_fit_step);
+        fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(fire_data_predictor_fit_step, 5);
         fire_data_predictor_ -> setPeriod(1);
         pred_fire_data_filter_ = std::make_shared<SimpleDataFilter>(1);
         pred_fire_data_filter_ -> setExponentialAlpha((*config_file_ptr)["pred_fire_data_smooth_factor"].as<float>());
