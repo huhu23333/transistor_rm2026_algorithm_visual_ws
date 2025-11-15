@@ -15,13 +15,13 @@ void PredictorSwitcher::clearHistory() {
     real_points.clear();
     P3D_periods.clear();
     RMM_periods.clear();
-    rotation_judge -> clearHistory();
 }
 
 
 PredictorType::PredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f real_point, 
     cv::Point3f None_result, cv::Point3f EKF_result, cv::Point3f P3D_result, cv::Point3f RMM_result, 
-    float P3D_period, float RMM_period, cv::Point3f linear_predict_position) {
+    float P3D_period, float RMM_period) {
+    return PredictorType::EKF;
 
     predictors_results.push_back(PredictorsResult(None_result, EKF_result, P3D_result, RMM_result));
     if (predictors_results.size() > check_frames * 2) {
@@ -37,9 +37,6 @@ PredictorType::PredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f r
         P3D_periods.pop_front();
         RMM_periods.pop_front();
     }
-
-    rotation_judge -> addPoint(is_seen, real_point, linear_predict_position);
-    bool is_rotation = rotation_judge -> is_rotation(P3D_period, RMM_period);
     
     if (static_cast<int>(predictors_results.size()) - check_frames < min_check_frames) {
         return PredictorType::None;
@@ -87,10 +84,8 @@ PredictorType::PredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f r
     float mean_period = (std::accumulate(P3D_periods.begin(), P3D_periods.end(), 0.0) + 
                          std::accumulate(RMM_periods.begin(), RMM_periods.end(), 0.0)) / 
                          static_cast<float>(P3D_periods.size() + RMM_periods.size());
-    if (is_rotation &&
-        ((P3D_period_variance < 10.0) || (RMM_period_variance < 10.0)) && 
-        (mean_period > 2) && (mean_period < 40.0)
-        ) {
+    if (((P3D_period_variance < 10.0) || (RMM_period_variance < 10.0)) && 
+        (mean_period > 2) && (mean_period < 40.0)) {
         if (mean_period < 10.0 || (RMM_mse > 200000.0)) {
             return PredictorType::FirePredictor;
         } else {

@@ -65,54 +65,54 @@ public:
         last_com_time = std::chrono::steady_clock::now();
 
         
-        /// ========== 新的 EKF 和 Tracker 初始化 (9D模型修改) ==========
-        double dt = 1.0 / std::max(1.0f, (*config_file_ptr)["frame_rate"].as<float>());
+        // / ========== 新的 EKF 和 Tracker 初始化 (9D模型修改) ==========
+        // double dt = 1.0 / std::max(1.0f, (*config_file_ptr)["frame_rate"].as<float>());
 
         // 1. 新增：从配置文件加载9D EKF参数
+        // EKFParams ekf_params;
+        // const auto& ekf_config = (*config_file_ptr)["ekf_params"];
+
+        // ekf_params.s2qx = ekf_config["sigma2_q_x"].as<double>();
+        // ekf_params.s2qy = ekf_config["sigma2_q_y"].as<double>();
+        // ekf_params.s2qz = ekf_config["sigma2_q_z"].as<double>();
+        // ekf_params.s2qyaw = ekf_config["sigma2_q_yaw"].as<double>(); // 新增
+        // ekf_params.s2qr = ekf_config["sigma2_q_r"].as<double>();     // 新增
+
+        // ekf_params.r_x = ekf_config["r_x_coeff"].as<double>();
+        // ekf_params.r_y = ekf_config["r_y_coeff"].as<double>();
+        // ekf_params.r_z = ekf_config["r_z_coeff"].as<double>();
+        // ekf_params.r_yaw = ekf_config["r_yaw_val"].as<double>();   // 新增
+
+        // ekf_params.p0 = ekf_config["p0_init_val"].as<double>();
+
+        // 2. 创建Tracker，传入新参数
+        // EKF_tracker_ = std::make_shared<Tracker>(dt, ekf_params);
+        // RCLCPP_INFO(node->get_logger(), "New 9D EKF Tracker initialized with dt=%.4f and params from config.", dt);
+        // ========== 初始化结束 ==========
+
+        // ========== EKF 和 Tracker 初始化 (6D模型修改) ==========
+        double dt = 1.0 / std::max(1.0f, (*config_file_ptr)["frame_rate"].as<float>());
+        
+        // 1. 从配置文件加载新的EKF参数
         EKFParams ekf_params;
         const auto& ekf_config = (*config_file_ptr)["ekf_params"];
-
+        
+        // 过程噪声，对应加速度的标准差
         ekf_params.s2qx = ekf_config["sigma2_q_x"].as<double>();
         ekf_params.s2qy = ekf_config["sigma2_q_y"].as<double>();
         ekf_params.s2qz = ekf_config["sigma2_q_z"].as<double>();
-        ekf_params.s2qyaw = ekf_config["sigma2_q_yaw"].as<double>(); // 新增
-        ekf_params.s2qr = ekf_config["sigma2_q_r"].as<double>();     // 新增
-
+        
+        // 测量噪声，对应位置的标准差
         ekf_params.r_x = ekf_config["r_x_coeff"].as<double>();
         ekf_params.r_y = ekf_config["r_y_coeff"].as<double>();
         ekf_params.r_z = ekf_config["r_z_coeff"].as<double>();
-        ekf_params.r_yaw = ekf_config["r_yaw_val"].as<double>();   // 新增
 
         ekf_params.p0 = ekf_config["p0_init_val"].as<double>();
 
         // 2. 创建Tracker，传入新参数
-        EKF_tracker_ = std::make_shared<Tracker>(dt, ekf_params);
-        RCLCPP_INFO(node->get_logger(), "New 9D EKF Tracker initialized with dt=%.4f and params from config.", dt);
+        EKF_tracker_ = std::make_unique<Tracker>(dt, ekf_params);
+        RCLCPP_INFO(node->get_logger(), "New 6D EKF Tracker initialized with dt=%.4f and params from config.", dt);
         // ========== 初始化结束 ==========
-
-        // // ========== EKF 和 Tracker 初始化 (6D模型修改) ==========
-        // double dt = 1.0 / std::max(1.0f, frame_rate_);
-        
-        // // 1. 从配置文件加载新的EKF参数
-        // EKFParams ekf_params;
-        // const auto& ekf_config = (*config_file_ptr)["ekf_params"];
-        
-        // // 过程噪声，对应加速度的标准差
-        // ekf_params.s2qx = ekf_config["sigma2_q_x"].as<double>();
-        // ekf_params.s2qy = ekf_config["sigma2_q_y"].as<double>();
-        // ekf_params.s2qz = ekf_config["sigma2_q_z"].as<double>();
-        
-        // // 测量噪声，对应位置的标准差
-        // ekf_params.r_x = ekf_config["r_x_coeff"].as<double>();
-        // ekf_params.r_y = ekf_config["r_y_coeff"].as<double>();
-        // ekf_params.r_z = ekf_config["r_z_coeff"].as<double>();
-
-        // ekf_params.p0 = ekf_config["p0_init_val"].as<double>();
-
-        // // 2. 创建Tracker，传入新参数
-        // EKF_tracker_ = std::make_unique<Tracker>(dt, ekf_params);
-        // RCLCPP_INFO(this->get_logger(), "New 6D EKF Tracker initialized with dt=%.4f and params from config.", dt);
-        // // ========== 初始化结束 ==========
         
         predictor3d = std::make_shared<PositionPredictor3D>(predictor3d_fit_step);
         predictor3dArmorPredictions.push_back(cv::Point3f(0,0,0));
@@ -127,7 +127,7 @@ public:
         oscilloscope_common_ -> setScale(2.0);
         oscilloscope_common_ -> setOffset(-1.0);
 
-        fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(fire_data_predictor_fit_step, 5);
+        fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(fire_data_predictor_fit_step);
         fire_data_predictor_ -> setPeriod(1);
         pred_fire_data_filter_ = std::make_shared<SimpleDataFilter>(1);
         pred_fire_data_filter_ -> setExponentialAlpha((*config_file_ptr)["pred_fire_data_smooth_factor"].as<float>());
@@ -136,7 +136,7 @@ public:
         armor_distance_filter_ = std::make_shared<SimpleDataFilter>(1);
         armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
 
-        predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node, predictor_switcher_check_frames_, rest_frame_);
+        predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node, predictor_switcher_check_frames_);
 
         total_yaw_rad_delayed_filter_ = std::make_shared<SimpleDataFilter>(1);
         total_yaw_rad_delayed_filter_ -> setExponentialAlpha((*config_file_ptr)["total_yaw_rad_delayed_smooth_factor"].as<float>());
