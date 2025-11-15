@@ -56,6 +56,8 @@ public:
     
     void autoFindPeriod();
     
+    double getFitMse();
+    
 private:
     // 计算傅里叶系数
     void computeFourierCoefficients() const;

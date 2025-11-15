@@ -58,7 +58,7 @@ void PeriodicDataPredictor::autoFindPeriod() {
 
     std::vector<double> acf_stack = lagStackWithDecay(modified_acf);
     auto acf_stack_max_iter = std::max_element(acf_stack.begin(), acf_stack.end());
-    period_ = std::distance(acf_stack.begin(), acf_stack_max_iter);
+    period_ = std::max(static_cast<int>(std::distance(acf_stack.begin(), acf_stack_max_iter)), 1);
 }
 
 int PeriodicDataPredictor::getPeriod() const {
@@ -206,3 +206,20 @@ double PeriodicDataPredictor::computeDerivative(int time_index) const {
     
     return derivative;
 }
+
+double PeriodicDataPredictor::getFitMse() {
+    double result = 0.0;
+
+    int n = static_cast<int>(history_.size());
+    if (n == 0) {
+        return 0.0;
+    }
+    for (int i = 0; i < n; i++) {
+        double fit_data = smooth(-n + 1 + i);
+        double error = fit_data - history_[i];
+        result += error * error;
+    }
+    result /= static_cast<double>(n);
+
+    return result;
+};

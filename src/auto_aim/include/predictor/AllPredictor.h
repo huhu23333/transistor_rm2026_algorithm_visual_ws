@@ -136,7 +136,7 @@ public:
         armor_distance_filter_ = std::make_shared<SimpleDataFilter>(1);
         armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
 
-        predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node, predictor_switcher_check_frames_);
+        predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node, predictor_switcher_check_frames_, rest_frame_);
 
         total_yaw_rad_delayed_filter_ = std::make_shared<SimpleDataFilter>(1);
         total_yaw_rad_delayed_filter_ -> setExponentialAlpha((*config_file_ptr)["total_yaw_rad_delayed_smooth_factor"].as<float>());

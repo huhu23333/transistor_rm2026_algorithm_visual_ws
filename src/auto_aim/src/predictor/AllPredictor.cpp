@@ -39,8 +39,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             if (armor_class != ArmorType::Base) {
                 // ==========================FirePredictor===========================
                 pred_fire_data_filter_ -> addPoint(0.0);
-                cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_nowIndex];
-                cv::Point3f predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_nowIndex];
+                size_t predictor3dPrediction_indexToAim = std::min(predictor3d_predict_step-1, predictor3dPrediction_nowIndex+(int)(last_total_delay_ * fps_counter->fps()));
+                cv::Point3f predicted_armor_pos = predictor3dArmorPredictions[predictor3dPrediction_indexToAim];
+                cv::Point3f predicted_aim_pos = predictor3dCenterPredictions[predictor3dPrediction_indexToAim];
                 predictor3d -> addPoint(predicted_armor_pos);
                 if (predictor3dPrediction_nowIndex < predictor3dArmorPredictions.size()-1) {
                     predictor3dPrediction_nowIndex += 1;
@@ -165,9 +166,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 // 绘制瞄准预测点（黄色）
                 cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
                 cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
-                // 绘制装甲板预测点（蓝色）
+                // 绘制装甲板预测点（天蓝色）
                 cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
-                cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
+                cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 255, 0), 2);
             }
             if (result.fire_flag) {
                 cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(0, 0, 255), 2);
@@ -229,7 +230,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     P3D_to_check, 
                     RMM_to_check, 
                     P3D_period, 
-                    RMM_period);
+                    RMM_period,
+                    predictor3dCenterPredictions[predictor3dPrediction_nowIndex]);
             } else {
                 using_predictor_type = control_predictor_type;
             }
@@ -593,8 +595,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             aim_yaw_pitch.x, aim_yaw_pitch.y);
 //#ifdef USE_PREDICTOR3D
                     cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
-                    // 绘制装甲板预测点（蓝色）
-                    cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 0, 0), 2);
+                    // 绘制装甲板预测点（天蓝色）
+                    cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 255, 0), 2);
                     oscilloscope_fire_ -> addDataPoint(fire_flag);
                     //oscilloscope_fire_ -> addDataPoint(fire_data_predictor_ -> smooth(0));
                     //oscilloscope_fire_ -> addDataPoint(fire_data_predictor_ -> isRising(0));
@@ -661,7 +663,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         P3D_to_check, 
                         RMM_to_check, 
                         P3D_period, 
-                        RMM_period);
+                        RMM_period,
+                        predictor3dCenterPredictions[predictor3dPrediction_nowIndex]);
                     } else {
                         using_predictor_type = control_predictor_type;
                     }
