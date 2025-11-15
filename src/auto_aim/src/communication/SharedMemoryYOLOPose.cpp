@@ -15,7 +15,7 @@ SharedMemoryYOLOPose::SharedMemoryYOLOPose(std::shared_ptr<YAML::Node> config_fi
     
     // 初始化共享内存
     shared_data_->is_processed = true;  // 初始状态为已处理
-    shared_data_->reserved1 = false;
+    shared_data_->show_windows = false;
     shared_data_->reserved2 = false;
     shared_data_->reserved3 = false;
     shared_data_->reserved4 = 0;
@@ -84,6 +84,12 @@ std::vector<DetectionResult> SharedMemoryYOLOPose::processImage(const cv::Mat& i
     }
     
     shared_data_->input_history_frame_identifier = now_history_frame_identifier;
+
+#ifdef SHOW_WINDOWS
+    shared_data_ -> show_windows = true;
+#else
+    shared_data_ -> show_windows = false;
+#endif
 
     // 3. 重置处理状态和检测数量
     shared_data_->is_processed = false;

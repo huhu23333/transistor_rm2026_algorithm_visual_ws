@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <yaml-cpp/yaml.h>
+#include "macro/AutoAimMacro.h"
 
 class SharedMemoryClassifier {
 public:
@@ -24,7 +25,7 @@ private:
     struct SharedData {
         int num_images;         // 当前批次图像数量
         bool is_processed;      // 处理状态标志
-        bool reserved1;         // 备用标志1
+        bool show_windows;      // 显示图像
         bool reserved2;         // 备用标志2
         bool reserved3;         // 备用标志3
         

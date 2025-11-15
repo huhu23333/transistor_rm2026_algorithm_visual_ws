@@ -10,7 +10,14 @@ SharedMemoryClassifier::SharedMemoryClassifier(std::shared_ptr<YAML::Node> confi
         throw std::runtime_error("Failed to create shared memory");
     }
     
-    attachSharedMemory();
+    attachSharedMemory();    
+    
+    // 初始化共享内存
+    shared_data_->is_processed = true;  // 初始状态为已处理
+    shared_data_->show_windows = false;
+    shared_data_->reserved2 = false;
+    shared_data_->reserved3 = false;
+    shared_data_->num_images = 0;
 }
 
 SharedMemoryClassifier::~SharedMemoryClassifier() {
@@ -57,6 +64,12 @@ std::vector<std::vector<float>> SharedMemoryClassifier::processImages(const std:
             std::memcpy(shared_data_->image_data[i], continuous_img.data, data_size);
         }
     }
+
+#ifdef SHOW_WINDOWS
+    shared_data_ -> show_windows = true;
+#else
+    shared_data_ -> show_windows = false;
+#endif
     
     // 3. 通知Python端开始处理
     shared_data_->is_processed = false;

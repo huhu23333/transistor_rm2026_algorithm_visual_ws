@@ -28,8 +28,8 @@ void RotationJudge::addPoint(bool is_seen, const cv::Point3f& armor_position, co
     periodic_data_fitter -> addPoint(right_shift);
     periodic_data_fitter -> autoFindPeriod();
     // periodic_data_fitter -> setPeriod(24);
-    RCLCPP_INFO(node->get_logger(), "RotationJudge: right_shift: %f", right_shift);
-    // RCLCPP_INFO(node->get_logger(), "RotationJudge: smoothed_right_shift: %f", smoothed_right_shift);
+    RCLCPP_DEBUG(node->get_logger(), "RotationJudge: right_shift: %f", right_shift);
+    // RCLCPP_DEBUG(node->get_logger(), "RotationJudge: smoothed_right_shift: %f", smoothed_right_shift);
 #ifdef SHOW_WINDOWS
     oscilloscope_ -> update();
     oscilloscope_ -> addDataPoint(periodic_data_fitter -> smooth(0) / 300.0);
@@ -58,30 +58,30 @@ float RotationJudge::get_right_shift(cv::Point3f armor_position, cv::Point3f lin
 
 bool RotationJudge::is_rotation(float p3d_period, float rmm_period) {
     if (armor_position_infos.size() < min_rotation_frames || seen_frame_count < min_seen_frames) {
-        RCLCPP_INFO(node->get_logger(), "RotationJudge: false 1");
+        RCLCPP_DEBUG(node->get_logger(), "RotationJudge: false 1");
         return false;
     }
     float right_shift_period = periodic_data_fitter -> getPeriod();
     float max_period = std::max({p3d_period, rmm_period, right_shift_period});
     float min_period = std::min({p3d_period, rmm_period, right_shift_period});
-    RCLCPP_INFO(node->get_logger(), "RotationJudge: right_shift_period: %f", right_shift_period);
+    RCLCPP_DEBUG(node->get_logger(), "RotationJudge: right_shift_period: %f", right_shift_period);
     if (max_period - min_period > max_period_divergence) {
-        RCLCPP_INFO(node->get_logger(), "RotationJudge: false 2");
+        RCLCPP_DEBUG(node->get_logger(), "RotationJudge: false 2");
         return false;
     }
     float right_shifts_variance = variance(right_shifts);
-    RCLCPP_INFO(node->get_logger(), "RotationJudge: variance: %f", right_shifts_variance);
+    RCLCPP_DEBUG(node->get_logger(), "RotationJudge: variance: %f", right_shifts_variance);
     if (right_shifts_variance < min_right_shift_variance) {
-        RCLCPP_INFO(node->get_logger(), "RotationJudge: false 3");
+        RCLCPP_DEBUG(node->get_logger(), "RotationJudge: false 3");
         return false;
     }
     float right_shifts_fit_mse = periodic_data_fitter -> getFitMse();
     float R_squared = 1.0 - right_shifts_fit_mse / right_shifts_variance;
-    RCLCPP_INFO(node->get_logger(), "RotationJudge: R_squared: %f", R_squared);
+    RCLCPP_DEBUG(node->get_logger(), "RotationJudge: R_squared: %f", R_squared);
     if (R_squared < min_right_shift_fit_R_squared) {
-        RCLCPP_INFO(node->get_logger(), "RotationJudge: false 4");
+        RCLCPP_DEBUG(node->get_logger(), "RotationJudge: false 4");
         return false;
     }
-    RCLCPP_INFO(node->get_logger(), "RotationJudge: true");
+    RCLCPP_DEBUG(node->get_logger(), "RotationJudge: true");
     return true;
 }
