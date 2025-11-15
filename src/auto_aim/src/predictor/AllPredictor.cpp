@@ -187,8 +187,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
                     double future_yaw = future_state(6), future_r = future_state(8);
                     EKF_to_check = {
-                        static_cast<float>(future_xc - future_r * sin(future_yaw)),
-                        static_cast<float>(future_yc + future_r * cos(future_yaw)),
+                        static_cast<float>(future_xc),
+                        static_cast<float>(future_yc),
                         static_cast<float>(future_zc) 
                     };
                 }
