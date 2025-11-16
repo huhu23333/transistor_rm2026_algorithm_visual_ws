@@ -45,7 +45,7 @@ def get_all_images():
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif'))]
 
 def get_untagged_images(user_id):
-    """获取当前用户未标记的图片"""
+    """获取所有用户未标记的图片"""
     all_images = set(get_all_images())
     
     # 加载索引文件
