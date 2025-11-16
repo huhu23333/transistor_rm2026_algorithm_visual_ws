@@ -100,6 +100,7 @@ class ShmYOLOPoseProcessorNode(Node):
             total_size = self.CONTROL_DATA_SIZE + self.INPUT_DATA_SIZE + self.TOTAL_RETURN_DATA_SIZE
             self.shm = SharedMemory(self.YOLO_POSE_SHM_KEY, IPC_CREAT, size=total_size)
             self.get_logger().info(f"Shared memory created successfully, size: {total_size}")
+        self.shm.write(bytearray([0]), offset=1) # 确保初始时不会自动显示窗口
 
     def run(self):
         """持续监控共享内存并处理图像"""
@@ -165,10 +166,12 @@ class ShmYOLOPoseProcessorNode(Node):
                     
                     # ============== 可视化部分 ==============
                     # 创建窗口用于显示图像
-                    # cv2.namedWindow("YOLO Pose Image", cv2.WINDOW_NORMAL)
-                    # cv2.resizeWindow("YOLO Pose Image", 640, 640)
-                    # cv2.imshow("YOLO Pose Image", results[0].plot())
-                    # key = cv2.waitKey(1)
+                    if np.frombuffer(self.shm.read(1, offset=1), dtype=np.uint8)[0] == 1:
+                        cv2.namedWindow("YOLO Pose Image", cv2.WINDOW_NORMAL)
+                        cv2.resizeWindow("YOLO Pose Image", 640, 640)
+                        cv2.imshow("YOLO Pose Image", results[0].plot())
+                        key = cv2.waitKey(1)
+
                     
                     # 4. 准备写入返回数据
                     num_detections = len(all_detections)

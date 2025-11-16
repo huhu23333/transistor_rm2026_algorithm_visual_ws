@@ -11,6 +11,8 @@
 #include <deque>
 
 #include "utils/DataProcessFuncs.h"
+#include "3d_processing/RestFrame.h"
+#include "predictor/RotationJudge.h"
 
 namespace PredictorType {
     enum PredictorType {
@@ -26,17 +28,18 @@ namespace PredictorType {
 
 class PredictorSwitcher {
 public:
-    PredictorSwitcher(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, int check_frames) 
-    : config_file_ptr(config_file_ptr), node(node), check_frames(check_frames) {
+    PredictorSwitcher(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, int check_frames, std::shared_ptr<RestFrame> rest_frame_) 
+    : config_file_ptr(config_file_ptr), node(node), check_frames(check_frames), rest_frame_(rest_frame_) {
 
         period_check_frames = 90;
         min_check_frames = 3;
         
+        rotation_judge = std::make_shared<RotationJudge>(config_file_ptr, node, period_check_frames, rest_frame_);
     }
 
     PredictorType::PredictorType step(bool is_seen, cv::Point3f real_point, 
         cv::Point3f None_result, cv::Point3f EKF_result, cv::Point3f P3D_result, cv::Point3f RMM_result,
-        float P3D_period, float RMM_period);
+        float P3D_period, float RMM_period, cv::Point3f linear_predict_position);
     void clearHistory();
     
 private:
@@ -67,6 +70,9 @@ private:
     std::deque<RealPoint> real_points;
     std::deque<float> P3D_periods;
     std::deque<float> RMM_periods;
+
+    std::shared_ptr<RestFrame> rest_frame_;
+    std::shared_ptr<RotationJudge> rotation_judge;
 };
 
 #endif

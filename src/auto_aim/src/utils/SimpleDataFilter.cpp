@@ -23,7 +23,7 @@ void SimpleDataFilter::addPoint(double point) {
     }
     
     // 更新指数衰减滤波值
-    if (!exponential_initialized_) {
+    if (!exponential_initialized_ || !(exponential_value_ < 1e100 && exponential_value_ > -1e100)) {
         exponential_value_ = point;
         exponential_initialized_ = true;
     } else {

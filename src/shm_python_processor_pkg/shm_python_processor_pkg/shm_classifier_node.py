@@ -123,6 +123,7 @@ class ShmPytorchProcessorNode(Node):
                 + 100 * 64 * 48 * 3  # images (100*64*48*3 uint8)
             )
             self.shm = SharedMemory(self.CLASSIFIER_SHM_KEY, IPC_CREAT, size=shm_size)
+        self.shm.write(bytearray([0]), offset=5) # 确保初始时不会自动显示窗口
 
     def run(self):
         """持续监控共享内存并处理图像，添加可视化功能"""
@@ -169,10 +170,11 @@ class ShmPytorchProcessorNode(Node):
                     # ============== 可视化部分 ==============
                     # ============== 可视化部分 ==============
                     # 创建窗口用于显示图像
-                    # cv2.namedWindow("Shared Memory Image", cv2.WINDOW_NORMAL)
-                    # cv2.resizeWindow("Shared Memory Image", 320, 240)  # 放大显示
-                    # cv2.imshow("Shared Memory Image", image_list[0])  # 显示图像
-                    # key = cv2.waitKey(1)  # 图像显示1ms  # 等待按键或短暂延迟
+                    if np.frombuffer(self.shm.read(1, offset=5), dtype=np.uint8)[0] == 1:
+                        cv2.namedWindow("Shared Memory Image", cv2.WINDOW_NORMAL)
+                        cv2.resizeWindow("Shared Memory Image", 320, 240)  # 放大显示
+                        cv2.imshow("Shared Memory Image", image_list[0])  # 显示图像
+                        key = cv2.waitKey(1)  # 图像显示1ms  # 等待按键或短暂延迟
 
                     
                     t_1 = time.time()

@@ -9,6 +9,7 @@
 #include <cstring>
 #include <yaml-cpp/yaml.h>
 #include <rclcpp/rclcpp.hpp>
+#include "macro/AutoAimMacro.h"
 
 struct DetectionResult {
     float keypoints[8];  // 4个关键点，每个关键点(x,y)归一化坐标 (x1,y1,x2,y2,x3,y3,x4,y4)
@@ -32,7 +33,7 @@ private:
     struct SharedData {
         // 控制数据区 (8字节，对齐到8字节边界)
         bool is_processed;     // 处理状态标志 (1字节)
-        bool reserved1;        // 备用标志1 (1字节) - 用于对齐
+        bool show_windows;     // 显示图像
         bool reserved2;        // 备用标志2 (1字节) - 用于对齐  
         bool reserved3;        // 备用标志3 (1字节) - 用于对齐
         int reserved4;         // 备用标志4 (4字节) - 用于填充到8字节

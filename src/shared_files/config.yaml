@@ -54,7 +54,7 @@ delta_z_ : 30.0   # 待修正
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 
-video_relative_path : "InputVideo/outpost1_8m.mp4" # 使用视频输入时的视频路径
+video_relative_path : "InputVideo/infantry_blue.mp4" # 使用视频输入时的视频路径
 images_relative_path : "InputImages" # 使用图片输入时的图片文件夹路径
 
 frame_rate : 30.0
@@ -69,11 +69,11 @@ predictor3d_fit_step : 90
 predictor3d_predict_step : 30
 predictor3d_fourier_fit_order : 5
 
-fire_distance : 135.0 # 135.0
+fire_distance : 100.0 # 135.0
 
 fire_data_predictor_fit_step : 90
 
-pred_fire_data_smooth_factor : 0.2
+pred_fire_data_smooth_factor : 0.2 # 0.2
 
 armor_distance_smooth_factor : 1.0 # 0.05
 
