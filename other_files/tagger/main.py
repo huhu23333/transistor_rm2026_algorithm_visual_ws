@@ -85,7 +85,7 @@ def save_tag(filename, tag_data, user_id):
             "has_armor": tag_data["has_armor"] if tag_data["is_possible"] == "yes" else None,
             "color": tag_data["color"] if tag_data["is_possible"] == "yes" and tag_data["has_armor"] == "yes" else None,
             "size": tag_data["size"] if tag_data["is_possible"] == "yes" and tag_data["has_armor"] == "yes" else None,
-            "not_slant": tag_data["not_slant"] if tag_data["is_possible"] == "yes" and tag_data["has_armor"] == "yes" else None,
+            "not_slant": "yes" if tag_data["is_possible"] == "yes" and tag_data["has_armor"] == "yes" else None,  # 固定为"yes"
             "type": tag_data["type"] if tag_data["is_possible"] == "yes" and tag_data["has_armor"] == "yes" else None
         }
     }
@@ -227,7 +227,7 @@ with gr.Blocks(title="图像打标工具", css=custom_css) as app:
             
             has_armor = gr.Radio(
                 [("是", "yes"), ("否", "no")], 
-                label="是否包含装甲板（两光条对应区域（注意不是整个图片）内有装甲板数字/图标，且装甲板两光条均显示）",
+                label="是否正确包含装甲板（两灯条需在正确位置，但可以倾斜）",
                 value="yes",
                 interactive=True
             )
@@ -246,12 +246,7 @@ with gr.Blocks(title="图像打标工具", css=custom_css) as app:
                 interactive=True
             )
             
-            not_slant = gr.Radio(
-                [("是", "yes"), ("否", "no")], 
-                label="是否正对装甲板（装甲板两光条及数字/图标是否均直立且两光条位置正确对应）",
-                value="yes",
-                interactive=True
-            )
+            # 移除了not_slant选项
             
             armor_type = gr.Radio(
                 [
@@ -286,7 +281,6 @@ with gr.Blocks(title="图像打标工具", css=custom_css) as app:
                 gr.update(interactive=False, value=None),
                 gr.update(interactive=False, value=None),
                 gr.update(interactive=False, value=None),
-                gr.update(interactive=False, value=None),
                 gr.update(interactive=False, value=None)
             ]
         # 否则启用所有选项
@@ -295,7 +289,6 @@ with gr.Blocks(title="图像打标工具", css=custom_css) as app:
                 gr.update(interactive=True, value="yes"),
                 gr.update(interactive=True, value="blue"),
                 gr.update(interactive=True, value="small"),
-                gr.update(interactive=True, value="yes"),
                 gr.update(interactive=True, value="1")
             ]
     def toggle_options_has_armor(has_armor_val):
@@ -304,7 +297,6 @@ with gr.Blocks(title="图像打标工具", css=custom_css) as app:
             return [
                 gr.update(interactive=False, value=None),
                 gr.update(interactive=False, value=None),
-                gr.update(interactive=False, value=None),
                 gr.update(interactive=False, value=None)
             ]
         else:
@@ -312,20 +304,19 @@ with gr.Blocks(title="图像打标工具", css=custom_css) as app:
             return [
                 gr.update(interactive=True, value="blue"),
                 gr.update(interactive=True, value="small"),
-                gr.update(interactive=True, value="yes"),
                 gr.update(interactive=True, value="1")
             ]
     
     is_possible.change(
         toggle_options_is_possible, 
         inputs=[is_possible],
-        outputs=[has_armor, color, size, not_slant, armor_type]
+        outputs=[has_armor, color, size, armor_type]
     )
     
     has_armor.change(
         toggle_options_has_armor,
         inputs=[has_armor],
-        outputs=[color, size, not_slant, armor_type]
+        outputs=[color, size, armor_type]
     )
 
     # 加载按钮功能
@@ -349,7 +340,7 @@ with gr.Blocks(title="图像打标工具", css=custom_css) as app:
     )
 
     # 下一张按钮功能
-    def save_and_next(is_possible, has_armor, color, size, not_slant, armor_type, current_img, user_id):
+    def save_and_next(is_possible, has_armor, color, size, armor_type, current_img, user_id):
         if not current_img:
             return None, current_img, "请先加载图片！"
         
@@ -359,7 +350,6 @@ with gr.Blocks(title="图像打标工具", css=custom_css) as app:
             "has_armor": has_armor,
             "color": color,
             "size": size,
-            "not_slant": not_slant,
             "type": armor_type
         }
         
@@ -373,7 +363,7 @@ with gr.Blocks(title="图像打标工具", css=custom_css) as app:
     
     next_btn.click(
         save_and_next,
-        inputs=[is_possible, has_armor, color, size, not_slant, armor_type, current_image, user_id],
+        inputs=[is_possible, has_armor, color, size, armor_type, current_image, user_id],
         outputs=[image_display, current_image, output_box]
     )
 

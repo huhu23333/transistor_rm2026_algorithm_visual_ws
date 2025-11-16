@@ -189,8 +189,8 @@ class CustomDataset(Dataset):
     
     # 新增：随机平移（不超过5像素）
     def _random_translate(self, img):
-        if random.random() < 0.9:  # 90%的概率应用平移
-            max_translate = 5  # 最大平移距离5像素
+        if random.random() < 0.5:  # 50%的概率应用平移
+            max_translate = 2  # 最大平移距离2像素
             rows, cols = img.shape[:2]
             
             # 随机生成x和y方向的平移量
@@ -206,8 +206,8 @@ class CustomDataset(Dataset):
     
     # 新增：随机缩放（不超过10%）
     def _random_scale(self, img):
-        if random.random() < 0.9:  # 90%的概率应用缩放
-            scale_factor = random.uniform(0.9, 1.1)  # 缩放范围90%-110%
+        if random.random() < 0.5:  # 50%的概率应用缩放
+            scale_factor = random.uniform(0.95, 1.05)  # 缩放范围95%-105%
             rows, cols = img.shape[:2]
             
             # 计算缩放后的尺寸
@@ -232,10 +232,10 @@ class CustomDataset(Dataset):
                 img = cv2.resize(img, (cols, rows))
         return img
     
-    # 新增：随机旋转（不超过5°）
+    # 新增：随机旋转（不超过3°）
     def _random_rotate(self, img):
-        if random.random() < 0.7:  # 70%的概率应用旋转
-            max_angle = 5  # 最大旋转角度5°
+        if random.random() < 0.5:  # 50%的概率应用旋转
+            max_angle = 3  # 最大旋转角度3°
             angle = random.uniform(-max_angle, max_angle)
             rows, cols = img.shape[:2]
             
