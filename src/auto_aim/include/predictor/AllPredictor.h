@@ -210,4 +210,6 @@ private:
     cv::Point3f last_rest_frame_pos = {0.0, 0.0, 0.0};
 
     float last_pixel_horizontal_center_distance = 1e10;
+
+    bool has_valid_ballistic = false;
 };
