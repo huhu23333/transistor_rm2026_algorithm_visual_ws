@@ -82,6 +82,11 @@ bool RotationJudge::is_rotation(float p3d_period, float rmm_period) {
         RCLCPP_DEBUG(node->get_logger(), "RotationJudge: false 4");
         return false;
     }
+    RCLCPP_DEBUG(node->get_logger(), "RotationJudge: right_shift_period: %f", right_shift_period);
+    if (right_shift_period > max_period) {
+        RCLCPP_DEBUG(node->get_logger(), "RotationJudge: false 5");
+        return false;
+    }
     RCLCPP_DEBUG(node->get_logger(), "RotationJudge: true");
     return true;
 }

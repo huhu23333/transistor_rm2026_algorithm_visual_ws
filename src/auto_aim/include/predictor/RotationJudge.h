@@ -27,6 +27,8 @@ public:
         min_right_shift_fit_R_squared = 0.7;
         min_right_shift_variance = 2500.0;
 
+        max_period = check_frames * 0.5;
+
         oscilloscope_ = std::make_shared<Oscilloscope>(640, 120, "RotationJudge Oscilloscope");
         oscilloscope_ -> setScale(1.0);
         oscilloscope_ -> setOffset(0.0);
@@ -47,6 +49,7 @@ private:
     int min_rotation_frames;
     int min_seen_frames;
     float max_period_divergence;
+    int max_period;
 
     float min_right_shift_fit_R_squared;
     float min_right_shift_variance;
