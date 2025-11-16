@@ -151,6 +151,8 @@ class CustomDataset(Dataset):
     def __init__(self, data_list, apply_augmentation=True):
         self.data_list = data_list
         self.apply_augmentation = apply_augmentation
+        self.use_spatial_aug = apply_augmentation  # 新增：空间增强开关
+        self.use_non_spatial_aug = apply_augmentation  # 新增：非空间增强开关
         
         if self.apply_augmentation:
             # 创建非空间增强组合
@@ -179,57 +181,56 @@ class CustomDataset(Dataset):
             # 应用180度旋转
             if random.random() < 0.5:
                 image = self._rotate_180(image)
-            # 应用空间增强
-            image = self.spatial_aug(image)
-            # 应用非空间增强
-            image = self.non_spatial_aug(image)
+            
+            # 应用空间增强（根据开关决定）
+            if self.use_spatial_aug:
+                image = self.spatial_aug(image)
+            
+            # 应用非空间增强（根据开关决定）
+            if self.use_non_spatial_aug:
+                image = self.non_spatial_aug(image)
             
         image_tensor = torch.from_numpy(image).permute(2, 0, 1).float()
         image_tensor = (image_tensor / 127.5) - 1.0
         
         return {'image': image_tensor, 'label': label}
     
+    def set_spatial_aug(self, use_spatial):
+        """设置是否使用空间增强"""
+        self.use_spatial_aug = use_spatial
+        
+    def set_non_spatial_aug(self, use_non_spatial):
+        """设置是否使用非空间增强"""
+        self.use_non_spatial_aug = use_non_spatial
+    
     def _rotate_180(self, img):
         return cv2.rotate(img, cv2.ROTATE_180)
     
-    # 新增：随机平移（不超过5像素）
+    # 其他增强函数保持不变...
     def _random_translate(self, img):
-        if random.random() < 0.9:  # 90%的概率应用平移
-            max_translate = 5  # 最大平移距离5像素
+        if random.random() < 0.5:
+            max_translate = 2
             rows, cols = img.shape[:2]
-            
-            # 随机生成x和y方向的平移量
             tx = random.randint(-max_translate, max_translate)
             ty = random.randint(-max_translate, max_translate)
-            
-            # 创建平移矩阵
             M = np.float32([[1, 0, tx], [0, 1, ty]])
-            
-            # 应用平移变换（使用反射边界模式避免黑边）
             img = cv2.warpAffine(img, M, (cols, rows), borderMode=cv2.BORDER_REFLECT)
         return img
     
-    # 新增：随机缩放（不超过10%）
     def _random_scale(self, img):
-        if random.random() < 0.9:  # 90%的概率应用缩放
-            scale_factor = random.uniform(0.9, 1.1)  # 缩放范围90%-110%
+        if random.random() < 0.5:
+            scale_factor = random.uniform(0.95, 1.05)
             rows, cols = img.shape[:2]
-            
-            # 计算缩放后的尺寸
             new_cols = int(cols * scale_factor)
             new_rows = int(rows * scale_factor)
-            
-            # 缩放图像
             img = cv2.resize(img, (new_cols, new_rows))
-            
-            # 如果缩放后尺寸不同，裁剪或填充到原始尺寸
-            if scale_factor < 1.0:  # 缩小了，需要填充
+            if scale_factor < 1.0:
                 pad_x = (cols - new_cols) // 2
                 pad_y = (rows - new_rows) // 2
                 img = cv2.copyMakeBorder(img, pad_y, pad_y, pad_x, pad_x, 
                                         cv2.BORDER_REFLECT)
-                img = img[:rows, :cols]  # 确保尺寸正确
-            elif scale_factor > 1.0:  # 放大了，需要裁剪
+                img = img[:rows, :cols]
+            elif scale_factor > 1.0:
                 start_x = (new_cols - cols) // 2
                 start_y = (new_rows - rows) // 2
                 img = img[start_y:start_y+rows, start_x:start_x+cols]
@@ -237,24 +238,18 @@ class CustomDataset(Dataset):
                 img = cv2.resize(img, (cols, rows))
         return img
     
-    # 新增：随机旋转（不超过5°）
     def _random_rotate(self, img):
-        if random.random() < 0.7:  # 70%的概率应用旋转
-            max_angle = 5  # 最大旋转角度5°
+        if random.random() < 0.5:
+            max_angle = 3
             angle = random.uniform(-max_angle, max_angle)
             rows, cols = img.shape[:2]
-            
-            # 创建旋转矩阵（围绕图像中心）
             M = cv2.getRotationMatrix2D((cols/2, rows/2), angle, 1.0)
-            
-            # 应用旋转变换（使用反射边界模式避免黑边）
             img = cv2.warpAffine(img, M, (cols, rows), borderMode=cv2.BORDER_REFLECT)
         return img
     
-    # 以下保持原有的非空间增强函数不变
     def _add_gaussian_noise(self, img):
-        if random.random() < 0.9: # 0.3
-            noise_level = random.uniform(1.0, 50.0) 
+        if random.random() < 0.9:
+            noise_level = random.uniform(1.0, 50.0)
             noise = np.random.normal(
                 scale=noise_level, 
                 size=img.shape
@@ -264,8 +259,8 @@ class CustomDataset(Dataset):
         return img
     
     def _adjust_brightness(self, img):
-        if random.random() < 0.9: # 0.5
-            delta = random.uniform(-80, 80) # (-30, 30)
+        if random.random() < 0.9:
+            delta = random.uniform(-80, 80)
             hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
             hsv = hsv.astype(np.int16)
             hsv[:, :, 2] = np.clip(hsv[:, :, 2] + delta, 0, 255)
@@ -274,14 +269,14 @@ class CustomDataset(Dataset):
         return img
     
     def _adjust_contrast(self, img):
-        if random.random() < 0.9: # 0.4
-            alpha = random.uniform(0.3, 3.0) # (0.8, 1.2)
+        if random.random() < 0.9:
+            alpha = random.uniform(0.3, 3.0)
             return cv2.convertScaleAbs(img, alpha=alpha, beta=0)
         return img
     
     def _color_shift(self, img):
         if random.random() < 0.9:
-            shifts = np.random.randint(-80, 80, size=3) # -10 10
+            shifts = np.random.randint(-80, 80, size=3)
             b, g, r = cv2.split(img)
             b = np.clip(b.astype(np.int16) + shifts[0], 0, 255).astype(np.uint8)
             g = np.clip(g.astype(np.int16) + shifts[1], 0, 255).astype(np.uint8)
@@ -373,16 +368,12 @@ def train_model(model, train_loader, val_loader, num_epochs=128, lr=3e-4):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
     
-    # 使用SGD优化器
     optimizer = optim.Adam(
         model.parameters(), 
         lr=lr, 
-        #momentum=0.9, 
         weight_decay=0.001,
-        #nesterov=True
     )
     
-    # 监控验证集平均准确率
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, 
         mode='max', 
@@ -402,10 +393,17 @@ def train_model(model, train_loader, val_loader, num_epochs=128, lr=3e-4):
         'train_size_acc': [], 'val_size_acc': [],
         'train_not_slant_acc': [], 'val_not_slant_acc': [],
         'train_classify_acc': [], 'val_classify_acc': [],
-        'val_acc_avg': []  # 新增验证集平均准确率
+        'val_acc_avg': []
     }
     
     best_val_acc = 0.0
+    
+    # 计算总batch数
+    total_batches = num_epochs * len(train_loader)
+    spatial_off_threshold = int(total_batches * 0.7)  # 70%时关闭空间增强
+    all_off_threshold = int(total_batches * 0.9)      # 90%时关闭所有增强
+    
+    global_batch_count = 0  # 全局batch计数器
     
     for epoch in range(num_epochs):
         epoch_start_time = time.time()
@@ -421,6 +419,16 @@ def train_model(model, train_loader, val_loader, num_epochs=128, lr=3e-4):
     
         for i, batch in enumerate(train_loader):
             iter_start_time = time.time()
+            
+            # 检查是否需要关闭数据增强
+            if global_batch_count >= all_off_threshold:
+                # 关闭所有数据增强
+                train_loader.dataset.set_spatial_aug(False)
+                train_loader.dataset.set_non_spatial_aug(False)
+            elif global_batch_count >= spatial_off_threshold:
+                # 只关闭空间增强，保持非空间增强
+                train_loader.dataset.set_spatial_aug(False)
+                train_loader.dataset.set_non_spatial_aug(True)
             
             images = batch['image'].to(device)
             labels = batch['label']
@@ -451,6 +459,9 @@ def train_model(model, train_loader, val_loader, num_epochs=128, lr=3e-4):
             train_metrics['not_slant_acc'] += metrics['acc_not_slant']
             train_metrics['classify_acc'] += metrics['acc_classify']
             
+            # 更新全局batch计数
+            global_batch_count += 1
+            
             # 计算迭代时间
             iter_time = time.time() - iter_start_time
             
@@ -458,6 +469,12 @@ def train_model(model, train_loader, val_loader, num_epochs=128, lr=3e-4):
             print(f'Epoch [{epoch+1}/{num_epochs}], Batch [{i+1}/{len(train_loader)}], '
                     f'Loss: {loss.item():.4f}, '
                     f'Iter Time: {iter_time:.4f}s')
+            
+            # 打印数据增强状态变化
+            if global_batch_count == spatial_off_threshold:
+                print("\n=== 达到总batch数70%，关闭空间增强 ===")
+            elif global_batch_count == all_off_threshold:
+                print("\n=== 达到总batch数90%，关闭所有数据增强 ===")
         
         # 计算训练平均指标
         num_batches = len(train_loader)
@@ -557,8 +574,17 @@ def train_model(model, train_loader, val_loader, num_epochs=128, lr=3e-4):
               f"Size: {history['val_size_acc'][-1]:.4f}, "
               f"Not Slant: {history['val_not_slant_acc'][-1]:.4f}, "
               f"Classify: {history['val_classify_acc'][-1]:.4f}, "
-              f"Avg: {val_acc_avg:.4f}")  # 新增平均准确率显示
-        print(f"Learning Rate: {optimizer.param_groups[0]['lr']:.7f}\n")
+              f"Avg: {val_acc_avg:.4f}")
+        print(f"Learning Rate: {optimizer.param_groups[0]['lr']:.7f}")
+        
+        # 打印当前数据增强状态
+        if global_batch_count < spatial_off_threshold:
+            aug_status = "所有数据增强开启"
+        elif global_batch_count < all_off_threshold:
+            aug_status = "仅非空间增强开启"
+        else:
+            aug_status = "所有数据增强关闭"
+        print(f"数据增强状态: {aug_status}\n")
     
     # 绘制训练曲线
     plot_training_history(history)
