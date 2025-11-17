@@ -6,7 +6,7 @@ current_file_path = os.path.abspath(__file__)
 current_dir = os.path.dirname(current_file_path)
 
 # 设置目标文件夹路径
-temp_dir = os.path.join(current_dir, 'temp')
+temp_dir = os.path.join(current_dir, 'network_input_images')
 
 # 检查目标文件夹是否存在
 if not os.path.exists(temp_dir):
