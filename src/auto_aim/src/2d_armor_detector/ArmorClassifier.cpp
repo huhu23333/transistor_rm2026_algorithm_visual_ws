@@ -111,16 +111,16 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         // 获取多输出头结果
         float is_armor_probability;
         float is_large_probability;
-        float not_screen_probability;
-        float not_slant_probability;
+        float reserved_3_probability;
+        float reserved_4_probability;
         std::vector<float> classify_probabilities(8);
         int current_number;
         float classify_confidence;
         
         is_armor_probability = pytorch_results[i][0];
         is_large_probability = pytorch_results[i][1];
-        not_screen_probability = pytorch_results[i][2];
-        not_slant_probability = pytorch_results[i][3];
+        reserved_3_probability = pytorch_results[i][2];
+        reserved_4_probability = pytorch_results[i][3];
         std::copy(pytorch_results[i].begin() + 4, pytorch_results[i].begin() + 12, classify_probabilities.begin());
         
         auto classify_max_it = std::max_element(classify_probabilities.begin(), classify_probabilities.end());
@@ -130,7 +130,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         }
 
         RCLCPP_DEBUG(node->get_logger(), "ArmorClassifier Debug:\n %.2f | %.2f | %.2f | %.2f | %.2f | %d", 
-            is_armor_probability, is_large_probability, not_screen_probability, not_slant_probability, classify_confidence, current_number
+            is_armor_probability, is_large_probability, reserved_3_probability, reserved_4_probability, classify_confidence, current_number
         );
 
         //is_armor_probability = 1.0; // DEBUG
@@ -140,13 +140,10 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         //current_number = 1;
         //classify_confidence = 1.0;
 
-        not_screen_probability = 1.0;
-
         bool is_ture_armor = (is_armor_probability >= IS_ARMOR_THRESHOLD) &&
-                                (not_screen_probability >= NOT_SCREEN_THRESHOLD) &&
-                                (classify_confidence >= CLASSIFY_THRESHOLD);
-        
-        bool not_slant = not_slant_probability > NOT_SLANT_THRESHOLD; // TODO：倾斜目标纠正网络
+                             (classify_confidence >= CLASSIFY_THRESHOLD);
+
+        bool not_slant = true;
 
         if (is_ture_armor) {
             bool is_large = is_large_probability > IS_LARGE_THRESHOLD;
@@ -157,8 +154,8 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
                 armor.corners = armor.corners_large;
             }
             float confidence = std::pow(
-                std::abs(is_armor_probability * armor_type_confidence * not_screen_probability * classify_confidence * not_slant) + 1e-6, 
-                1.0 / 5.0
+                std::abs(is_armor_probability * armor_type_confidence * classify_confidence) + 1e-6, 
+                1.0 / 3.0
             );
 
             armor_tracker -> addArmor(armor, current_number, is_large, not_slant, confidence);
