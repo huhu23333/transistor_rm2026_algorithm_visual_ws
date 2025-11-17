@@ -412,17 +412,17 @@ def train_model(model, train_loader, val_loader, num_epochs=128, lr=3e-4):
             
             # 检查是否需要关闭数据增强
             if global_batch_count >= all_off_threshold:
-                # 关闭所有数据增强
-                train_loader.dataset.set_spatial_aug(False)
-                train_loader.dataset.set_non_spatial_aug(False)
                 if len(history['augmentation_events']) < 2:  # 记录第二次切换
                     history['augmentation_events'].append(epoch + i/len(train_loader))
+                    # 关闭所有数据增强
+                    train_loader.dataset.set_spatial_aug(False)
+                    train_loader.dataset.set_non_spatial_aug(False)
             elif global_batch_count >= spatial_off_threshold:
-                # 只关闭空间增强，保持非空间增强
-                train_loader.dataset.set_spatial_aug(False)
-                train_loader.dataset.set_non_spatial_aug(True)
                 if len(history['augmentation_events']) < 1:  # 记录第一次切换
                     history['augmentation_events'].append(epoch + i/len(train_loader))
+                    # 只关闭空间增强，保持非空间增强
+                    train_loader.dataset.set_spatial_aug(False)
+                    train_loader.dataset.set_non_spatial_aug(True)
             
             images = batch['image'].to(device)
             labels = batch['label']
@@ -866,7 +866,7 @@ if __name__ == "__main__":
     model = TransistorRM2026Net(num_classes=8)
     
     # 训练模型（epochs=256）
-    trained_model, history = train_model(model, train_loader, val_loader, num_epochs=128, lr=3e-4)
+    trained_model, history = train_model(model, train_loader, val_loader, num_epochs=100, lr=3e-4)
     
     # 保存最终模型
     torch.save(trained_model.state_dict(), 'final_model.pth')
