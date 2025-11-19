@@ -22,7 +22,8 @@ void PredictorSwitcher::clearHistory() {
 PredictorType::PredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f real_point, 
     cv::Point3f None_result, cv::Point3f EKF_result, cv::Point3f P3D_result, cv::Point3f RMM_result, 
     float P3D_period, float RMM_period, cv::Point3f linear_predict_position) {
-    return PredictorType::EKF;
+    return PredictorType::RotationMotionModel;
+    //return PredictorType::EKF;
 
     predictors_results.push_back(PredictorsResult(None_result, EKF_result, P3D_result, RMM_result));
     if (predictors_results.size() > check_frames * 2) {
@@ -75,11 +76,12 @@ PredictorType::PredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f r
     float RMM_mse = meanSquaredErrorPoint3f(seen_None, seen_RMM);
     float EKF_variance = variancePoint3f(seen_EKF);
 
-    RCLCPP_DEBUG(node->get_logger(), "real_variance: %f, None_mse: %f, EKF_mse: %f, P3D_mse: %f, RMM_mse: %f, EKF_variance: %f, ", 
+    RCLCPP_INFO(node->get_logger(), "real_variance: %f, None_mse: %f, EKF_mse: %f, P3D_mse: %f, RMM_mse: %f, EKF_variance: %f, ", 
         real_variance, None_mse, EKF_mse, P3D_mse, RMM_mse, EKF_variance);
 
     if ((real_variance < 2500.0 && None_mse < 2500.0) || 
         (None_mse < EKF_mse && None_mse < P3D_mse && None_mse < RMM_mse)) {
+        RCLCPP_INFO(node->get_logger(), "None 1");
         return PredictorType::None;
     }
 
@@ -88,6 +90,8 @@ PredictorType::PredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f r
     float mean_period = (std::accumulate(P3D_periods.begin(), P3D_periods.end(), 0.0) + 
                          std::accumulate(RMM_periods.begin(), RMM_periods.end(), 0.0)) / 
                          static_cast<float>(P3D_periods.size() + RMM_periods.size());
+
+    is_rotation = true;
     if (is_rotation &&
         ((P3D_period_variance < 10.0) || (RMM_period_variance < 10.0)) && 
         (mean_period > 2) && (mean_period < 40.0)
@@ -103,5 +107,6 @@ PredictorType::PredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f r
         return PredictorType::EKF;
     }
 
+    RCLCPP_INFO(node->get_logger(), "None 2");
     return PredictorType::None;
 }

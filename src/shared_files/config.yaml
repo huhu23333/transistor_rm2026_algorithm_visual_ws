@@ -69,13 +69,13 @@ predictor3d_fit_step : 90
 predictor3d_predict_step : 30
 predictor3d_fourier_fit_order : 5
 
-fire_distance : 100.0 # 135.0
+fire_distance : 50.0 # 135.0
 
 fire_data_predictor_fit_step : 90
 
 pred_fire_data_smooth_factor : 0.2 # 0.2
 
-armor_distance_smooth_factor : 1.0 # 0.05
+armor_distance_smooth_factor : 0.05 # 0.05
 
 total_yaw_rad_delayed_smooth_factor : 0.1
 

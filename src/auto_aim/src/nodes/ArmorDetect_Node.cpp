@@ -255,14 +255,15 @@ private:
         while (current_yaw_ > M_PI) {
             current_yaw_ -= 2 * M_PI;
         }
-        enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
+        int debug_color = 1;msg.color;
+        enemy_color_ = (debug_color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
         } else if (enemy_color_ == "BLUE") {
             params_.enemy_color = Params::BLUE;
         }
         if (light_detector_) {
-            light_detector_->setEnemyColor(msg.color == 0 ? Params::RED : Params::BLUE);
+            light_detector_->setEnemyColor(debug_color == 0 ? Params::RED : Params::BLUE);
         }
 
         if (current_yaw_ < -M_PI/2 && last_yaw_rad_ > M_PI/2) {

@@ -63,7 +63,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 constexpr float image_latency = 0.013f;
                 constexpr float comm_latency  = 0.010f;
                 float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                float extra_time = 0.000f; // 0.300f
+                float extra_time = 0.250f; // 0.300f
                 float total_delay = image_latency + comm_latency + bullet_time + extra_time;
                 last_total_delay_ = total_delay;
 
@@ -155,7 +155,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     fire_data_predictor_ -> setPeriod(predictor3d->getFourierPeriod());
                     //fire_data_predictor_ -> autoFindPeriod();
                     fire_data_predictor_ -> addPoint(armor_near_flag);
-                    pred_fire_data_filter_ -> addPoint(fire_data_predictor_ -> isUpper(predictor3dPrediction_indexToAim, 0.5) || fire_data_predictor_ -> getA0() > 0.8);
+                    pred_fire_data_filter_ -> addPoint(fire_data_predictor_ -> isUpper(predictor3dPrediction_indexToAim + 3, 0.5) || fire_data_predictor_ -> getA0() > 0.8);
                     if (using_predictor_type == PredictorType::FirePredictor) {
                         fire_flag = pred_fire_data_filter_ -> getExponentialValue() > 0.5;
                     }
@@ -246,7 +246,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(total_delay);
                         cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                         std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
-                        float yaw_bias = M_PI / 180.0 * 15.0;
+                        float yaw_bias = M_PI / 180.0 * 0.0;
                         yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
                         for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
                             SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
@@ -330,7 +330,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     
                     // 发布云台控制命令
                     float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 1.0 + pitch_integration; // PI控制
-                    float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad + yaw_integration; // 缓解yaw轴输入数据掉线问题
+                    float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 0.7 + yaw_integration; // 缓解yaw轴输入数据掉线问题
                     last_command_pitch_ = command_pitch;
                     last_command_yaw_ = command_yaw;
                     //serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
@@ -411,7 +411,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                             cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                             std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
-                            float yaw_bias = M_PI / 180.0 * 15.0;
+                            float yaw_bias = M_PI / 180.0 * 0.0;
                             yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
                             for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
                                 SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
@@ -545,7 +545,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                         cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                         std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
-                        float yaw_bias = M_PI / 180.0 * 15.0;
+                        float yaw_bias = M_PI / 180.0 * 0.0;
                         yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
                         for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
                             SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
@@ -635,7 +635,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     
                     // 发布云台控制命令
                     float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration; // PI控制
-                    float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad + yaw_integration; // 缓解yaw轴输入数据掉线问题
+                    float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 0.7 + yaw_integration; // 缓解yaw轴输入数据掉线问题
                     last_command_pitch_ = command_pitch;
                     last_command_yaw_ = command_yaw;
                     //serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
@@ -697,7 +697,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                     cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                     std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
-                    float yaw_bias = M_PI / 180.0 * 15.0;
+                    float yaw_bias = M_PI / 180.0 * 0.0;
                     yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
                     for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
                         SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
