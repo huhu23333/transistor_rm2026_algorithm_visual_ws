@@ -121,7 +121,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
     const auto& uv_pred = edges[i]->getLastUV();
     // const auto& uv_obs  = armor.corners[i];
     const auto& uv_obs  = armor.armor.light_bar_corners[i];
-    RCLCPP_DEBUG(logger_b, "[BEFORE] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
+    RCLCPP_INFO(logger_b, "[BEFORE] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
                 i, uv_pred.x(), uv_pred.y(), i, uv_obs.x, uv_obs.y);
   }
 
@@ -141,7 +141,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
     const auto& uv_pred = edges[i]->getLastUV();
     // const auto& uv_obs  = armor.corners[i];
     const auto& uv_obs  = armor.armor.light_bar_corners[i];
-    RCLCPP_DEBUG(logger_b, "[AFTER ] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
+    RCLCPP_INFO(logger_b, "[AFTER ] C%d_pred=[%.2f %.2f]  C%d_obs=[%.2f %.2f]",
                 i, uv_pred.x(), uv_pred.y(), i, uv_obs.x, uv_obs.y);
   }
 
