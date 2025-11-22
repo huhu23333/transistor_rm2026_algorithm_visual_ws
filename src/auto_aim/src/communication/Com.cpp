@@ -94,18 +94,18 @@ std::string SerialCommunicationClass::findAvailableSerialPort() {
     return port;
 }
 
-bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float yaw_target, bool fire) {
+bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float yaw_target, bool fire, int16_t enemy_position_x, int16_t enemy_position_y) {
     if (fd_ >= 0) {
         //pitch_target = -0.01; // 约 0.01对应30°
         //yaw_target = 0;
         // 传入参数使用弧度制 [-M_PI, M_PI]
-        // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + reset(1) + pitch_target(2) + yaw_target(2) + fire(1) + CRC(1) = 11字节
-        std::array<uint8_t, 11> tx_data{};
+        // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + reset(1) + pitch_target(2) + yaw_target(2) + enemy_position_x(2) + enemy_position_y(2) + fire(1) + CRC(1) = 15字节
+        std::array<uint8_t, 15> tx_data{};
         
         tx_data[0] = FRAME_HEADER1;
         tx_data[1] = FRAME_HEADER2;
         tx_data[2] = COMMAND_CODE;
-        tx_data[3] = 0x06;  // 数据长度为6（1字节reset + 2字节pitch_target + 2字节yaw_target + 1字节fire）
+        tx_data[3] = 0x0A;  // 数据长度为10（1字节reset + 2字节pitch_target + 2字节yaw_target + 2字节enemy_position_x + 2字节enemy_position_y + 1字节fire）
 
         // 处理reset
         if (reset) {
@@ -148,9 +148,13 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         } else {
             tx_data[9] = 0x00;
         }
+
+        // 处理enemy_position (2+2字节)
+        memcpy(&tx_data[10], &enemy_position_x, sizeof(int16_t));
+        memcpy(&tx_data[12], &enemy_position_y, sizeof(int16_t));
         
         // 计算并添加CRC
-        tx_data[10] = CRC8_Check_Sum(tx_data.data(), 10);
+        tx_data[14] = CRC8_Check_Sum(tx_data.data(), 14);
 
 
         RCLCPP_INFO(node->get_logger(), 
@@ -183,10 +187,14 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
 
     memcpy(&frame.bullet_velocity, &data[4], sizeof(float));
     memcpy(&frame.gimbal_pitch, &data[8], sizeof(uint16_t));
-    memcpy(&frame.gimbal_yaw, &data[10], sizeof(uint16_t));
+    memcpy(&frame.gimbal_yaw_small, &data[10], sizeof(uint16_t));
     memcpy(&frame.mark, &data[12], sizeof(uint16_t));
     memcpy(&frame.color, &data[14], sizeof(uint8_t));
     memcpy(&frame.z_rotation_velocity, &data[15], sizeof(int16_t));
+    // 哨兵新增
+    memcpy(&frame.chassis_mode, &data[17], sizeof(uint8_t));
+    memcpy(&frame.lack_blood_son_mode, &data[18], sizeof(uint8_t));
+    memcpy(&frame.gimbal_yaw_big, &data[19], sizeof(float));
 
     // 格式化输出
     RCLCPP_INFO(node->get_logger(), 
@@ -196,13 +204,19 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
         "\033[1;33mGimbal Yaw:\033[0m %d\n"
         "\033[1;36mMark:\033[0m %d\n"
         "\033[1;31mColor:\033[0m %d\n"
-        "\033[1;35mZ Rotation Velocity:\033[0m %d\n",
+        "\033[1;35mZ Rotation Velocity:\033[0m %d\n"
+        "\033[1;34mchassis_mode:\033[0m %d\n"
+        "\033[1;34mlack_blood_son_mode:\033[0m %d\n"
+        "\033[1;34mgimbal_yaw_big:\033[0m %.2f\n",
         frame.bullet_velocity,
         frame.gimbal_pitch,
-        frame.gimbal_yaw,
+        frame.gimbal_yaw_small,
         frame.mark,
         frame.color,
-        frame.z_rotation_velocity
+        frame.z_rotation_velocity,
+        frame.chassis_mode,
+        frame.lack_blood_son_mode,
+        frame.gimbal_yaw_big
     );
 
     SerialData msg;
@@ -212,7 +226,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
         msg.gimbal_pitch -= 2 * M_PI;
     }
     msg.gimbal_pitch = -msg.gimbal_pitch;
-    msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw) * M_PI / 4096.0f;
+    msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw_small) * M_PI / 4096.0f + frame.gimbal_yaw_big;
     while (msg.gimbal_yaw > M_PI) {
         msg.gimbal_yaw -= 2 * M_PI;
     }
@@ -286,6 +300,9 @@ void SerialCommunicationClass::processBuffer() {
             return;  // 等待完整帧
         }
 
+        RCLCPP_DEBUG(node->get_logger(), "frame_length: %ld", frame_length);
+        RCLCPP_DEBUG(node->get_logger(), "received crc: %d", buffer_[frame_length - 1]);
+        RCLCPP_DEBUG(node->get_logger(), "target crc: %d", CRC8_Check_Sum(buffer_.data(), frame_length - 1));
         // CRC校验
         if (CRC8_Check_Sum(buffer_.data(), frame_length - 1) == buffer_[frame_length - 1]) {
             processFrame(buffer_.data());

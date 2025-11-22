@@ -40,17 +40,21 @@ public:
     SerialCommunicationClass(rclcpp::Node* node, std::function<void(const SerialData&)> serialDataCallback);
     ~SerialCommunicationClass();
     void timerCallback();
-    bool sendData(bool reset, float pitch_target, float yaw_target, bool fire);
+    bool sendData(bool reset, float pitch_target, float yaw_target, bool fire, int16_t enemy_position_x, int16_t enemy_position_y);
     void timerThread();
     
 private:
     struct DataFrame {
         float bullet_velocity;
         uint16_t gimbal_pitch;
-        uint16_t gimbal_yaw;
+        uint16_t gimbal_yaw_small; // 小yaw相对大yaw角度
         uint16_t mark;
         uint8_t color;
         int16_t z_rotation_velocity;
+        // 哨兵新增
+        uint8_t chassis_mode; // 底盘模式
+        uint8_t lack_blood_son_mode; // 缺血回城子模式
+        float gimbal_yaw_big; // 大yaw当前角度(世界坐标系下)，单位rad
     };
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;
