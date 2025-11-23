@@ -12,6 +12,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     PredictorResult result;
     total_yaw_rad_delayed_filter_ -> addPoint(total_yaw_rad_delayed_);
     
+    if (armor_tracker_) armor_tracker_->setDt(std::max(1e-3, fps_counter->avg_frame_time()));
+
     bool pnp_valid_flag = false;
     bool ballistic_valid_flag = false;
     if (!classifyResults.empty()) {
@@ -75,55 +77,53 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
                 if (armor_class != ArmorType::Base) {
                     // ========================== EKF 逻辑 (9D模型修改) ===========================
-                    // 1. 构造4维测量向量 z = [xa, ya, za, yaw_a]
-                    Tracker::Measurement z;
+                    // 1) 构造 4 维量测 z = [xa, ya, za, yaw_a]
+                    armor_ekf::Tracker::Measurement z;
                     z << rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0];
 
-                    // 2. EKF 状态机逻辑
-                    if (EKF_tracker_->state == Tracker::LOST) {
-                        EKF_tracker_->reset(z);
+                    // 2) 初始化 / 状态机
+                    if (armor_tracker_->trackState() == armor_ekf::Tracker::TrackState::LOST) {
+                        // 车型/装甲数量（没有更细分类时，默认 4 板）
+                        armor_tracker_->setArmorsNum(armor_ekf::Tracker::ArmorsNum::NORMAL_4);
+
+                        // 由测量 + 先验几何反解中心并初始化（单位 mm）
+                        armor_tracker_->resetFromArmor(z, ekf_init_r_mm_);
+
+                        // （可选）阈值从配置设定
+                        armor_tracker_->setMatchThresholds(ekf_max_match_distance_mm_, ekf_max_match_yaw_diff_rad_);
+
                         current_target_id_ = best_result.number;
                     } else {
-                        // 跳变处理：通过ID或距离判断
-                        Eigen::Vector3d pred_armor_pos = EKF_tracker_->getArmorPosition();
-                        double position_diff = (pred_armor_pos - Eigen::Vector3d(rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z)).norm();
+                        // 3) yaw 跳变处理（四装甲切换）——先做几何纠正，再 predict/update
+                        armor_tracker_->handleArmorJump(
+                            /*measured_yaw*/ z(3),
+                            /*measured_pos*/ Eigen::Vector3d(rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z)
+                        );
 
-                        if (best_result.number != current_target_id_ || position_diff > RESET_DISTANCE_THRESHOLD) {
-                            if(best_result.number != current_target_id_) {
-                                RCLCPP_DEBUG(node->get_logger(), "ID switched, resetting tracker.");
-                            } else {
-                                RCLCPP_DEBUG(node->get_logger(), "Position jumped (%.f mm), resetting tracker.", position_diff);
-                            }
-                            EKF_tracker_->reset(z);
-                            current_target_id_ = best_result.number;
-                        } else {
-                            EKF_tracker_->predict();
-                            EKF_tracker_->update(z);
-                        }
+                        // 4) 常规 EKF
+                        armor_tracker_->predict();
+                        armor_tracker_->update(z);
                     }
-                    
+
                     if (using_predictor_type == PredictorType::EKF) {
+                        // 5) 时延前推，predictAhead 返回 [xc, yc, zc, yaw]^T（4x1）
+                        const auto future_c = armor_tracker_->predictAhead(total_delay);
+                        const double xc_f  = future_c(0);
+                        const double yc_f  = future_c(1);
+                        const double zc_f  = future_c(2);
+                        const double yaw_f = future_c(3);
+                        const double r     = armor_tracker_->state()(8);
+                        //const double dz    = armor_tracker_->state()(9);
 
-                        // 获取提前预测后的机器人中心状态
-                        Tracker::State future_state = EKF_tracker_->predictAhead(total_delay);
-                        
-                        // 从预测的机器人中心状态，反解出未来时刻装甲板的位置
-                        double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-                        double future_yaw = future_state(6), future_r = future_state(8);
-
+                        // 由中心状态反解“该块装甲”的未来位置
                         predicted_armor_pos = {
-                            static_cast<float>(future_xc - future_r * sin(future_yaw)),
-                            static_cast<float>(future_yc + future_r * cos(future_yaw)),
-                            static_cast<float>(future_zc) 
+                            static_cast<float>(xc_f + r * std::sin(yaw_f)),
+                            static_cast<float>(yc_f - r * std::cos(yaw_f)),
+                            static_cast<float>(zc_f)
                         };
+
+                        // 如你的代码有“瞄准点=装甲中心”的逻辑，保持一致：
                         predicted_aim_pos = predicted_armor_pos;
-                        fire_flag = true;
-                        
-                        RCLCPP_DEBUG(node->get_logger(), "yaw: %.2f" , rest_frame_euler_angles[0] );
-                        RCLCPP_DEBUG(node->get_logger(), "distance: %.2f" , aim.distance );
-                        RCLCPP_DEBUG(node->get_logger(), "position: (%.2f, %.2f, %.2f)" , aim.position.x, aim.position.y, aim.position.z);
-                        RCLCPP_DEBUG(node->get_logger(), "Future armor pos: (%.2f, %.2f, %.2f)",
-                                    predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z);
                     }
                     
                     // ========================== EKF 逻辑 (9D模型修改) =========================== END
@@ -204,18 +204,18 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             static_cast<float>(RMM_pred_now_armor.y), 
                             static_cast<float>(RMM_pred_now_armor.z)
                         });
-                        cv::Point2f RMM_pred_now_armor_pixel = armor_solver_->project3DToPixel(RMM_pred_now_armor_p3f);
-                        cv::circle(frame, RMM_pred_now_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
+                        //cv::Point2f RMM_pred_now_armor_pixel = armor_solver_->project3DToPixel(RMM_pred_now_armor_p3f);
+                        //cv::circle(frame, RMM_pred_now_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
                         // cv::line(frame, RMM_pred_now_center_pixel, RMM_pred_now_armor_pixel, cv::Scalar(0, 255, 0), 2);
                         
-                        cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 8, 
-                            cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
+                        //cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 8, 
+                         //   cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                         // cv::line(RMM_visualize_frame, 
                         //     cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 
                         //     cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 
                         //     cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                     }
-                    cv::circle(RMM_visualize_frame, cv::Point2f(400+rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 8, cv::Scalar(255, 255, 0), 2);
+                    //cv::circle(RMM_visualize_frame, cv::Point2f(400+rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 8, cv::Scalar(255, 255, 0), 2);
                     cv::line(RMM_visualize_frame, 
                         cv::Point2f(400 + rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 
                         cv::Point2f(400 + rest_frame_pos.x/10 + std::sin(rest_frame_euler_angles[0])*50, 
@@ -262,14 +262,14 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         };
                         predicted_aim_pos = predicted_armor_pos;
                         fire_flag = true;
-                        cv::circle(RMM_visualize_frame, 
-                            cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
-                            cv::Scalar(0, 0, 255), 2);
-                        cv::putText(RMM_visualize_frame, 
-                            "r:"+std::to_string(RMM_pred_aim_data.r), 
-                            cv::Point2f(20,110), 
-                            cv::FONT_HERSHEY_COMPLEX, 0.7, 
-                            cv::Scalar(0, 255, 0), 1, 8, false);
+                        //cv::circle(RMM_visualize_frame, 
+                        //     cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
+                        //     cv::Scalar(0, 0, 255), 2);
+                        // cv::putText(RMM_visualize_frame, 
+                        //     "r:"+std::to_string(RMM_pred_aim_data.r), 
+                        //     cv::Point2f(20,110), 
+                        //     cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        //     cv::Scalar(0, 255, 0), 1, 8, false);
                     }
                     cv::line(RMM_visualize_frame, 
                         cv::Point2f(400, 400), 
@@ -356,7 +356,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     
                     // 绘制瞄准预测点（黄色）
                     cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
-                    cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
+                    //cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
 
                     // 计算并绘制瞄准时目标画面中心（天蓝色：未开火 | 红色：开火）
                     cv::Point2f aim_yaw_pitch = cv::Point2f(last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad, last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad);
@@ -375,8 +375,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 //#ifdef USE_PREDICTOR3D
                     cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                     // 绘制装甲板预测点（天蓝色）
-                    cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 255, 0), 2);
-                    oscilloscope_fire_ -> addDataPoint(fire_flag);
+                    //cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 255, 0), 2);
+                    //oscilloscope_fire_ -> addDataPoint(fire_flag);
                     //oscilloscope_fire_ -> addDataPoint(fire_data_predictor_ -> smooth(0));
                     //oscilloscope_fire_ -> addDataPoint(fire_data_predictor_ -> isRising(0));
 
@@ -396,13 +396,16 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         // EKF
                         cv::Point3f EKF_to_check(0.0, 0.0, 0.0);
                         {
-                            Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
-                            double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-                            double future_yaw = future_state(6), future_r = future_state(8);
+                            auto future_c = armor_tracker_->predictAhead(fps_counter->avg_frame_time() * predictor_switcher_check_frames_);
+                            const double future_xc  = future_c(0);
+                            const double future_yc  = future_c(1);
+                            const double future_zc  = future_c(2);
+                            const double future_yaw = future_c(3);
+                            const double r_now = armor_tracker_->state()(8); // r 在模型中离散为常量，可用当前值
                             EKF_to_check = {
-                                static_cast<float>(future_xc - future_r * sin(future_yaw)),
-                                static_cast<float>(future_yc + future_r * cos(future_yaw)),
-                                static_cast<float>(future_zc) 
+                                static_cast<float>(future_xc + r_now * std::sin(future_yaw)),
+                                static_cast<float>(future_yc - r_now * std::cos(future_yaw)),
+                                static_cast<float>(future_zc)
                             };
                         }
                         // P3D
@@ -453,8 +456,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     }
 
     if (!pnp_valid_flag) {
-        if (EKF_tracker_->state != Tracker::LOST) {
-            EKF_tracker_->predict();
+        if (armor_tracker_->trackState() != armor_ekf::Tracker::TrackState::LOST) {
+            armor_tracker_->predict();
         }
 
         if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
@@ -661,17 +664,17 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         command_pitch, command_yaw);
                 }
 
-                // 绘制瞄准预测点（黄色）
-                cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
-                cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
-                // 绘制装甲板预测点（天蓝色）
-                cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
-                cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 255, 0), 2);
+                // // 绘制瞄准预测点（黄色）
+                // cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
+                // cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
+                // // 绘制装甲板预测点（天蓝色）
+                // cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
+                // cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 255, 0), 2);
             }
             if (result.fire_flag) {
-                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(0, 0, 255), 2);
+                //cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(0, 0, 255), 2);
             } else {
-                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
+                //cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
             }
         }
         oscilloscope_fire_ -> addDataPoint(result.fire_flag);
@@ -682,13 +685,16 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 // EKF
                 cv::Point3f EKF_to_check(0.0, 0.0, 0.0);
                 {
-                    Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
-                    double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-                    double future_yaw = future_state(6), future_r = future_state(8);
+                    auto future_c = armor_tracker_->predictAhead(fps_counter->avg_frame_time() * predictor_switcher_check_frames_);
+                    const double future_xc  = future_c(0);
+                    const double future_yc  = future_c(1);
+                    const double future_zc  = future_c(2);
+                    const double future_yaw = future_c(3);
+                    const double r_now = armor_tracker_->state()(8);
                     EKF_to_check = {
-                        static_cast<float>(future_xc - future_r * sin(future_yaw)),
-                        static_cast<float>(future_yc + future_r * cos(future_yaw)),
-                        static_cast<float>(future_zc) 
+                        static_cast<float>(future_xc + r_now * std::sin(future_yaw)),
+                        static_cast<float>(future_yc - r_now * std::cos(future_yaw)),
+                        static_cast<float>(future_zc)
                     };
                 }
                 // P3D
@@ -759,5 +765,64 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     result.predictor_type = using_predictor_type;
     result.armor_type = armor_class;
     result.pixel_horizontal_center_distance = last_pixel_horizontal_center_distance;
+
+    // 调试代码：绘制EKF预测的整车模型 
+    if (armor_tracker_ && armor_tracker_->trackState() != armor_ekf::Tracker::TrackState::LOST) {
+        // 1. 获取当前后验状态 [xc, vxc, yc, vyc, zc, vzc, yaw, vyaw, r, dz]
+        auto state = armor_tracker_->state();
+        double xc = state(0);
+        double yc = state(2);
+        double zc = state(4);
+        double yaw = state(6);
+        double r = state(8);
+        //double dz = state(9);
+
+        // 2. 绘制车体中心 (红色实心点)
+        // 先从世界系转回相机系(PnP系)，再投影到像素系
+        cv::Point3f center_world(xc, yc, zc);
+        cv::Point3f center_pnp = rest_frame_->worldToPnpP3f(center_world);
+        cv::Point2f center_pixel = armor_solver_->project3DToPixel(center_pnp);
+        cv::circle(frame, center_pixel, 6, cv::Scalar(0, 0, 255), -3); 
+        cv::putText(frame, "Center", center_pixel, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0,0,255), 1);
+
+        // 3. 绘制 4 块装甲板 (绿色空心圆 + 连线)
+        // 注意：必须与 motion_model.hpp 中的 Measure 结构体逻辑严格一致
+        // motion_model 中: xa = xc + OFFSET_SIGN * r * cos(yaw)
+        //                  ya = yc - OFFSET_SIGN * r * sin(yaw)
+        // 且 OFFSET_SIGN = -1.0
+        double offset_sign = 1.0; // 务必与 motion_model.hpp 保持一致
+
+        int debug_armor_num = 4; // 默认画4板
+        for (int i = 0; i < debug_armor_num; ++i) {
+            // 计算第 i 块板的 yaw
+            double armor_yaw = yaw + i * (2.0 * M_PI / debug_armor_num);
+            
+            // 反解位置
+            double xa = xc + offset_sign * r * std::sin(armor_yaw);
+            double ya = yc - offset_sign * r * std::cos(armor_yaw);
+            double za = zc;
+
+            // 投影
+            cv::Point3f armor_world_pt(xa, ya, za);
+            cv::Point3f armor_pnp_pt = rest_frame_->worldToPnpP3f(armor_world_pt);
+            cv::Point2f armor_pixel_pt = armor_solver_->project3DToPixel(armor_pnp_pt);
+
+            // 绘制
+            if (armor_pixel_pt.x > 0 && armor_pixel_pt.x < frame.cols && 
+                armor_pixel_pt.y > 0 && armor_pixel_pt.y < frame.rows) {
+                
+                cv::circle(frame, armor_pixel_pt, 8, cv::Scalar(0, 255, 0), 4);
+                cv::line(frame, center_pixel, armor_pixel_pt, cv::Scalar(255, 255, 0), 2); // 连线
+                cv::putText(frame, std::to_string(i), armor_pixel_pt, cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 1);
+            }
+        }
+        
+        // 在屏幕左上角打印当前状态信息
+        std::stringstream ss;
+        ss << "Yaw: " << std::fixed << std::setprecision(2) << yaw 
+        << " vYaw: " << state(7) << " R: " << r;
+        cv::putText(frame, ss.str(), cv::Point(20, 150), cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 255, 255), 1);
+    }
+    // ================= 调试代码结束 =================
     return result;
 }

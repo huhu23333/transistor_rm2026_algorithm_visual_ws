@@ -1,38 +1,29 @@
-# ekf_params:
-#   # Process Noise Q (Model Uncertainty)
-#   sigma2_q_x: 1.e-5
-#   sigma2_q_y: 1.0e5
-#   sigma2_q_z: 1.0e-5
-#   sigma2_q_yaw: 1.e-5
-#   sigma2_q_r: 1.e-5
-#   sigma2_q_d_yc: 1.e-5
-
-#   # Measurement Noise R (Measurement Uncertainty)
-#   r_x_coeff: 1.0e-4
-#   r_y_val: 1.0e-1
-#   r_z_coeff: 1.0e-4
-#   r_yaw_val: 1.0e-4
-
-#   # Initial Covariance P0
-#   p0_init_val: 10.0
-
 ekf_params:
-  sigma2_q_x: 8.0e13     # 过程噪声，从一个较大的值开始调
-  sigma2_q_y: 0.5e13
-  sigma2_q_z: 1.0e13
-  sigma2_q_yaw: 100.0   # Yaw角加速度过程噪声
-  sigma2_q_r: 800.0     # 半径变化过程噪声
+  s2qx:   2.0e2
+  s2qy:   2.0e2
+  s2qz:   2.0e2
+  s2qyaw: 2.0e2
+  s2qr:   2.0e1
+  s2qdz:  2.0e1
   
-  # 测量噪声
-  r_x_coeff: 1.0e-1
-  r_y_coeff: 3.0e-1
-  r_z_coeff: 1.0e-1
-  r_yaw_val: 0.02
+  r_x:    1.0e-1
+  r_y:    1.0e-1
+  r_z:    1.0e-1
+  r_yaw:  0.05
+  
+  p0:     1500.0
 
-  # 初始不确定性
-  p0_init_val: 10.0
-# 其他参数...
-RESET_DISTANCE_THRESHOLD : 8.0e32 # 单位：mm
+ekf_extra_delay: 0.0
+RESET_DISTANCE_THRESHOLD: 4.0e12 # 单位：mm
+
+# ========== 四装甲 EKF 额外参数 ==========
+ekf_init_r_mm: 250.0       # 初始半径 r（mm），按车型实测
+ekf_init_dz_mm: 12.0        # 初始高度偏置（mm），大小装甲若不在同一高度可设 ±d_za/2
+
+tracker:
+  max_match_distance_mm: 50.0  # 跳变后几何一致性阈值（mm）
+  max_match_yaw_diff_rad: 0.4  # yaw 跳变判据（rad）
+
 
 # SharedMemoryClassifier参数
 CLASSIFIER_SHM_KEY : 0x0250

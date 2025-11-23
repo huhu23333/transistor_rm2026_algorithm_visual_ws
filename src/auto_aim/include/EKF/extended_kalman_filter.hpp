@@ -46,6 +46,8 @@ public:
   // 状态初始化, 设置初始状态的函数，将状态向量 x_post 设置为初始值 x0
   void setState(const MatrixX1 &x0) noexcept { x_post = x0; }
 
+  void setP(const MatrixXX &P0) noexcept { P_post = P0; }
+
   // 设置过程模型的函数
   void setPredictFunc(const PredicFunc  &f) noexcept { this->f = f; }
 
@@ -129,8 +131,24 @@ public:
       
       // 计算卡尔曼增益
       K = P_pri * H.transpose() * (H * P_pri * H.transpose() + R).inverse();
+      
       x_post = x_post + K * (z - z_pri);
       P_post = (MatrixXX::Identity() - K * H) * P_pri;
+      // ==== 新增 NaN 检测 ====
+      if (x_post.hasNaN()) {
+          // 打印错误
+          std::cerr << "[EKF ERROR] State has NaN! Resetting filter..." << std::endl;
+          std::cerr << "P_pri max: " << P_pri.maxCoeff() << " min: " << P_pri.minCoeff() << std::endl;
+          std::cerr << "H max: " << H.maxCoeff() << std::endl;
+          std::cerr << "R max: " << R.maxCoeff() << std::endl;
+          
+          // 紧急重置：保留当前观测作为位置，速度清零
+          x_post.setZero();
+          // 假设 z 是 [x, y, z, yaw]，简单粗暴重置一下防止程序崩掉
+          // 注意：这里最好调用外部的 reset，但在模板类里只能做简单处理
+          P_post = MatrixXX::Identity() * 1.0; 
+      }
+      // =====================
     
       return x_post;
   }

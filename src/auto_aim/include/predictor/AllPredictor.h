@@ -11,7 +11,6 @@
 
 #include <3d_processing/BallisticSolver.h>
 #include "3d_processing/ArmorSolver.h"
-#include "EKF/Tracker.h"
 #include "2d_armor_detector/Armor.h"
 #include "utils/FrameRateCounter.h"
 #include "3d_processing/RestFrame.h"
@@ -22,7 +21,8 @@
 #include "predictor/RotationMotionModel.h"
 #include "predictor/PredictorSwitcher.h"
 #include "macro/AutoAimMacro.h"
-
+// EKF
+#include "EKF/Tracker.h"
 struct PredictorResult {
     bool reset = true;
     float command_pitch = 0.0;
@@ -65,30 +65,63 @@ public:
         last_com_time = std::chrono::steady_clock::now();
 
         
-        /// ========== 新的 EKF 和 Tracker 初始化 (9D模型修改) ==========
-        double dt = 1.0 / std::max(1.0f, (*config_file_ptr)["frame_rate"].as<float>());
+        // ===== 通用装甲 EKF 几何参数（按装甲类型分） =====
+        is_outpost_ = (armor_class == ArmorType::Outpost);
 
-        // 1. 新增：从配置文件加载9D EKF参数
-        EKFParams ekf_params;
-        const auto& ekf_config = (*config_file_ptr)["ekf_params"];
+        // ===== 通用装甲 EKF 噪声参数 =====
+        if ((*config_file_ptr)["ekf_params"]) {
+            auto ep = (*config_file_ptr)["ekf_params"];
+            if (ep["s2qx"])   ekf_params_.s2qx   = ep["s2qx"].as<double>();
+            if (ep["s2qy"])   ekf_params_.s2qy   = ep["s2qy"].as<double>();
+            if (ep["s2qz"])   ekf_params_.s2qz   = ep["s2qz"].as<double>();
+            if (ep["s2qyaw"]) ekf_params_.s2qyaw = ep["s2qyaw"].as<double>();
+            if (ep["s2qr"])   ekf_params_.s2qr   = ep["s2qr"].as<double>();
+            ///if (ep["s2qdz"])  ekf_params_.s2qdz  = ep["s2qdz"].as<double>();
 
-        ekf_params.s2qx = ekf_config["sigma2_q_x"].as<double>();
-        ekf_params.s2qy = ekf_config["sigma2_q_y"].as<double>();
-        ekf_params.s2qz = ekf_config["sigma2_q_z"].as<double>();
-        ekf_params.s2qyaw = ekf_config["sigma2_q_yaw"].as<double>(); // 新增
-        ekf_params.s2qr = ekf_config["sigma2_q_r"].as<double>();     // 新增
+            if (ep["r_x"])    ekf_params_.r_x    = ep["r_x"].as<double>();
+            if (ep["r_y"])    ekf_params_.r_y    = ep["r_y"].as<double>();
+            if (ep["r_z"])    ekf_params_.r_z    = ep["r_z"].as<double>();
+            if (ep["r_yaw"])  ekf_params_.r_yaw  = ep["r_yaw"].as<double>();
 
-        ekf_params.r_x = ekf_config["r_x_coeff"].as<double>();
-        ekf_params.r_y = ekf_config["r_y_coeff"].as<double>();
-        ekf_params.r_z = ekf_config["r_z_coeff"].as<double>();
-        ekf_params.r_yaw = ekf_config["r_yaw_val"].as<double>();   // 新增
+            if (ep["p0"])     ekf_params_.p0     = ep["p0"].as<double>();
+        }
 
-        ekf_params.p0 = ekf_config["p0_init_val"].as<double>();
+        if ((*config_file_ptr)["ekf_extra_delay"]) {
+            ekf_extra_delay_ = (*config_file_ptr)["ekf_extra_delay"].as<double>();
+        }
 
-        // 2. 创建Tracker，传入新参数
-        EKF_tracker_ = std::make_shared<Tracker>(dt, ekf_params);
-        RCLCPP_INFO(node->get_logger(), "New 9D EKF Tracker initialized with dt=%.4f and params from config.", dt);
-        // ========== 初始化结束 ==========
+        
+        // ====== 读取匹配阈值（四装甲跳变判据）======
+        // 优先从 tracker 节点读取；如果没有，则尝试顶层键；最后落回默认值
+        if ((*config_file_ptr)["tracker"]) {
+            auto tr = (*config_file_ptr)["tracker"];
+            if (tr["max_match_distance_mm"]) {
+                ekf_max_match_distance_mm_ = tr["max_match_distance_mm"].as<double>();
+            }
+            if (tr["max_match_yaw_diff_rad"]) {
+                ekf_max_match_yaw_diff_rad_ = tr["max_match_yaw_diff_rad"].as<double>();
+            }
+        } else {
+            if ((*config_file_ptr)["ekf_max_match_distance_mm"]) {
+                ekf_max_match_distance_mm_ = (*config_file_ptr)["ekf_max_match_distance_mm"].as<double>();
+            }
+            if ((*config_file_ptr)["ekf_max_match_yaw_diff_rad"]) {
+                ekf_max_match_yaw_diff_rad_ = (*config_file_ptr)["ekf_max_match_yaw_diff_rad"].as<double>();
+            }
+        }
+
+
+        // 初始化通用 EKF Tracker，dt 先随便给一个，后面每帧会更新
+        armor_tracker_ = std::make_shared<armor_ekf::Tracker>(1.0 / 60.0, ekf_params_);
+
+
+        // std::string world_log_path = "/home/dyj/rm2026/transistor_rm2026_algorithm_visual_ws/录制数据/world_coords.csv";
+        // world_log_.open(world_log_path, std::ios::out | std::ios::trunc);
+        // if (world_log_.is_open()) {
+        //     world_log_ << "timestamp_ms,x_mm,y_mm,z_mm,yaw_rad\n";
+        // }
+        
+        // /// ========== 新的 EKF 和 Tracker 初始化 (9D模型修改) ==========
 
         // // ========== EKF 和 Tracker 初始化 (6D模型修改) ==========
         // double dt = 1.0 / std::max(1.0f, frame_rate_);
@@ -181,8 +214,21 @@ private:
     float total_yaw_rad_delayed_ = 0;
     std::shared_ptr<SimpleDataFilter> total_yaw_rad_delayed_filter_;
 
-    // EKF/Tracker 相关新增成员
-    std::shared_ptr<Tracker> EKF_tracker_;
+    // 通用装甲 EKF（基于 FYT 10 维状态）
+    armor_ekf::EKFParams ekf_params_;
+    std::shared_ptr<armor_ekf::Tracker> armor_tracker_;
+    double ekf_last_time_   = 0.20;   // 上一帧时间戳（s）
+    double ekf_extra_delay_ = 0.0;  // 额外提前量（策略冗余）, s
+
+    // 当前这个 AllPredictor 对应目标类型的几何信息
+    int armor_num_         = 4;        // 一圈有几块装甲：普通车 4，前哨站 3
+    double ekf_init_r_mm_  = 265.0;  // 中心到装甲板水平半径
+    double ekf_init_dz_mm_ = 20.0;    // 中心到装甲板高度偏置
+    bool is_outpost_       = false;
+
+    // 四装甲匹配与跳变的阈值（可由 YAML 配置）
+    double ekf_max_match_distance_mm_ = 350.0;
+    double ekf_max_match_yaw_diff_rad_ = 0.40;
 
     float pitch_integration = 0.0;
     float yaw_integration = 0.0;

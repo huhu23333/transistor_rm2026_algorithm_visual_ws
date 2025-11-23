@@ -1,408 +1,288 @@
-// #include "armor_detector/Tracker.h"
-// #include "rclcpp/rclcpp.hpp"
-
-// Tracker::Tracker(double dt, const EKFParams& params) : dt_(dt), state(LOST) {
-//     RobotEKF::UpdateQFunc update_Q = [this, params]() {
-//         Eigen::Matrix<double, N_x, N_x> Q = Eigen::Matrix<double, N_x, N_x>::Zero();
-//         double t = this->dt_;
-//         // 从传入的参数结构体中获取过程噪声
-//         double s2qx = params.s2qx, s2qy = params.s2qy, s2qz = params.s2qz, 
-//                s2qyaw = params.s2qyaw, s2qr = params.s2qr;// s2qd_yc = params.s2qd_yc;
-
-//         // X方向 (索引 0, 1)
-//         double q_x_x=pow(t,4)/4*s2qx, q_x_vx=pow(t,3)/2*s2qx, q_vx_vx=pow(t,2)*s2qx;
-//         Q(0,0)=q_x_x; Q(0,1)=q_x_vx; Q(1,0)=q_x_vx; Q(1,1)=q_vx_vx;
-
-//         // Y方向 (索引 2, 3)
-//         double q_y_y=pow(t,4)/4*s2qy, q_y_vy=pow(t,3)/2*s2qy, q_vy_vy=pow(t,2)*s2qy;
-//         Q(2,2)=q_y_y; Q(2,3)=q_y_vy; Q(3,2)=q_y_vy; Q(3,3)=q_vy_vy;
-
-//         // Z方向 (索引 4, 5)
-//         double q_z_z=pow(t,4)/4*s2qz, q_z_vz=pow(t,3)/2*s2qz, q_vz_vz=pow(t,2)*s2qz;
-//         Q(4,4)=q_z_z; Q(4,5)=q_z_vz; Q(5,4)=q_z_vz; Q(5,5)=q_vz_vz;
-
-//         // Yaw (索引 6, 7)
-//         double q_yaw_yaw=pow(t,4)/4*s2qyaw, q_yaw_vyaw=pow(t,3)/2*s2qyaw, q_vyaw_vyaw=pow(t,2)*s2qyaw;
-//         Q(6,6)=q_yaw_yaw; Q(6,7)=q_yaw_vyaw; Q(7,6)=q_yaw_vyaw; Q(7,7)=q_vyaw_vyaw;
-
-//         // r (索引 8)
-//         Q(8,8) = pow(t,2)*s2qr;
-
-//         // d_yc (索引 9)
-//         Q(9,9) = pow(t,2)*0.01; // 设为一个较小的常数，假设d_yc变化不大
-
-//         return Q;
-//     };
-
-//     RobotEKF::UpdateRFunc update_R = [params](const Measurement& z) {
-//         RobotEKF::MatrixZZ R;
-//         // 从传入的参数结构体中获取测量噪声
-//         double r_x_coeff = params.r_x;
-//         double r_y_val = params.r_y;
-//         double r_z_coeff = params.r_z;
-//         double r_yaw_val = params.r_yaw;
-
-//         // 动态噪声模型：x和z的测量不确定性随距离增大
-//         R << r_x_coeff * std::abs(z[0]), 0, 0, 0,
-//              0, r_y_val, 0, 0,
-//              0, 0, r_z_coeff * std::abs(z[2]), 0,
-//              0, 0, 0, r_yaw_val;
-//         return R;
-//     };
-
-//     // 从传入的参数结构体中获取初始协方差
-//     RobotEKF::MatrixXX P0 = RobotEKF::MatrixXX::Identity();
-//     P0 = P0 * params.p0;
-//     //P0(9, 9) = 0.000000001;
-
-//     ekf_ = std::make_unique<RobotEKF>(Predict(dt_), Measure(), update_Q, update_R, P0);
-// }
-
-// void Tracker::reset(const Measurement& z) {
-//     state = DETECTING;
-//     detect_count_ = 0; lost_count_ = 0;
-//     State x0 = State::Zero();
-    
-//     double xa = z(0), ya = z(1), za = z(2), yaw = z(3);
-//     double r = 180.0;
-    
-//     double xc = xa + r * cos(yaw);
-//     double zc = za + r * sin(yaw);
-//     double yc = ya;
-    
-//     x0(0) = xc;
-//     x0(2) = yc;
-//     x0(4) = zc;
-//     x0(6) = yaw;
-//     x0(8) = r;
-
-//     ekf_->setState(x0);
-//     RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET!");
-// }
-
-// Tracker::State Tracker::predict() {
-//     auto state_vec = ekf_->predict();
-//     if (state == TRACKING) {
-//         lost_count_++;
-//         if (lost_count_ > lost_thres_) state = LOST;
-//         else state = TEMP_LOST;
-//     } else if (state == DETECTING) {
-//         lost_count_++;
-//         if (lost_count_ > lost_thres_ / 2) state = LOST;
-//     }
-//     return state_vec;
-// }
-
-// Tracker::State Tracker::update(const Measurement& z) {
-//     auto state_vec = ekf_->update(z);
-    
-//     if (state_vec(8) < 120.0) state_vec(8) = 120.0;
-//     else if (state_vec(8) > 400.0) state_vec(8) = 400.0;
-//     ekf_->setState(state_vec);
-
-//     lost_count_ = 0;
-//     if (state == DETECTING) {
-//         detect_count_++;
-//         if (detect_count_ > tracking_thres_) {
-//             state = TRACKING;
-//             RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker stable: TRACKING");
-//         }
-//     } else if (state == TEMP_LOST) state = TRACKING;
-//     return state_vec;
-// }
-
-// Tracker::State Tracker::getTargetState() const { return ekf_->getState(); }
-
-// Eigen::Vector3d Tracker::getArmorPosition() const {
-//     State x = getTargetState();
-//     double xc=x(0), yc=x(2), zc=x(4), yaw=x(6), r=x(8);
-//     return {xc - r * cos(yaw), yc, zc - r * sin(yaw)};
-// }
-
-// Tracker::State Tracker::predictAhead(double t_ahead) const {
-//     if (t_ahead < 1e-3) return getTargetState();
-//     State x_k = getTargetState();
-//     Predict pred(t_ahead);
-//     State x_final;
-//     pred(x_k.data(), x_final.data());
-//     return x_final;
-// }
-
-
-
-
-// #include "EKF/Tracker.h"
-// #include "rclcpp/rclcpp.hpp"
-
-// Tracker::Tracker(double dt, const EKFParams& params) : dt_(dt), state(LOST) {
-//     RobotEKF::UpdateQFunc update_Q = [this, params]() {
-//         Eigen::Matrix<double, N_x, N_x> Q = Eigen::Matrix<double, N_x, N_x>::Zero();
-//         double t = this->dt_;
-//         double t2 = t * t;
-//         double t3_2 = pow(t, 3) / 2.0;
-//         double t4_4 = pow(t, 4) / 4.0;
-        
-//         // 从传入的参数结构体中获取过程噪声标准差
-//         double s2qx = params.s2qx, s2qy = params.s2qy, s2qz = params.s2qz;
-
-//         // 匀速模型的过程噪声矩阵
-//         // Q = G * diag([s2qx, s2qy, s2qz]) * G^T, where G = [t^2/2, t, 0, 0, ...]^T
-//         Q(0,0)=t4_4*s2qx; Q(0,1)=t3_2*s2qx;
-//         Q(1,0)=t3_2*s2qx; Q(1,1)=t2*s2qx;
-
-//         Q(2,2)=t4_4*s2qy; Q(2,3)=t3_2*s2qy;
-//         Q(3,2)=t3_2*s2qy; Q(3,3)=t2*s2qy;
-
-//         Q(4,4)=t4_4*s2qz; Q(4,5)=t3_2*s2qz;
-//         Q(5,4)=t3_2*s2qz; Q(5,5)=t2*s2qz;
-
-//         return Q;
-//     };
-
-//     RobotEKF::UpdateRFunc update_R = [params](const Measurement& z) {
-//         RobotEKF::MatrixZZ R;
-//         // 测量噪声仍然可以和距离相关
-//         double r_x = params.r_x;
-//         double r_y = params.r_y;
-//         double r_z = params.r_z;
-        
-//         // 示例：让x,y的噪声也和z相关，可以根据实际情况调整
-//         double dist_z = std::max(1.0, std::abs(z[2]));
-//         R << r_x * dist_z, 0, 0,
-//              0, r_y * dist_z, 0,
-//              0, 0, r_z * dist_z;
-//         return R;
-//     };
-
-//     RobotEKF::MatrixXX P0 = RobotEKF::MatrixXX::Identity() * params.p0;
-
-//     ekf_ = std::make_unique<RobotEKF>(Predict(dt_), Measure(), update_Q, update_R, P0);
-// }
-
-// void Tracker::reset(const Measurement& z) {
-//     state = DETECTING;
-//     detect_count_ = 0; lost_count_ = 0;
-    
-//     State x0 = State::Zero();
-//     // 测量值z现在是 [xa, ya, za]
-//     x0(0) = z(0);
-//     x0(2) = z(1);
-//     x0(4) = z(2);
-//     // 速度初始化为0
-    
-//     ekf_->setState(x0);
-//     RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with 6D model!");
-// }
-
-// Tracker::State Tracker::predict() {
-//     auto state_vec = ekf_->predict();
-//     if (state == TRACKING) {
-//         lost_count_++;
-//         if (lost_count_ > lost_thres_) state = LOST;
-//         else state = TEMP_LOST;
-//     } else if (state == DETECTING) {
-//         lost_count_++;
-//         if (lost_count_ > lost_thres_ / 2) state = LOST;
-//     }
-//     return state_vec;
-// }
-
-// Tracker::State Tracker::update(const Measurement& z) {
-//     auto state_vec = ekf_->update(z);
-//     ekf_->setState(state_vec);
-
-//     lost_count_ = 0;
-//     if (state == DETECTING) {
-//         detect_count_++;
-//         if (detect_count_ > tracking_thres_) {
-//             state = TRACKING;
-//             RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker stable: TRACKING");
-//         }
-//     } else if (state == TEMP_LOST) state = TRACKING;
-//     return state_vec;
-// }
-
-// Tracker::State Tracker::getTargetState() const { return ekf_->getState(); }
-
-// Eigen::Vector3d Tracker::getArmorPosition() const {
-//     State x = getTargetState();
-//     return {x(0), x(2), x(4)};
-// }
-
-// Tracker::State Tracker::predictAhead(double t_ahead) const {
-//     if (t_ahead < 1e-3) return getTargetState();
-//     State x_k = getTargetState();
-//     Predict pred(t_ahead);
-//     State x_final;
-//     pred(x_k.data(), x_final.data());
-//     return x_final;
-// }
-
-// // 新增函数的实现
-// void Tracker::guideState(const Measurement& z) {
-//     // === 状态引导逻辑 ===
-//     RCLCPP_WARN(rclcpp::get_logger("armor_detect_node"), "Potential armor switch detected! Guiding the state.");
-
-//     // 1. 获取当前状态
-//     State current_state = this->getTargetState();
-
-//     // 2. 保留并约束历史速度
-//     Eigen::Vector3d old_velocity(current_state(1), current_state(3), current_state(5));
-//     double old_speed = old_velocity.norm();
-    
-//     constexpr double MAX_REASONABLE_SPEED = 1000.0; // 3 m/s，可调
-//     if (old_speed > MAX_REASONABLE_SPEED) {
-//         old_velocity = old_velocity.normalized() * MAX_REASONABLE_SPEED;
-//     }
-
-//     // 3. 构建新的“引导”状态
-//     State guided_state;
-//     guided_state(0) = z(0);
-//     guided_state(1) = old_velocity.x();
-//     guided_state(2) = z(1);
-//     guided_state(3) = old_velocity.y();
-//     guided_state(4) = z(2);
-//     guided_state(5) = old_velocity.z();
-
-//     // 4. 手动设置EKF内部状态
-//     ekf_->setState(guided_state);
-    
-//     // 5. 将追踪器状态拉回到TRACKING
-//     lost_count_ = 0;
-//     detect_count_ = 0; // 可以顺便重置，以防万一
-//     state = TRACKING; // 恢复状态
-//     RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker state guided back to TRACKING.");
-// }
-
-
-
 #include "EKF/Tracker.h"
-#include "rclcpp/rclcpp.hpp"
+#include <algorithm>
+#include <cmath>
 
-Tracker::Tracker(double dt, const EKFParams& params) : dt_(dt), state(LOST) {
-    RobotEKF::UpdateQFunc update_Q = [this, params]() {
-        Eigen::Matrix<double, N_x, N_x> Q = Eigen::Matrix<double, N_x, N_x>::Zero();
-        double t = this->dt_;
-        // 从传入的参数结构体中获取过程噪声
-        double s2qx = params.s2qx, s2qy = params.s2qy, s2qz = params.s2qz, 
-               s2qyaw = params.s2qyaw, s2qr = params.s2qr;
+namespace armor_ekf
+{
 
-        // X方向 (索引 0, 1)
-        double q_x_x=pow(t,4)/4*s2qx, q_x_vx=pow(t,3)/2*s2qx, q_vx_vx=pow(t,2)*s2qx;
-        Q(0,0)=q_x_x; Q(0,1)=q_x_vx; Q(1,0)=q_x_vx; Q(1,1)=q_vx_vx;
+Tracker::Tracker(double dt, const EKFParams &params)
+    : params_(params),
+      dt_(dt),
+      model_(MotionModel::CONSTANT_VEL_ROT),
+      state_flag_(TrackState::LOST)
+{
+    // Q 更新函数
+    RobotEKF::UpdateQFunc updateQ = [this]() {
+        RobotEKF::MatrixXX Q = RobotEKF::MatrixXX::Zero();
+        const double t = std::max(dt_, 1e-3); // 这里的 dt_ 是秒
 
-        // Y方向 (索引 2, 3)
-        double q_y_y=pow(t,4)/4*s2qy, q_y_vy=pow(t,3)/2*s2qy, q_vy_vy=pow(t,2)*s2qy;
-        Q(2,2)=q_y_y; Q(2,3)=q_y_vy; Q(3,2)=q_y_vy; Q(3,3)=q_vy_vy;
+        auto put_block = [&](int p, int v, double s2) {
+            // 使用 t^3 和 t^2，而不是 t^4
+            Q(p, p) += 0.3333 * t * t * t * s2;  // 位置方差 ~ 1/3 * dt^3 * sigma^2
+            Q(p, v) += 0.5    * t * t * s2;      // 协方差   ~ 1/2 * dt^2 * sigma^2
+            Q(v, p) += 0.5    * t * t * s2;
+            Q(v, v) +=          t * s2;          // 速度方差 ~ dt * sigma^2
+        };
 
-        // Z方向 (索引 4, 5)
-        double q_z_z=pow(t,4)/4*s2qz, q_z_vz=pow(t,3)/2*s2qz, q_vz_vz=pow(t,2)*s2qz;
-        Q(4,4)=q_z_z; Q(4,5)=q_z_vz; Q(5,4)=q_z_vz; Q(5,5)=q_vz_vz;
+        put_block(0, 1, params_.s2qx);   
+        put_block(2, 3, params_.s2qy);   
+        put_block(4, 5, params_.s2qz);   
+        put_block(6, 7, params_.s2qyaw); 
 
-        // Yaw (索引 6, 7)
-        double q_yaw_yaw=pow(t,4)/4*s2qyaw, q_yaw_vyaw=pow(t,3)/2*s2qyaw, q_vyaw_vyaw=pow(t,2)*s2qyaw;
-        Q(6,6)=q_yaw_yaw; Q(6,7)=q_yaw_vyaw; Q(7,6)=q_yaw_vyaw; Q(7,7)=q_vyaw_vyaw;
-
-        // r (索引 8)
-        Q(8,8) = pow(t,2)*s2qr;
+        // r 和 dz 的动态通常较慢，用一阶积分即可
+        Q(8, 8) = t * 1e-5;
+        //Q(9, 9) = t * 1e-5;
 
         return Q;
     };
 
-    RobotEKF::UpdateRFunc update_R = [params](const Measurement& z) {
-        RobotEKF::MatrixZZ R;
-        // 从传入的参数结构体中获取测量噪声
-        double r_x = params.r_x;
-        double r_y = params.r_y;
-        double r_z = params.r_z;
-        double r_yaw = params.r_yaw;
+    // R 更新函数：使用固定测量噪声（params_ 里保存的是“标准差”）
+    RobotEKF::UpdateRFunc updateR = [this](const RobotEKF::MatrixZ1 &) {
+        RobotEKF::MatrixZZ R = RobotEKF::MatrixZZ::Zero();
 
-        // 动态噪声模型：x和z的测量不确定性随距离增大
-        double dist = sqrt(z[0]*z[0] + z[2]*z[2]);
-        R << r_x * dist, 0, 0, 0,
-             0, r_y * dist, 0, 0,
-             0, 0, r_z * dist, 0,
-             0, 0, 0, r_yaw;
+        const double sx   = params_.r_x;
+        const double sy   = params_.r_y;
+        const double sz   = params_.r_z;
+        const double syaw = params_.r_yaw;
+
+        R(0,0) = sx   * sx;   // x 方差 (mm^2)
+        R(1,1) = sy   * sy;   // y
+        R(2,2) = sz   * sz;   // z
+        R(3,3) = syaw * syaw; // yaw 方差 (rad^2)
         return R;
     };
 
-    // 从传入的参数结构体中获取初始协方差
-    RobotEKF::MatrixXX P0 = RobotEKF::MatrixXX::Identity() * params.p0;
 
-    ekf_ = std::make_unique<RobotEKF>(Predict(dt_), Measure(), update_Q, update_R, P0);
+
+
+    // 初始协方差
+    RobotEKF::MatrixXX P0 = RobotEKF::MatrixXX::Identity() * params_.p0;
+
+    ekf_ = std::make_unique<RobotEKF>(
+        Predict(dt_, model_),   // 过程模型
+        Measure{},              // 量测模型
+        updateQ,
+        updateR,
+        P0);
+
+    x_.setZero();
+    ekf_->setState(x_);
 }
 
-void Tracker::reset(const Measurement& z) {
-    state = DETECTING;
-    detect_count_ = 0; lost_count_ = 0;
-    
-    State x0 = State::Zero();
-    
-    double xa = z(0), ya = z(1), za = z(2), yaw = z(3);
-    // 使用一个合理的初始半径来估计中心位置，例如200mm
-    double r_init = 200.0; 
-    
-    // 根据Measure函数的反函数来计算中心初始位置
-    double xc = xa + r_init * sin(yaw);
-    double yc = ya - r_init * cos(yaw); // 简化模型，高度相同
-    double zc = za ;
-    
-    x0(0) = xc;
-    x0(2) = yc;
-    x0(4) = zc;
-    x0(6) = yaw;
-    x0(8) = r_init; // 设置初始半径
-
-    ekf_->setState(x0);
-    RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with 9D model!");
+void Tracker::setDt(double dt)
+{
+    dt_ = dt;
+    ekf_->setPredictFunc(Predict(dt_, model_));
 }
 
-Tracker::State Tracker::predict() {
-    auto state_vec = ekf_->predict();
-    if (state == TRACKING) {
-        lost_count_++;
-        if (lost_count_ > lost_thres_) state = LOST;
-        else state = TEMP_LOST;
-    } else if (state == DETECTING) {
-        lost_count_++;
-        if (lost_count_ > lost_thres_ / 2) state = LOST;
+void Tracker::setMotionModel(MotionModel m)
+{
+    model_ = m;
+    ekf_->setPredictFunc(Predict(dt_, model_));
+}
+
+void Tracker::resetFromArmor(const Measurement &z, double init_r_mm)
+{
+    const double xa  = z(0);
+    const double ya  = z(1);
+    const double za  = z(2);
+    const double yaw = z(3);
+
+    const double r  = init_r_mm;
+
+    const double c = std::cos(yaw);
+    const double s = std::sin(yaw);
+
+    const double xc = xa - OFFSET_SIGN * r * c;
+    const double yc = ya + OFFSET_SIGN * r * s;
+    const double zc = za;
+
+    x_.setZero();
+    x_(0) = xc;
+    x_(2) = yc;
+    x_(4) = zc;
+    x_(6) = yaw;
+    x_(8) = r;                
+
+    ekf_->setState(x_);
+    ekf_->setP(RobotEKF::MatrixXX::Identity() * params_.p0);
+
+    another_r_ = r;
+    last_yaw_  = yaw;
+
+    state_flag_ = TrackState::DETECTING;
+    detect_cnt_ = 0;
+    lost_cnt_   = 0;
+}
+
+
+Tracker::State Tracker::predict()
+{
+    if (!ekf_)
+        return x_;
+
+    x_ = ekf_->predict();
+
+    if (state_flag_ == TrackState::DETECTING ||
+        state_flag_ == TrackState::TRACKING)
+    {
+        if (++detect_cnt_ > tracking_thres_)
+            state_flag_ = TrackState::TRACKING;
     }
-    return state_vec;
+    else if (state_flag_ == TrackState::TEMP_LOST)
+    {
+        if (++lost_cnt_ > lost_thres_)
+            state_flag_ = TrackState::LOST;
+    }
+
+    return x_;
 }
 
-Tracker::State Tracker::update(const Measurement& z) {
-    auto state_vec = ekf_->update(z);
-    
-    // 对半径增加约束，防止发散
-    if (state_vec(8) < 120.0) state_vec(8) = 120.0; // 最小半径
-    else if (state_vec(8) > 400.0) state_vec(8) = 400.0; // 最大半径
-    ekf_->setState(state_vec);
+Tracker::State Tracker::update(const Measurement &z)
+{
+    if (!ekf_)
+        return x_;
 
-    lost_count_ = 0;
-    if (state == DETECTING) {
-        detect_count_++;
-        if (detect_count_ > tracking_thres_) {
-            state = TRACKING;
-            RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker stable: TRACKING");
+    // 直接用测量：只保证 yaw 本身在 [-pi, pi]，不要根据 pred_yaw 去改它
+    Measurement z_proc = z;
+    double meas_yaw = z(3);
+    z_proc(3) = std::atan2(std::sin(meas_yaw), std::cos(meas_yaw));
+
+    // 使用处理过的测量更新 EKF
+    x_ = ekf_->update(z_proc);
+
+    double &yaw  = x_(6);
+    double &vyaw = x_(7);
+    double &r    = x_(8);
+    //double &dz   = x_(9);
+
+    // 1) yaw wrap 到 [-pi, pi]
+    yaw = std::atan2(std::sin(yaw), std::cos(yaw));
+
+    // 2) 限制角速度（按实测陀螺速度调）
+    const double max_vyaw = 6.0;   // 或 8.0，看录像
+    vyaw = std::clamp(vyaw, -max_vyaw, max_vyaw);
+
+    // 3) 限制半径 / 高度偏置
+    r  = std::clamp(r, 150.0, 380.0);   // mm，按车几何调;
+    //dz = std::clamp(dz, -80.0, 80.0);   // mm，两层高度差预留空间
+
+    ekf_->setState(x_);
+
+    // 有量测就认为还没彻底丢
+    lost_cnt_ = 0;
+    if (state_flag_ == TrackState::LOST)
+        state_flag_ = TrackState::DETECTING;
+
+    return x_;
+}
+
+
+Eigen::Matrix<double, 4, 1> Tracker::predictAhead(double t_ahead) const
+{
+    Eigen::Matrix<double, 4, 1> out;
+    out.setZero();
+
+    if (!ekf_)
+        return out;
+
+    const auto &x = x_;
+
+    double xc   = x(0) + x(1) * t_ahead;
+    double yc   = x(2) + x(3) * t_ahead;
+    double zc   = x(4) + x(5) * t_ahead;
+    double yaw  = x(6) + x(7) * t_ahead;
+
+    // wrap 到 [-pi, pi]
+    yaw = std::atan2(std::sin(yaw), std::cos(yaw));
+
+    out << xc, yc, zc, yaw;
+    return out;
+}
+
+Eigen::Vector3d Tracker::armorPositionFromState(const State& x, int offset_sign)
+{
+    const double xc  = x(0), yc = x(2), zc = x(4);
+    const double yaw = x(6), r  = x(8);// dz = x(9);
+
+    const double c = std::cos(yaw);
+    const double s = std::sin(yaw);
+
+    const double xa = xc + offset_sign * r * s;
+    const double ya = yc - offset_sign * r * c;
+    const double za = zc;//+ dz;
+    return {xa, ya, za};
+}
+
+void Tracker::handleArmorJump(double measured_yaw,
+                              const Eigen::Vector3d &measured_pos)
+{
+    // 1) 计算角度差 (保持原样)
+    const double pred_yaw = x_(6);
+    double dyaw = measured_yaw - pred_yaw;
+    dyaw = std::atan2(std::sin(dyaw), std::cos(dyaw));
+
+    bool is_switching = false;
+
+    // 2) 处理 Yaw 跳变
+    if (std::abs(dyaw) > max_match_yaw_diff_) {
+        is_switching = true;
+
+        if (armors_num_ == ArmorsNum::NORMAL_4) {
+            d_za_ = (x_(4) + x_(9)) - measured_pos.z();
+            
+            // 【修正 3】安全交换半径
+            if (another_r_ > 100.0) std::swap(x_(8), another_r_);
+            else another_r_ = x_(8);
+
+            ///d_zc_ = (std::abs(d_zc_) < 1e-6) ? (-d_za_) : 0.0;
+            //x_(9) = d_zc_;
         }
-    } else if (state == TEMP_LOST) state = TRACKING;
-    return state_vec;
+
+        x_(6) = measured_yaw;
+        // 【修正 2】不要清零角速度！
+        // x_(7) = 0.0;  <-- 删除这行
+        ekf_->setState(x_);
+    }
+
+    // 3) 几何一致性检查
+    const Eigen::Vector3d infer_pos = armorPositionFromState(x_, OFFSET_SIGN);
+    
+    // 如果是切换状态，或者距离误差实在太大
+    if (is_switching || (infer_pos - measured_pos).norm() > max_match_distance_) {
+        
+        // 利用观测位置 + EKF的半径 强行拉回中心
+        const double xa  = measured_pos.x();
+        const double ya  = measured_pos.y();
+        const double za  = measured_pos.z();
+        const double yaw = x_(6);
+        const double r   = x_(8); // 信任滤波器收敛的半径
+        //const double dz  = x_(9);
+        const double c   = std::cos(yaw);
+        const double s   = std::sin(yaw);
+
+        // 反解中心
+        const double xc = xa - OFFSET_SIGN * r * s;
+        const double yc = ya + OFFSET_SIGN * r * c;
+        const double zc = za;// - dz;
+
+        // 【修正 1】只修正位置，保留速度
+        x_(0) = xc; 
+        // x_(1) = 0.0; <-- 删除
+        x_(2) = yc; 
+        // x_(3) = 0.0; <-- 删除
+        x_(4) = zc; 
+        // x_(5) = 0.0; <-- 删除
+        
+        // x_(7) = 0.0; <-- 删除
+        
+        ekf_->setState(x_);
+    }
+    
+    last_yaw_ = measured_yaw;
 }
 
-Tracker::State Tracker::getTargetState() const { return ekf_->getState(); }
 
-Eigen::Vector3d Tracker::getArmorPosition() const {
-    State x = getTargetState();
-    double xc=x(0), yc=x(2), zc=x(4), yaw=x(6), r=x(8);
-    // 根据Measure函数计算装甲板位置
-    return {xc - r * sin(yaw), yc + r * cos(yaw), zc};
-}
 
-Tracker::State Tracker::predictAhead(double t_ahead) const {
-    if (t_ahead < 1e-3) return getTargetState();
-    State x_k = getTargetState();
-    Predict pred(t_ahead);
-    State x_final;
-    pred(x_k.data(), x_final.data());
-    return x_final;
-}
+
+} // namespace armor_ekf

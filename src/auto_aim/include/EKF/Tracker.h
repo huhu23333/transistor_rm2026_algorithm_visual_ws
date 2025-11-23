@@ -1,179 +1,124 @@
-// #pragma once
-
-// #include "motion_model.hpp" 
-// #include <memory>
-// #include <Eigen/Dense>
-// #include <rclcpp/rclcpp.hpp>
-
-// // 新增：用于传递EKF参数的结构体
-// struct EKFParams {
-//     // 过程噪声 Q
-//     double s2qx, s2qy, s2qz, s2qyaw, s2qr, s2qd_yc;
-//     // 测量噪声 R
-//     double r_x, r_y, r_z, r_yaw;
-//     // 初始协方差 P0
-//     double p0;
-// };
-
-
-// class Tracker {
-// public:
-//     using State = RobotEKF::MatrixX1;
-//     using Measurement = RobotEKF::MatrixZ1;
-
-//     // 追踪器状态机
-//     enum StateType {
-//         LOST,       // 完全丢失
-//         DETECTING,  // 刚检测到，待稳定
-//         TRACKING,   // 稳定追踪
-//         TEMP_LOST   // 短暂丢失
-//     } state;
-
-//     // 构造函数，传入时间步长dt和EKF参数
-//     explicit Tracker(double dt, const EKFParams& params);
-
-//     // 使用第一个装甲板测量值来初始化或重置滤波器
-//     void reset(const Measurement& z);
-
-//     State predict();
-//     State update(const Measurement& z);
-
-//     // 获取当前滤波后的状态（机器人中心状态）
-//     State getTargetState() const;
-
-//     // 提前预测机器人中心在未来t_ahead秒后的状态
-//     State predictAhead(double t_ahead) const;
-
-//     // 从机器人中心状态计算出当前装甲板的预测位置
-//     Eigen::Vector3d getArmorPosition() const;
-
-// private:
-//     std::unique_ptr<RobotEKF> ekf_; // EKF滤波器实例
-//     double dt_;                   // 时间步长
-//     int tracking_thres_ = 5;      // 进入稳定追踪状态的帧数阈值
-//     int lost_thres_ = 10;         // 判断为完全丢失的帧数阈值
-//     int detect_count_ = 0;        // 稳定追踪计数
-//     int lost_count_ = 0;          // 丢失计数
-// };
-
-
-
-// #pragma once
-
-// #include "motion_model.hpp" 
-// #include <memory>
-// #include <Eigen/Dense>
-
-// // 修改：用于传递EKF参数的结构体
-// struct EKFParams {
-//     // 过程噪声 Q (加速度的标准差)
-//     double s2qx, s2qy, s2qz;
-//     // 测量噪声 R (位置的标准差)
-//     double r_x, r_y, r_z;
-//     // 初始协方差 P0
-//     double p0;
-// };
-
-
-// class Tracker {
-// public:
-//     using State = RobotEKF::MatrixX1;
-//     using Measurement = RobotEKF::MatrixZ1;
-
-//     // 追踪器状态机
-//     enum StateType {
-//         LOST,       // 完全丢失
-//         DETECTING,  // 刚检测到，待稳定
-//         TRACKING,   // 稳定追踪
-//         TEMP_LOST   // 短暂丢失
-//     } state;
-
-//     // 构造函数，传入时间步长dt和EKF参数
-//     explicit Tracker(double dt, const EKFParams& params);
-
-//     // 使用第一个装甲板测量值来初始化或重置滤波器
-//     void reset(const Measurement& z);
-
-//     State predict();
-//     State update(const Measurement& z);
-
-//     // 获取当前滤波后的状态（装甲板状态）
-//     State getTargetState() const;
-
-//     // 提前预测装甲板在未来t_ahead秒后的状态
-//     State predictAhead(double t_ahead) const;
-
-//     // 获取当前装甲板的预测位置 (API简化)
-//     Eigen::Vector3d getArmorPosition() const;
-
-//     // 新增：用于状态引导的公共接口
-//     void guideState(const Measurement& z);
-
-// private:
-//     std::unique_ptr<RobotEKF> ekf_; // EKF滤波器实例
-//     double dt_;                   // 时间步长
-//     int tracking_thres_ = 5;      // 进入稳定追踪状态的帧数阈值
-//     int lost_thres_ = 10;         // 判断为完全丢失的帧数阈值
-//     int detect_count_ = 0;        // 稳定追踪计数
-//     int lost_count_ = 0;          // 丢失计数
-// };
-
-
-
 #pragma once
 
-#include "motion_model.hpp" 
-#include <memory>
+#include "motion_model.hpp"
 #include <Eigen/Dense>
-#include <rclcpp/rclcpp.hpp>
+#include <memory>
 
-// 新增：用于传递9D EKF参数的结构体
-struct EKFParams {
-    // 过程噪声 Q
-    double s2qx, s2qy, s2qz, s2qyaw, s2qr;
-    // 测量噪声 R
-    double r_x, r_y, r_z, r_yaw;
-    // 初始协方差 P0
-    double p0;
+namespace armor_ekf
+{
+
+// EKF 噪声参数（可以从 yaml 里读，也可以直接在这里调）
+
+struct EKFParams
+{
+    // 过程噪声（s2 越小，滤波越平滑，但也越滞后；s2 越大，越灵敏但抖动）
+    // 建议：降低 xy 噪声以平滑中心，极度降低 r 和 dz 噪声以锁死结构
+    double s2qx  = 20.0;   // 小，让中心平滑移动
+    double s2qy  = 20.0;   
+    double s2qz  = 10.0;   // 2e3
+    double s2qyaw = 100.0; // yaw 角速度可能很快，保持一定响应能力
+
+    double s2qr   = 0.1;   // 半径几乎是不变的
+    //double s2qdz  = 0.1;   // 高度差几乎是不变的
+
+    // 测量噪声（r 越大，越不信任观测，滤波越平滑）
+    // 如果预测点抖动厉害，适当调大 r_x, r_y
+    double r_x   = 0.15;   // mm (系数，与距离成正比)
+    double r_y   = 0.15;   // mm
+    double r_z   = 0.15;   // mm
+    double r_yaw = 0.05;   // rad
+
+    // 初始协方差
+    double p0 = 500.0;
 };
 
 
-class Tracker {
+class Tracker
+{
 public:
-    using State = RobotEKF::MatrixX1;
+    enum class ArmorsNum { NORMAL_4 = 4, BALANCE_2 = 2, OUTPOST_3 = 3 };
+
+    void setArmorsNum(ArmorsNum n) { armors_num_ = n; }
+    void setMatchThresholds(double max_dist_mm, double max_yaw_diff_rad) {
+        max_match_distance_ = max_dist_mm;
+        max_match_yaw_diff_ = max_yaw_diff_rad;
+    }
+
+    using State       = RobotEKF::MatrixX1;
     using Measurement = RobotEKF::MatrixZ1;
 
-    // 追踪器状态机
-    enum StateType {
-        LOST,       // 完全丢失
-        DETECTING,  // 刚检测到，待稳定
-        TRACKING,   // 稳定追踪
-        TEMP_LOST   // 短暂丢失
-    } state;
+    enum class TrackState
+    {
+        LOST,
+        DETECTING,
+        TRACKING,
+        TEMP_LOST
+    };
 
-    // 构造函数，传入时间步长dt和EKF参数
-    explicit Tracker(double dt, const EKFParams& params);
+    explicit Tracker(double dt, const EKFParams &params);
 
-    // 使用第一个装甲板测量值来初始化或重置滤波器
-    void reset(const Measurement& z);
+    void setDt(double dt);
+    void setMotionModel(MotionModel m);
 
+    // 用第一帧装甲板测量初始化滤波器
+    // init_r_mm: 该类型机器人中心到装甲板的水平半径
+    // init_dz_mm: 该类型机器人中心到装甲板的高度偏置
+    void resetFromArmor(const Measurement &z,
+                        double init_r_mm);
+                        //double init_dz_mm);
+
+    // 纯预测一步
     State predict();
-    State update(const Measurement& z);
 
-    // 获取当前滤波后的状态（机器人中心状态）
-    State getTargetState() const;
+    // 带量测更新
+    State update(const Measurement &z);
 
-    // 提前预测机器人中心在未来t_ahead秒后的状态
-    State predictAhead(double t_ahead) const;
+    // 预测未来 t_ahead 秒后的【中心位置 + yaw】
+    // 返回 [xc, yc, zc, yaw]^T
+    Eigen::Matrix<double, 4, 1> predictAhead(double t_ahead) const;
 
-    // 从机器人中心状态计算出当前装甲板的预测位置
-    Eigen::Vector3d getArmorPosition() const;
+    // 4装甲跳变处理（在 predict/update 前调用）
+    void handleArmorJump(double measured_yaw,
+                     const Eigen::Vector3d &measured_pos);
+    // 由状态反解“当前这块装甲”的三维位置（便于匹配/调试）
+    static Eigen::Vector3d armorPositionFromState(const State& x, int offset_sign = OFFSET_SIGN);
+
+    const State &state() const { return x_; }
+    TrackState trackState() const { return state_flag_; }
+
+    
 
 private:
-    std::unique_ptr<RobotEKF> ekf_; // EKF滤波器实例
-    double dt_;                   // 时间步长
-    int tracking_thres_ = 5;      // 进入稳定追踪状态的帧数阈值
-    int lost_thres_ = 10;         // 判断为完全丢失的帧数阈值
-    int detect_count_ = 0;        // 稳定追踪计数
-    int lost_count_ = 0;          // 丢失计数
-};
+    std::unique_ptr<RobotEKF> ekf_;
+    EKFParams params_;
+
+    State x_ {};              // 当前后验状态
+    double dt_ {};            // 时间步长
+    MotionModel model_;       // 当前使用的运动模型
+    TrackState state_flag_;   // 状态机
+
+    int detect_cnt_ = 0;      // 连续检测到的帧数
+    int lost_cnt_   = 0;      // 连续丢失的帧数
+
+    const int tracking_thres_ = 5;  // 从 DETECTING 进入 TRACKING 所需的连续检测帧数 
+    const int lost_thres_     = 60; // 从 TRACKING 进入 LOST 所需的连续丢失帧数 
+
+    // 四装甲相关与匹配阈值
+    ArmorsNum armors_num_{ArmorsNum::NORMAL_4};
+
+    // 另一块装甲的半径（四装甲在切换时交替使用）
+    double another_r_{0.0};
+    // 两层装甲的相对高度差幅值（例如 0 与 ±d_za 间切换），按实测给初值
+    double d_za_{0.0};
+    // “当前使用”的中心->装甲高度偏置（与 x_(9) 保持一致，便于切换）
+    //double d_zc_{0.0};
+    // 上一时刻的 yaw（可用于必要的跳变判据增强）
+    double last_yaw_{0.0};
+
+    // 匹配门限
+    double max_match_distance_{350.0}; // mm
+    double max_match_yaw_diff_{0.40};  // rad
+
+    };
+
+} // namespace armor_ekf
