@@ -138,42 +138,57 @@ Tracker::Tracker(double dt, const EKFParams& params) : dt_(dt), state(LOST) {
     RobotEKF::UpdateQFunc update_Q = [this, params]() {
         Eigen::Matrix<double, N_x, N_x> Q = Eigen::Matrix<double, N_x, N_x>::Zero();
         double t = this->dt_;
-        double t2 = t * t;
-        double t3_2 = pow(t, 3) / 2.0;
-        double t4_4 = pow(t, 4) / 4.0;
         
-        // 从传入的参数结构体中获取过程噪声标准差
-        double s2qx = params.s2qx, s2qy = params.s2qy, s2qz = params.s2qz;
+        // 计算Q矩阵元素的系数 (基于离散维纳过程加速模型 DWPA)
+        // 噪声源是 Jerk (加加速度)
+        double t2 = t * t;
+        double t3 = t2 * t;
+        double t4 = t2 * t2;
+        double t5 = t2 * t3;
 
-        // 匀速模型的过程噪声矩阵
-        // Q = G * diag([s2qx, s2qy, s2qz]) * G^T, where G = [t^2/2, t, 0, 0, ...]^T
-        Q(0,0)=t4_4*s2qx; Q(0,1)=t3_2*s2qx;
-        Q(1,0)=t3_2*s2qx; Q(1,1)=t2*s2qx;
+        // Q block matrix coefficients
+        // cov(x, x) = dt^5 / 20
+        // cov(x, v) = dt^4 / 8
+        // cov(x, a) = dt^3 / 6
+        // cov(v, v) = dt^3 / 3
+        // cov(v, a) = dt^2 / 2
+        // cov(a, a) = dt
+        
+        double q_x_x   = t5 / 20.0, q_x_v   = t4 / 8.0,  q_x_a   = t3 / 6.0;
+        double q_v_v   = t3 / 3.0,  q_v_a   = t2 / 2.0;
+        double q_a_a   = t;
 
-        Q(2,2)=t4_4*s2qy; Q(2,3)=t3_2*s2qy;
-        Q(3,2)=t3_2*s2qy; Q(3,3)=t2*s2qy;
+        // X轴 (Indices 0, 1, 2)
+        double sx = params.s2q_ax; // Variance of Jerk X
+        Q(0,0) = q_x_x * sx; Q(0,1) = q_x_v * sx; Q(0,2) = q_x_a * sx;
+        Q(1,0) = q_x_v * sx; Q(1,1) = q_v_v * sx; Q(1,2) = q_v_a * sx;
+        Q(2,0) = q_x_a * sx; Q(2,1) = q_v_a * sx; Q(2,2) = q_a_a * sx;
 
-        Q(4,4)=t4_4*s2qz; Q(4,5)=t3_2*s2qz;
-        Q(5,4)=t3_2*s2qz; Q(5,5)=t2*s2qz;
+        // Y轴 (Indices 3, 4, 5)
+        double sy = params.s2q_ay;
+        Q(3,3) = q_x_x * sy; Q(3,4) = q_x_v * sy; Q(3,5) = q_x_a * sy;
+        Q(4,3) = q_x_v * sy; Q(4,4) = q_v_v * sy; Q(4,5) = q_v_a * sy;
+        Q(5,3) = q_x_a * sy; Q(5,4) = q_v_a * sy; Q(5,5) = q_a_a * sy;
+
+        // Z轴 (Indices 6, 7, 8)
+        double sz = params.s2q_az;
+        Q(6,6) = q_x_x * sz; Q(6,7) = q_x_v * sz; Q(6,8) = q_x_a * sz;
+        Q(7,6) = q_x_v * sz; Q(7,7) = q_v_v * sz; Q(7,8) = q_v_a * sz;
+        Q(8,6) = q_x_a * sz; Q(8,7) = q_v_a * sz; Q(8,8) = q_a_a * sz;
 
         return Q;
     };
 
     RobotEKF::UpdateRFunc update_R = [params](const Measurement& z) {
-        RobotEKF::MatrixZZ R;
-        // 测量噪声仍然可以和距离相关
-        double r_x = params.r_x;
-        double r_y = params.r_y;
-        double r_z = params.r_z;
-        
-        // 示例：让x,y的噪声也和z相关，可以根据实际情况调整
-        double dist_z = std::max(1.0, std::abs(z[2]));
-        R << r_x * dist_z, 0, 0,
-             0, r_y * dist_z, 0,
-             0, 0, r_z * dist_z;
+        RobotEKF::MatrixZZ R = RobotEKF::MatrixZZ::Identity();
+        // 简单测量噪声模型
+        R(0,0) = params.r_x;
+        R(1,1) = params.r_y;
+        R(2,2) = params.r_z;
         return R;
     };
 
+    // 初始协方差
     RobotEKF::MatrixXX P0 = RobotEKF::MatrixXX::Identity() * params.p0;
 
     ekf_ = std::make_unique<RobotEKF>(Predict(dt_), Measure(), update_Q, update_R, P0);
@@ -184,14 +199,14 @@ void Tracker::reset(const Measurement& z) {
     detect_count_ = 0; lost_count_ = 0;
     
     State x0 = State::Zero();
-    // 测量值z现在是 [xa, ya, za]
-    x0(0) = z(0);
-    x0(2) = z(1);
-    x0(4) = z(2);
-    // 速度初始化为0
+    // 初始化位置
+    x0(Idx::X) = z(0);
+    x0(Idx::Y) = z(1);
+    x0(Idx::Z) = z(2);
+    // 速度和加速度默认初始化为0
     
     ekf_->setState(x0);
-    RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with 6D model!");
+    RCLCPP_INFO(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with 9D CA Model!");
 }
 
 Tracker::State Tracker::predict() {
@@ -216,7 +231,6 @@ Tracker::State Tracker::update(const Measurement& z) {
         detect_count_++;
         if (detect_count_ > tracking_thres_) {
             state = TRACKING;
-            RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker stable: TRACKING");
         }
     } else if (state == TEMP_LOST) state = TRACKING;
     return state_vec;
@@ -226,11 +240,11 @@ Tracker::State Tracker::getTargetState() const { return ekf_->getState(); }
 
 Eigen::Vector3d Tracker::getArmorPosition() const {
     State x = getTargetState();
-    return {x(0), x(2), x(4)};
+    return {x(Idx::X), x(Idx::Y), x(Idx::Z)};
 }
 
 Tracker::State Tracker::predictAhead(double t_ahead) const {
-    if (t_ahead < 1e-3) return getTargetState();
+    if (t_ahead < 1e-4) return getTargetState();
     State x_k = getTargetState();
     Predict pred(t_ahead);
     State x_final;

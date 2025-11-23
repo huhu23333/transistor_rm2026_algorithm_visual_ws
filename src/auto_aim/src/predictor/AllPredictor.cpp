@@ -108,7 +108,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         Tracker::State future_state = EKF_tracker_->predictAhead(total_delay);
                         
                         // 从预测的机器人中心状态，反解出未来时刻装甲板的位置
-                        double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
+                        double future_xc = future_state(0), future_yc = future_state(3), future_zc = future_state(6);
 
                         predicted_armor_pos = {
                             static_cast<float>(future_xc),
@@ -396,7 +396,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point3f EKF_to_check(0.0, 0.0, 0.0);
                         {
                             Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
-                            double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
+                            double future_xc = future_state(0), future_yc = future_state(3), future_zc = future_state(6);
                             EKF_to_check = {
                                 static_cast<float>(future_xc),
                                 static_cast<float>(future_yc),
@@ -681,11 +681,10 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 cv::Point3f EKF_to_check(0.0, 0.0, 0.0);
                 {
                     Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
-                    double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-                    double future_yaw = future_state(6), future_r = future_state(8);
+                    double future_xc = future_state(0), future_yc = future_state(3), future_zc = future_state(6);
                     EKF_to_check = {
-                        static_cast<float>(future_xc - future_r * sin(future_yaw)),
-                        static_cast<float>(future_yc + future_r * cos(future_yaw)),
+                        static_cast<float>(future_xc),
+                        static_cast<float>(future_yc),
                         static_cast<float>(future_zc) 
                     };
                 }

@@ -66,8 +66,8 @@
 
 // 修改：用于传递EKF参数的结构体
 struct EKFParams {
-    // 过程噪声 Q (加速度的标准差)
-    double s2qx, s2qy, s2qz;
+    // 过程噪声 Q (这里对应加加速度 Jerk 的标准差)
+    double s2q_ax, s2q_ay, s2q_az;
     // 测量噪声 R (位置的标准差)
     double r_x, r_y, r_z;
     // 初始协方差 P0
@@ -106,9 +106,7 @@ public:
     // 获取当前装甲板的预测位置 (API简化)
     Eigen::Vector3d getArmorPosition() const;
 
-    // 新增：用于状态引导的公共接口
-    void guideState(const Measurement& z);
-
+    void setState(const State& x) { ekf_->setState(x); }
 private:
     std::unique_ptr<RobotEKF> ekf_; // EKF滤波器实例
     double dt_;                   // 时间步长
