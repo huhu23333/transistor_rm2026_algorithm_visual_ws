@@ -63,45 +63,55 @@
 #ifndef ARMOR_SOLVER_MOTION_MODEL_HPP_
 #define ARMOR_SOLVER_MOTION_MODEL_HPP_
 
-#include "extended_kalman_filter.hpp" // 继续使用您的EKF头文件
+#include "extended_kalman_filter.hpp" 
 #include <ceres/jet.h>
 
-// 新模型：状态维数 N_x = 6, 测量维数 N_z = 3
-constexpr int N_x = 6;
+// 9状态 CA模型 (匀加速模型)
+// 状态顺序: [x, vx, ax, y, vy, ay, z, vz, az]
+constexpr int N_x = 9;
 constexpr int N_z = 3;
 
-// 状态向量定义: 直接描述装甲板
-// 0: 装甲板位置 x (xa)
-// 1: 装甲板速度 x (v_xa)
-// 2: 装甲板位置 y (ya)
-// 3: 装甲板速度 y (v_ya)
-// 4: 装甲板位置 z (za)
-// 5: 装甲板速度 z (v_za)
+// 索引定义方便后续使用
+struct Idx {
+    static constexpr int X = 0, Vx = 1, Ax = 2;
+    static constexpr int Y = 3, Vy = 4, Ay = 5;
+    static constexpr int Z = 6, Vz = 7, Az = 8;
+};
+
 struct Predict {
     double dt;
     explicit Predict(double t) : dt(t) {}
 
     template <typename T>
     void operator()(const T x_in[N_x], T x_out[N_x]) const {
-        // 匀速运动模型
-        x_out[0] = x_in[0] + x_in[1] * dt; // x' = x + vx * dt
-        x_out[2] = x_in[2] + x_in[3] * dt; // y' = y + vy * dt
-        x_out[4] = x_in[4] + x_in[5] * dt; // z' = z + vz * dt
-        
-        // 速度假设不变
-        x_out[1] = x_in[1]; // vx
-        x_out[3] = x_in[3]; // vy
-        x_out[5] = x_in[5]; // vz
+        // 预计算时间幂
+        T dt_t = T(dt);
+        T dt2_half = T(0.5 * dt * dt);
+
+        // X轴预测: x = x + v*t + 0.5*a*t^2
+        x_out[Idx::X]  = x_in[Idx::X]  + x_in[Idx::Vx] * dt_t + x_in[Idx::Ax] * dt2_half;
+        x_out[Idx::Vx] = x_in[Idx::Vx] + x_in[Idx::Ax] * dt_t;
+        x_out[Idx::Ax] = x_in[Idx::Ax];
+
+        // Y轴预测
+        x_out[Idx::Y]  = x_in[Idx::Y]  + x_in[Idx::Vy] * dt_t + x_in[Idx::Ay] * dt2_half;
+        x_out[Idx::Vy] = x_in[Idx::Vy] + x_in[Idx::Ay] * dt_t;
+        x_out[Idx::Ay] = x_in[Idx::Ay];
+
+        // Z轴预测
+        x_out[Idx::Z]  = x_in[Idx::Z]  + x_in[Idx::Vz] * dt_t + x_in[Idx::Az] * dt2_half;
+        x_out[Idx::Vz] = x_in[Idx::Vz] + x_in[Idx::Az] * dt_t;
+        x_out[Idx::Az] = x_in[Idx::Az];
     }
 };
 
 struct Measure {
     template <typename T>
     void operator()(const T x_in[N_x], T z_out[N_z]) const {
-        // 测量即为状态中的位置
-        z_out[0] = x_in[0]; // z_x = x
-        z_out[1] = x_in[2]; // z_y = y
-        z_out[2] = x_in[4]; // z_z = z
+        // 测量仅包含位置
+        z_out[0] = x_in[Idx::X];
+        z_out[1] = x_in[Idx::Y];
+        z_out[2] = x_in[Idx::Z];
     }
 };
 

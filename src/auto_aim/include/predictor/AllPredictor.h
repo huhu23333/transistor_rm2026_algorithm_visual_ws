@@ -90,28 +90,28 @@ public:
         // RCLCPP_INFO(node->get_logger(), "New 9D EKF Tracker initialized with dt=%.4f and params from config.", dt);
         // ========== 初始化结束 ==========
 
-        // ========== EKF 和 Tracker 初始化 (6D模型修改) ==========
+        // ========== EKF 和 Tracker 初始化 (9D CA模型修改) ==========
         double dt = 1.0 / std::max(1.0f, (*config_file_ptr)["frame_rate"].as<float>());
         
         // 1. 从配置文件加载新的EKF参数
         EKFParams ekf_params;
         const auto& ekf_config = (*config_file_ptr)["ekf_params"];
         
-        // 过程噪声，对应加速度的标准差
-        ekf_params.s2qx = ekf_config["sigma2_q_x"].as<double>();
-        ekf_params.s2qy = ekf_config["sigma2_q_y"].as<double>();
-        ekf_params.s2qz = ekf_config["sigma2_q_z"].as<double>();
+        // 过程噪声 (对应 config.yaml 中的新键名)
+        ekf_params.s2q_ax = ekf_config["sigma2_q_ax"].as<double>();
+        ekf_params.s2q_ay = ekf_config["sigma2_q_ay"].as<double>();
+        ekf_params.s2q_az = ekf_config["sigma2_q_az"].as<double>();
         
-        // 测量噪声，对应位置的标准差
+        // 测量噪声
         ekf_params.r_x = ekf_config["r_x_coeff"].as<double>();
         ekf_params.r_y = ekf_config["r_y_coeff"].as<double>();
         ekf_params.r_z = ekf_config["r_z_coeff"].as<double>();
 
         ekf_params.p0 = ekf_config["p0_init_val"].as<double>();
 
-        // 2. 创建Tracker，传入新参数
+        // 2. 创建Tracker
         EKF_tracker_ = std::make_unique<Tracker>(dt, ekf_params);
-        RCLCPP_INFO(node->get_logger(), "New 6D EKF Tracker initialized with dt=%.4f and params from config.", dt);
+        RCLCPP_INFO(node->get_logger(), "9D CA EKF Tracker initialized.");
         // ========== 初始化结束 ==========
         
         predictor3d = std::make_shared<PositionPredictor3D>(predictor3d_fit_step);
