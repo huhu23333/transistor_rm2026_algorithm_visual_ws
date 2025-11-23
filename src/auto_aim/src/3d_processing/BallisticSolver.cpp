@@ -45,6 +45,8 @@ BallisticSolver::CalcPitchInfo BallisticSolver::calcTargetPitch(float horizontal
 }
 
 cv::Point3d BallisticSolver::calcNearestPointWithAirResistance(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet) {
+    cv::Point2d aim_yaw_pitch_to_culc = {aim_yaw_pitch.x, aim_yaw_pitch.y - extra_delta_pitch};
+
     double max_flight_time = 5.0f;
     double dt = 1e-4;
     double min_height = -100.0f;
@@ -61,9 +63,9 @@ cv::Point3d BallisticSolver::calcNearestPointWithAirResistance(cv::Point3d targe
 
     cv::Point3d bullet_pos = self_pos;
     cv::Point3d bullet_vel;
-    bullet_vel.x = v_bullet * std::cos(aim_yaw_pitch.y) * (-std::sin(aim_yaw_pitch.x));
-    bullet_vel.y = v_bullet * std::cos(aim_yaw_pitch.y) * std::cos(aim_yaw_pitch.x);
-    bullet_vel.z = v_bullet * std::sin(aim_yaw_pitch.y);
+    bullet_vel.x = v_bullet * std::cos(aim_yaw_pitch_to_culc.y) * (-std::sin(aim_yaw_pitch_to_culc.x));
+    bullet_vel.y = v_bullet * std::cos(aim_yaw_pitch_to_culc.y) * std::cos(aim_yaw_pitch_to_culc.x);
+    bullet_vel.z = v_bullet * std::sin(aim_yaw_pitch_to_culc.y);
     while (time_step * dt <= max_flight_time && bullet_pos.z >= min_height) {
         // 更新位置
         bullet_pos += bullet_vel * dt;
@@ -384,7 +386,7 @@ BallisticInfo BallisticSolver::calcBallisticAngle(float x_camera, float y_camera
     //CalcPitchInfo pitch_info_with_air_resistance = calcTargetPitchWithAirResistance(r_standard, y_standard, v_bullet);
     //RCLCPP_INFO(node->get_logger(), "pitch_new:%.5f, %.5f", pitch_info_with_air_resistance.target_pitch_result_smaller, pitch_info_with_air_resistance.target_pitch_result_larger);
     
-    //final_pitch_rad += 1.0 * M_PI / 180.0f;  // 角度补偿 TODO
+    final_pitch_rad += extra_delta_pitch;  // 角度补偿 TODO
 
     // 5. 计算需要转动的角度
     result.delta_pitch_rad = final_pitch_rad - cur_pitch;

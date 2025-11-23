@@ -64,7 +64,7 @@ BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armo
       armor.number == 6 ? 0.2617994 : -0.2617994; //
   // Sophus::SO3d R_pitch = Sophus::SO3d::exp(Eigen::Vector3d(0, armor_pitch, 0));
   Sophus::SO3d R_pitch = Sophus::SO3d::exp(Eigen::Vector3d(armor_pitch, 0, 0));            // 更改尝试pitch位置
-
+  armor_pitch = 0.2617994;
 
   // Get the 3D points of the armor
   const auto armor_size =

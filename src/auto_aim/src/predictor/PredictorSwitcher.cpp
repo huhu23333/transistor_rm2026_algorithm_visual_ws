@@ -22,8 +22,10 @@ void PredictorSwitcher::clearHistory() {
 PredictorType::PredictorType PredictorSwitcher::step(bool is_seen, cv::Point3f real_point, 
     cv::Point3f None_result, cv::Point3f EKF_result, cv::Point3f P3D_result, cv::Point3f RMM_result, 
     float P3D_period, float RMM_period, cv::Point3f linear_predict_position) {
-    return PredictorType::RotationMotionModel;
-    //return PredictorType::EKF;
+    //return PredictorType::None;
+    //return PredictorType::FirePredictor;
+    //return PredictorType::RotationMotionModel;
+    return PredictorType::EKF;
 
     predictors_results.push_back(PredictorsResult(None_result, EKF_result, P3D_result, RMM_result));
     if (predictors_results.size() > check_frames * 2) {

@@ -330,49 +330,49 @@ private:
         cv::Point2f test_point_pos_pixel = armor_solver_ -> project3DToPixel(test_point_pos);
         cv::circle(result, test_point_pos_pixel, 8, cv::Scalar(255, 0, 255), 2);
 
-        // 1. 绘制灯条（绿色）
-        for (const auto& light : lights) {
-            cv::Point2f vertices[4];
-            light.el.points(vertices);
-            for (int i = 0; i < 4; i++) {
-                cv::line(result, vertices[i], vertices[(i + 1) % 4], 
-                        cv::Scalar(0, 255, 0), 2);
-            }
-        }
+        // // 1. 绘制灯条（绿色）
+        // for (const auto& light : lights) {
+        //     cv::Point2f vertices[4];
+        //     light.el.points(vertices);
+        //     for (int i = 0; i < 4; i++) {
+        //         cv::line(result, vertices[i], vertices[(i + 1) % 4], 
+        //                 cv::Scalar(0, 255, 0), 2);
+        //     }
+        // }
 
-        // 2. 绘制装甲板候选区域（黄色）
-        for (const auto& armor : armors) {
-            for (size_t i = 0; i < armor.corners.size() && i < 4; i++) {
-                cv::line(result, armor.corners[i], 
-                        armor.corners[(i+1)%4], 
-                        cv::Scalar(0, 255, 255), 2);
-            }
+        // // 2. 绘制装甲板候选区域（黄色）
+        // for (const auto& armor : armors) {
+        //     for (size_t i = 0; i < armor.corners.size() && i < 4; i++) {
+        //         cv::line(result, armor.corners[i], 
+        //                 armor.corners[(i+1)%4], 
+        //                 cv::Scalar(0, 255, 255), 2);
+        //     }
 
-            // 显示装甲板置信度
-            if (!armor.corners.empty()) {
-                std::string conf_str = cv::format("conf: %.2f", armor.confidence);
-                cv::Point text_pos(armor.corners[0].x, armor.corners[0].y - 10);
-                cv::putText(result, conf_str, text_pos,
-                        cv::FONT_HERSHEY_SIMPLEX, 0.5, 
-                        cv::Scalar(0, 255, 255), 1);
-            }
+        //     // 显示装甲板置信度
+        //     if (!armor.corners.empty()) {
+        //         std::string conf_str = cv::format("conf: %.2f", armor.confidence);
+        //         cv::Point text_pos(armor.corners[0].x, armor.corners[0].y - 10);
+        //         cv::putText(result, conf_str, text_pos,
+        //                 cv::FONT_HERSHEY_SIMPLEX, 0.5, 
+        //                 cv::Scalar(0, 255, 255), 1);
+        //     }
 
-            // 绘制灯条顶点
-            for (size_t i = 0; i < armor.light_bar_corners.size() && i < 4; i++) {
-                cv::line(result, armor.light_bar_corners[i], 
-                        armor.light_bar_corners[(i+1)%4], 
-                        cv::Scalar(255, 0, 0), 2);
-            }
-        }
+        //     // 绘制灯条顶点
+        //     for (size_t i = 0; i < armor.light_bar_corners.size() && i < 4; i++) {
+        //         cv::line(result, armor.light_bar_corners[i], 
+        //                 armor.light_bar_corners[(i+1)%4], 
+        //                 cv::Scalar(255, 0, 0), 2);
+        //     }
+        // }
 
-        // 3. 绘制最终识别结果（红色）和跟踪信息
-        /* for (const auto& res : classifyResults_forFourierPredict) {
-            if (res.is_steady_tracked) {
-                for (auto& prediction : res.predictions) {
-                    cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
-                }
-            }
-        } */
+        // // 3. 绘制最终识别结果（红色）和跟踪信息
+        // /* for (const auto& res : classifyResults_forFourierPredict) {
+        //     if (res.is_steady_tracked) {
+        //         for (auto& prediction : res.predictions) {
+        //             cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
+        //         }
+        //     }
+        // } */
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
             if (res.is_tracked_now) {
@@ -525,7 +525,7 @@ private:
                 serial_communication_->sendData(0.0, 0.0, false);
             } else {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
-                serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
+                serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, true);//predictor_result.fire_flag);
             }
             
             //计算帧率

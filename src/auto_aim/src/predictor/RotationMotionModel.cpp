@@ -24,7 +24,7 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     } else {
         n_armors = 4;
         r = 250.0;
-        delta_phase = 25.0 * M_PI / 180.0; // todo
+        delta_phase = 0.0 * M_PI / 180.0; // todo
     }
     rotation_direction = 1;
     jump_rad = M_PI * 2.0 / n_armors;

@@ -4,9 +4,9 @@ ekf_params:
   sigma2_q_y: 1.0e3 #1.0e4
   sigma2_q_z: 2.0e3 #1.0e4
   # 测量噪声
-  r_x_coeff: 1.0e-4
-  r_y_coeff: 3.0e-4 #5.0e-6
-  r_z_coeff: 3.0e-5 #5.0e-6
+  r_x_coeff: 1.0e-3
+  r_y_coeff: 3.0e-3 #5.0e-6
+  r_z_coeff: 3.0e-3 #5.0e-6
   p0_init_val: 10.0    # 初始不确定性
 
 # 其他参数...

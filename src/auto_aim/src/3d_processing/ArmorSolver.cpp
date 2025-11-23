@@ -225,7 +225,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
     // Eigen::Matrix3d R_imu_camera = ba_ -> RPYTorotationMatrix(Eigen::Vector3d(2, 1, 0));
     // auto rpy_wc = ba_ -> rotationMatrixToRPY(R_imu_camera);
     // RCLCPP_DEBUG(logger_p, "\n YPR WC: (%.2f, %.2f, %.2f)" , rpy_wc[0], rpy_wc[1], rpy_wc[2]);
-    RCLCPP_DEBUG(logger_p, "\ncamera yaw&pitch : (%.2f, %.2f)" , last_pitch_rad_, last_yaw_rad_);
+    RCLCPP_INFO(logger_p, "\ncamera pitch&yaw&: (%.2f, %.2f)" , last_pitch_rad_, last_yaw_rad_);
 
     try {
         bool is_large_armor = armor_result.is_large;
@@ -264,7 +264,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             RCLCPP_DEBUG(logger_p, "yaw getfromRvec: %.2f" , result.yaw);
 
             result.normal_euler_angles = getNormalYawPitchRollFromRvec(rvec);
-            RCLCPP_DEBUG(logger_p, "NormalYawPitchRoll: (%.2f, %.2f, %.2f)", 
+            RCLCPP_INFO(logger_p, "NormalYawPitchRoll: (%.2f, %.2f, %.2f)", 
                 result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
              
             //转化为ba需要的参数
@@ -288,7 +288,7 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             auto rpy = ba_ -> rotationMatrixToRPY(R);
 
             // 打印优化之后的参数
-            RCLCPP_DEBUG(logger_p, "\nRPY BA : (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
+            RCLCPP_INFO(logger_p, "\nRPY BA : (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
 
             append_ypr(result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2],
             rpy[0],  rpy[1],  rpy[2]);
