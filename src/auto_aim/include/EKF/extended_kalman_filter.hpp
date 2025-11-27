@@ -59,7 +59,7 @@ public:
       ceres::Jet<double, N_x> x_e_jet[N_x];
       for (int i = 0; i < N_x; ++i) {
         x_e_jet[i].a = x_post[i];
-        //x_e_jet[i].v.setZero();
+        x_e_jet[i].v.setZero();
         x_e_jet[i].v[i] = 1.0;
       }
 
@@ -84,6 +84,7 @@ public:
       ceres::Jet<double, N_x> x_p_jet[N_x];
       for (int i = 0; i < N_x; i++) {
         x_p_jet[i].a = x_pri[i];
+        x_p_jet[i].v.setZero();
         x_p_jet[i].v[i] = 1;
       }
       ceres::Jet<double, N_x> z_p_jet[N_z];

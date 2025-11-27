@@ -76,7 +76,7 @@ public:
             if (ep["s2qz"])   ekf_params_.s2qz   = ep["s2qz"].as<double>();
             if (ep["s2qyaw"]) ekf_params_.s2qyaw = ep["s2qyaw"].as<double>();
             if (ep["s2qr"])   ekf_params_.s2qr   = ep["s2qr"].as<double>();
-            ///if (ep["s2qdz"])  ekf_params_.s2qdz  = ep["s2qdz"].as<double>();
+            if (ep["s2qdz"])  ekf_params_.s2qdz  = ep["s2qdz"].as<double>();
 
             if (ep["r_x"])    ekf_params_.r_x    = ep["r_x"].as<double>();
             if (ep["r_y"])    ekf_params_.r_y    = ep["r_y"].as<double>();
@@ -112,7 +112,7 @@ public:
 
 
         // 初始化通用 EKF Tracker，dt 先随便给一个，后面每帧会更新
-        armor_tracker_ = std::make_shared<armor_ekf::Tracker>(1.0 / 60.0, ekf_params_);
+        armor_tracker_ = std::make_shared<armor_ekf::Tracker>(1.0 / 30.0, ekf_params_);
 
 
         // std::string world_log_path = "/home/dyj/rm2026/transistor_rm2026_algorithm_visual_ws/录制数据/world_coords.csv";

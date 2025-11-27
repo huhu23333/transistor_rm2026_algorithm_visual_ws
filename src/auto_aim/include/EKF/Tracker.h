@@ -12,21 +12,20 @@ namespace armor_ekf
 struct EKFParams
 {
     // 过程噪声（s2 越小，滤波越平滑，但也越滞后；s2 越大，越灵敏但抖动）
-    // 建议：降低 xy 噪声以平滑中心，极度降低 r 和 dz 噪声以锁死结构
-    double s2qx  = 20.0;   // 小，让中心平滑移动
+    double s2qx  = 20.0;
     double s2qy  = 20.0;   
-    double s2qz  = 10.0;   // 2e3
-    double s2qyaw = 100.0; // yaw 角速度可能很快，保持一定响应能力
+    double s2qz  = 10.0;
+    double s2qyaw = 100.0;
 
-    double s2qr   = 0.1;   // 半径几乎是不变的
-    //double s2qdz  = 0.1;   // 高度差几乎是不变的
+    double s2qr   = 0.1;
+    double s2qdz  = 0.1;
 
     // 测量噪声（r 越大，越不信任观测，滤波越平滑）
     // 如果预测点抖动厉害，适当调大 r_x, r_y
-    double r_x   = 0.15;   // mm (系数，与距离成正比)
-    double r_y   = 0.15;   // mm
-    double r_z   = 0.15;   // mm
-    double r_yaw = 0.05;   // rad
+    double r_x   = 0.15; 
+    double r_y   = 0.15;
+    double r_z   = 0.15;
+    double r_yaw = 0.05;
 
     // 初始协方差
     double p0 = 500.0;
@@ -64,8 +63,8 @@ public:
     // init_r_mm: 该类型机器人中心到装甲板的水平半径
     // init_dz_mm: 该类型机器人中心到装甲板的高度偏置
     void resetFromArmor(const Measurement &z,
-                        double init_r_mm);
-                        //double init_dz_mm);
+                        double init_r_mm,
+                        double init_dz_mm);
 
     // 纯预测一步
     State predict();
@@ -106,13 +105,13 @@ private:
     // 四装甲相关与匹配阈值
     ArmorsNum armors_num_{ArmorsNum::NORMAL_4};
 
-    // 另一块装甲的半径（四装甲在切换时交替使用）
+    // 另一块装甲的半径
     double another_r_{0.0};
-    // 两层装甲的相对高度差幅值（例如 0 与 ±d_za 间切换），按实测给初值
+    // 两层装甲的相对高度差幅值
     double d_za_{0.0};
-    // “当前使用”的中心->装甲高度偏置（与 x_(9) 保持一致，便于切换）
-    //double d_zc_{0.0};
-    // 上一时刻的 yaw（可用于必要的跳变判据增强）
+    // “当前使用”的中心->装甲高度偏置
+    double d_zc_{0.0};
+    // 上一时刻的 yaw
     double last_yaw_{0.0};
 
     // 匹配门限

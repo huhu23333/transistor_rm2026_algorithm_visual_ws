@@ -8,7 +8,7 @@ namespace armor_ekf
 {
 
 // 状态维数 / 量测维数
-constexpr int N_x = 9;
+constexpr int N_x = 10;
 constexpr int N_z = 4;
 
 // 运动模型：
@@ -22,11 +22,9 @@ enum class MotionModel
     CONSTANT_VEL_ROT
 };
 
-// 几何偏移符号：装甲板在中心的前方还是后方
-// 如果发现预测的装甲在反方向，只需要把这个改成 +1
 inline constexpr double OFFSET_SIGN = 1.0;
 
-// ------------------ 过程模型 f(x) ------------------
+// 过程模型 f(x
 // 单位：位置 mm，时间 s，角度 rad
 struct Predict
 {
@@ -40,7 +38,6 @@ struct Predict
     template <typename T>
     void operator()(const T x_in[N_x], T x_out[N_x]) const
     {
-        // 先拷一份
         for (int i = 0; i < N_x; ++i)
             x_out[i] = x_in[i];
 
@@ -60,18 +57,17 @@ struct Predict
             x_out[6] = x_in[6] + x_in[7] * T(dt); // yaw
         }
 
-        // 速度和形状参数保持不变（可以靠过程噪声慢慢漂）
+        // 速度和形状参数
         x_out[1] = x_in[1]; // vxc
         x_out[3] = x_in[3]; // vyc
         x_out[5] = x_in[5]; // vzc
         x_out[7] = x_in[7]; // vyaw
         x_out[8] = x_in[8]; // r
-        //x_out[9] = x_in[9]; // dz
+        x_out[9] = x_in[9]; // dz
     }
 };
 
-// ------------------ 量测模型 h(x) ------------------
-// 把中心状态 → 当前那块装甲板的坐标（RestFrame, mm）
+// 中心状态 → 装甲板的坐标（RestFrame, mm）
 struct Measure
 {
     template <typename T>
@@ -82,11 +78,11 @@ struct Measure
         const T &zc  = x_in[4];
         const T &yaw = x_in[6];
         const T &r   = x_in[8];
-        //const T &dz  = x_in[9];
+        const T &dz  = x_in[9];
 
         z_out[0] = xc + T(OFFSET_SIGN) * r * ceres::sin(yaw); // xa
         z_out[1] = yc - T(OFFSET_SIGN) * r * ceres::cos(yaw); // ya
-        z_out[2] = zc;                                        // za
+        z_out[2] = zc + dz;                                   // za
         z_out[3] = yaw;                                       // yaw_a
     }
 };
@@ -94,4 +90,3 @@ struct Measure
 using RobotEKF = ExtendedKalmanFilter<N_x, N_z, Predict, Measure>;
 
 } // namespace armor_ekf
-

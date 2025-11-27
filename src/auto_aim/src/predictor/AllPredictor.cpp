@@ -87,9 +87,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         armor_tracker_->setArmorsNum(armor_ekf::Tracker::ArmorsNum::NORMAL_4);
 
                         // 由测量 + 先验几何反解中心并初始化（单位 mm）
-                        armor_tracker_->resetFromArmor(z, ekf_init_r_mm_);
+                        armor_tracker_->resetFromArmor(z, ekf_init_r_mm_, ekf_init_dz_mm_);
 
-                        // （可选）阈值从配置设定
+                        // 阈值从配置设定
                         armor_tracker_->setMatchThresholds(ekf_max_match_distance_mm_, ekf_max_match_yaw_diff_rad_);
 
                         current_target_id_ = best_result.number;

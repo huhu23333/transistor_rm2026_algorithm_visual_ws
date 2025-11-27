@@ -5,6 +5,14 @@
 namespace armor_ekf
 {
 
+// 辅助函数：计算最短角度差 (如果没有引入 external 库，可以手动加在 Tracker.cpp 顶部)
+static double shortest_angular_distance(double from, double to) {
+    double angle = to - from;
+    while (angle <= -M_PI) angle += 2 * M_PI;
+    while (angle > M_PI) angle -= 2 * M_PI;
+    return angle;
+}
+
 Tracker::Tracker(double dt, const EKFParams &params)
     : params_(params),
       dt_(dt),
@@ -14,7 +22,7 @@ Tracker::Tracker(double dt, const EKFParams &params)
     // Q 更新函数
     RobotEKF::UpdateQFunc updateQ = [this]() {
         RobotEKF::MatrixXX Q = RobotEKF::MatrixXX::Zero();
-        const double t = std::max(dt_, 1e-3); // 这里的 dt_ 是秒
+        const double t = std::max(dt_, 0.033333); // 这里的 dt_ 是秒
 
         auto put_block = [&](int p, int v, double s2) {
             // 使用 t^3 和 t^2，而不是 t^4
@@ -30,8 +38,8 @@ Tracker::Tracker(double dt, const EKFParams &params)
         put_block(6, 7, params_.s2qyaw); 
 
         // r 和 dz 的动态通常较慢，用一阶积分即可
-        Q(8, 8) = t * 1e-5;
-        //Q(9, 9) = t * 1e-5;
+        Q(8, 8) = t * params_.s2qr;
+        Q(9, 9) = t * params_.s2qdz;
 
         return Q;
     };
@@ -81,33 +89,40 @@ void Tracker::setMotionModel(MotionModel m)
     ekf_->setPredictFunc(Predict(dt_, model_));
 }
 
-void Tracker::resetFromArmor(const Measurement &z, double init_r_mm)
+void Tracker::resetFromArmor(const Measurement &z,
+                             double init_r_mm,
+                             double init_dz_mm)
 {
+    // z: [xa, ya, za, yaw]
     const double xa  = z(0);
     const double ya  = z(1);
     const double za  = z(2);
     const double yaw = z(3);
 
     const double r  = init_r_mm;
+    const double dz = init_dz_mm;
 
     const double c = std::cos(yaw);
     const double s = std::sin(yaw);
 
     const double xc = xa - OFFSET_SIGN * r * c;
     const double yc = ya + OFFSET_SIGN * r * s;
-    const double zc = za;
+    const double zc = za - dz;
 
     x_.setZero();
     x_(0) = xc;
     x_(2) = yc;
     x_(4) = zc;
     x_(6) = yaw;
-    x_(8) = r;                
+    x_(8) = r;
+    x_(9) = 0.0;
 
     ekf_->setState(x_);
     ekf_->setP(RobotEKF::MatrixXX::Identity() * params_.p0);
 
     another_r_ = r;
+    d_za_      = 0.0;
+    d_zc_      = dz;
     last_yaw_  = yaw;
 
     state_flag_ = TrackState::DETECTING;
@@ -138,38 +153,71 @@ Tracker::State Tracker::predict()
     return x_;
 }
 
+
+
 Tracker::State Tracker::update(const Measurement &z)
 {
     if (!ekf_)
         return x_;
 
-    // 直接用测量：只保证 yaw 本身在 [-pi, pi]，不要根据 pred_yaw 去改它
     Measurement z_proc = z;
     double meas_yaw = z(3);
-    z_proc(3) = std::atan2(std::sin(meas_yaw), std::cos(meas_yaw));
+    double pred_yaw = x_(6);
+    
+    // 1. 解缠绕：计算最短角度差
+    double yaw_diff = shortest_angular_distance(pred_yaw, meas_yaw);
 
-    // 使用处理过的测量更新 EKF
+    // 2. 设定阈值 (单位必须统一为 mm)
+    const double MAX_YAW_ERROR = 1.5;
+    const double MAX_POS_ERROR = 3600.0;
+
+    // 3. 计算位置偏差
+    double dist_diff = (z_proc.head(3) - x_.head(3)).norm(); 
+
+    // 检查是否未初始化（当前位置几乎为0）
+    bool is_uninitialized = x_.head(3).norm() < 1.0; 
+
+    // 4. 异常值拒绝
+    bool is_outlier = false;
+    
+    // 如果已经初始化，进行严格的波门检查
+    if (!is_uninitialized) { 
+        if (std::abs(yaw_diff) > MAX_YAW_ERROR || dist_diff > MAX_POS_ERROR) {
+            is_outlier = true;
+            std::cout << "Outlier! YawDiff: " << yaw_diff << " DistDiff: " << dist_diff << std::endl;
+        }
+    }
+   
+    if (is_outlier) {
+        lost_cnt_++;
+        if (lost_cnt_ > lost_thres_) state_flag_ = TrackState::LOST;
+        return x_; // 拒绝更新，直接返回预测值
+    }
+
+    // 5. 准备更新数据
+    z_proc(3) = pred_yaw + yaw_diff; // 将测量 Yaw 拉到预测 Yaw 的周期内
+
+    // 6. EKF 更新
     x_ = ekf_->update(z_proc);
 
+    // 7. 后处理限制
     double &yaw  = x_(6);
     double &vyaw = x_(7);
     double &r    = x_(8);
-    //double &dz   = x_(9);
+    double &dz   = x_(9);
 
-    // 1) yaw wrap 到 [-pi, pi]
-    yaw = std::atan2(std::sin(yaw), std::cos(yaw));
-
-    // 2) 限制角速度（按实测陀螺速度调）
-    const double max_vyaw = 6.0;   // 或 8.0，看录像
+    yaw = std::atan2(std::sin(yaw), std::cos(yaw)); // 归一化 yaw
+    
+    // 限制角速度，避免发散
+    const double max_vyaw = 12.0; 
     vyaw = std::clamp(vyaw, -max_vyaw, max_vyaw);
 
-    // 3) 限制半径 / 高度偏置
-    r  = std::clamp(r, 150.0, 380.0);   // mm，按车几何调;
-    //dz = std::clamp(dz, -80.0, 80.0);   // mm，两层高度差预留空间
+    // 限制半径
+    r  = std::clamp(r, 150.0, 400.0);   
+    dz = std::clamp(dz, -100.0, 100.0); 
 
     ekf_->setState(x_);
 
-    // 有量测就认为还没彻底丢
     lost_cnt_ = 0;
     if (state_flag_ == TrackState::LOST)
         state_flag_ = TrackState::DETECTING;
@@ -203,14 +251,14 @@ Eigen::Matrix<double, 4, 1> Tracker::predictAhead(double t_ahead) const
 Eigen::Vector3d Tracker::armorPositionFromState(const State& x, int offset_sign)
 {
     const double xc  = x(0), yc = x(2), zc = x(4);
-    const double yaw = x(6), r  = x(8);// dz = x(9);
+    const double yaw = x(6), r  = x(8), dz = x(9);
 
     const double c = std::cos(yaw);
     const double s = std::sin(yaw);
 
     const double xa = xc + offset_sign * r * s;
     const double ya = yc - offset_sign * r * c;
-    const double za = zc;//+ dz;
+    const double za = zc + dz;
     return {xa, ya, za};
 }
 
@@ -231,17 +279,15 @@ void Tracker::handleArmorJump(double measured_yaw,
         if (armors_num_ == ArmorsNum::NORMAL_4) {
             d_za_ = (x_(4) + x_(9)) - measured_pos.z();
             
-            // 【修正 3】安全交换半径
             if (another_r_ > 100.0) std::swap(x_(8), another_r_);
             else another_r_ = x_(8);
 
-            ///d_zc_ = (std::abs(d_zc_) < 1e-6) ? (-d_za_) : 0.0;
-            //x_(9) = d_zc_;
+            //d_zc_ = (std::abs(d_zc_) < 1e-6) ? (-d_za_) : 0.0;
+            x_(9) = (std::abs(x_(9)) < 1e-3) ? -d_za_ : 0.0;
         }
 
         x_(6) = measured_yaw;
-        // 【修正 2】不要清零角速度！
-        // x_(7) = 0.0;  <-- 删除这行
+        
         ekf_->setState(x_);
     }
 
@@ -256,26 +302,26 @@ void Tracker::handleArmorJump(double measured_yaw,
         const double ya  = measured_pos.y();
         const double za  = measured_pos.z();
         const double yaw = x_(6);
-        const double r   = x_(8); // 信任滤波器收敛的半径
-        //const double dz  = x_(9);
+        const double r   = x_(8);
+        const double dz  = x_(9);
         const double c   = std::cos(yaw);
         const double s   = std::sin(yaw);
 
         // 反解中心
         const double xc = xa - OFFSET_SIGN * r * s;
         const double yc = ya + OFFSET_SIGN * r * c;
-        const double zc = za;// - dz;
+        const double zc = za - dz;
 
-        // 【修正 1】只修正位置，保留速度
+        // 当位置偏差过大时，必须清零速度，否则 EKF 会带着巨大的错误速度继续发散
         x_(0) = xc; 
-        // x_(1) = 0.0; <-- 删除
+        x_(1) = 0.0;
         x_(2) = yc; 
-        // x_(3) = 0.0; <-- 删除
+        x_(3) = 0.0;
         x_(4) = zc; 
-        // x_(5) = 0.0; <-- 删除
+        x_(5) = 0.0;
         
-        // x_(7) = 0.0; <-- 删除
-        
+        // 角速度通常可以保留，对陀螺的信任程度
+        // x_(7) = 0.0;
         ekf_->setState(x_);
     }
     
