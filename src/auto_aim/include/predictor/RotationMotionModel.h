@@ -254,7 +254,7 @@ public:
         if (state_(0) < -M_PI) state_(0) += 2.0 * M_PI;
         
         // 限制角速度
-        if (std::abs(state_(1)) > 5.0) {
+        if (std::abs(state_(1)) > 15.0) {
             state_(1) = 0.0;
         }
         
