@@ -68,7 +68,6 @@ public:
       f(x_e_jet, x_p_jet);
       for (int i = 0; i < N_x; ++i) {
         x_pri[i] = x_p_jet[i].a;
-        // 关键修正：在模板类中调用 block<...> 需要 template 关键字
         F.block(i, 0, 1, N_x) = x_p_jet[i].v.transpose();
       }
 

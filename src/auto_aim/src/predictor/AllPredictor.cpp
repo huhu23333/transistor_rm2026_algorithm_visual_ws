@@ -113,7 +113,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         const double zc_f  = future_c(2);
                         const double yaw_f = future_c(3);
                         const double r     = armor_tracker_->state()(8);
-                        //const double dz    = armor_tracker_->state()(9);
+                        const double dz    = armor_tracker_->state()(9);
+
+                        double switch_strategy = 0.35;
+
+                        Eigen::Vector3d best_pos = armor_tracker_->predictBestArmorPosition(total_delay, switch_strategy);
 
                         // 由中心状态反解“该块装甲”的未来位置
                         predicted_armor_pos = {
