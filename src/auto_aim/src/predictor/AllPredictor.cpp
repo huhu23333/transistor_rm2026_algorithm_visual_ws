@@ -63,7 +63,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 constexpr float image_latency = 0.013f;
                 constexpr float comm_latency  = 0.010f;
                 float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                float extra_time = 0.500f; // 0.300f
+                float extra_time = 0.100f; // 0.300f
                 float total_delay = image_latency + comm_latency + bullet_time + extra_time;
                 last_total_delay_ = total_delay;
 
@@ -72,79 +72,211 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 cv::Point3f predicted_aim_pos = predicted_armor_pos;
                 bool fire_flag = true;
 
-                PBEKF_ObservedData observed_data = {
-                    fps_counter -> avg_frame_time(),
-                    rest_frame_pos.x,
-                    rest_frame_pos.y,
-                    rest_frame_pos.z,
-                    rest_frame_euler_angles[0]
-                };
-                if (!PBEKFTracker) {
-                    PBEKFTracker = std::make_shared<PBEKF_EKFTracker>(observed_data);
+                // ========================== RotationMotionModel ===========================
+                std::vector<float> cam_position = rest_frame_ -> getCamPosition();
+                double RMM_update_time = (std::chrono::steady_clock::now() - node_start_time).count() / 1e9;
+                ObservedData RMM_update_data({
+                    rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0],
+                    RMM_update_time
+                });
+                if (!rotation_motion_model_) {
+                    rotation_motion_model_ = std::make_unique<RotationMotionModel>(RMM_update_data, rest_frame_, armor_class==ArmorType::Outpost);
                 } else {
                     if (best_result.is_tracked_now) {
-                        PBEKFTracker -> update(observed_data);
+                        rotation_motion_model_ -> update(RMM_update_data);
                     } else {
-                        std::array<double, 4> predicted_result = PBEKFTracker -> predict(fps_counter -> avg_frame_time());
-                        PBEKF_ObservedData predicted_observed_data = {
-                            fps_counter -> avg_frame_time(),
-                            predicted_result[0],
-                            predicted_result[1],
-                            predicted_result[2],
-                            predicted_result[3]
-                        };
-                        PBEKFTracker -> update(predicted_observed_data);
+                        rotation_motion_model_ -> emptyUpdate(RMM_update_time);
                     }
                 }
 
-                std::array<double, 4> predicted_result = PBEKFTracker -> predict(total_delay);
-                predicted_armor_pos = {
-                    predicted_result[0],
-                    predicted_result[1],
-                    predicted_result[2]
-                };
-
-                cv::Mat PBEKF_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
-                cv::circle(PBEKF_visualize_frame, cv::Point2f(400+observed_data.x/10, 400-observed_data.y/10), 8, cv::Scalar(255, 255, 0), 2);
-                cv::line(PBEKF_visualize_frame, 
-                    cv::Point2f(400 + observed_data.x/10, 400-observed_data.y/10), 
-                    cv::Point2f(400 + observed_data.x/10 + std::sin(observed_data.yaw)*50, 
-                                400 - (observed_data.y/10 - std::cos(observed_data.yaw)*50)),
-                    cv::Scalar(255, 255, 0), 2);
-                std::vector<double> PBEKFStateForVisualization = PBEKFTracker -> getStateForVisualization();
-                float xc = PBEKFStateForVisualization[0];
-                float yc = PBEKFStateForVisualization[2];
-                float zc = PBEKFStateForVisualization[4];
-                float yaw_now = PBEKFStateForVisualization[5];
-                float vyaw = PBEKFStateForVisualization[6];
-                float r = PBEKFStateForVisualization[7];
-                cv::circle(PBEKF_visualize_frame, cv::Point2f(400+xc/10, 400-yc/10), 10, cv::Scalar(0, 255, 0), 3);
-                cv::line(PBEKF_visualize_frame, 
-                    cv::Point2f(400 + xc/10, 400-yc/10), 
-                    cv::Point2f(400 + xc/10 + std::sin(yaw_now)*50, 
-                                400 - (yc/10 - std::cos(yaw_now)*50)),
-                    cv::Scalar(0, 255, 0), 2);
-                for (int i = 0; i < 3; i++) {
-                    float yaw = PBEKFStateForVisualization[8+i];
-                    float xa = xc + r * std::sin(yaw);
-                    float ya = yc - r * std::cos(yaw);
-                    cv::Point2f PBEKF_pixel = armor_solver_->project3DToPixel(rest_frame_ -> worldToPnpP3f(cv::Point3f(xa, ya, zc)));
-                    cv::circle(frame, PBEKF_pixel, 8, cv::Scalar(0, 255, 0), 2);
-                    cv::circle(PBEKF_visualize_frame, cv::Point2f(400+xa/10, 400-ya/10), 8, cv::Scalar(0, 255, 0), 2);
+                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(0.0);
+                cv::Point3f RMM_pred_now_center_p3f = rest_frame_ -> worldToPnpP3f({
+                    static_cast<float>(RMM_pred_now_data.center_x), 
+                    static_cast<float>(RMM_pred_now_data.center_y), 
+                    static_cast<float>(RMM_pred_now_data.center_z)
+                });
+                cv::Point2f RMM_pred_now_center_pixel = armor_solver_->project3DToPixel(RMM_pred_now_center_p3f);
+                if (best_result.is_tracked_now) {
+                    cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(0, 255, 0), 2);
+                } else {
+                    cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(255, 0, 255), 2);
                 }
-                cv::putText(PBEKF_visualize_frame, 
-                    "vyaw:"+std::to_string(vyaw), 
+
+                cv::Mat RMM_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
+                if (best_result.is_tracked_now) {
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 8, cv::Scalar(0, 255, 0), 2);
+                } else {
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
+                }
+                for (int RMM_pred_now_armor_i = 0; RMM_pred_now_armor_i < RMM_pred_now_data.armors.size(); RMM_pred_now_armor_i += 1) {
+                    SimpleArmor& RMM_pred_now_armor = RMM_pred_now_data.armors[RMM_pred_now_armor_i];
+                    cv::Point3f RMM_pred_now_armor_p3f = rest_frame_ -> worldToPnpP3f({
+                        static_cast<float>(RMM_pred_now_armor.x), 
+                        static_cast<float>(RMM_pred_now_armor.y), 
+                        static_cast<float>(RMM_pred_now_armor.z)
+                    });
+                    cv::Point2f RMM_pred_now_armor_pixel = armor_solver_->project3DToPixel(RMM_pred_now_armor_p3f);
+                    cv::circle(frame, RMM_pred_now_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
+                    // cv::line(frame, RMM_pred_now_center_pixel, RMM_pred_now_armor_pixel, cv::Scalar(0, 255, 0), 2);
+                    
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 8, 
+                        cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
+                    // cv::line(RMM_visualize_frame, 
+                    //     cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 
+                    //     cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 
+                    //     cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
+                }
+                cv::circle(RMM_visualize_frame, cv::Point2f(400+rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 8, cv::Scalar(255, 255, 0), 2);
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400 + rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 
+                    cv::Point2f(400 + rest_frame_pos.x/10 + std::sin(rest_frame_euler_angles[0])*50, 
+                                400 - (rest_frame_pos.y/10 - std::cos(rest_frame_euler_angles[0])*50)),
+                    cv::Scalar(255, 255, 0), 2);
+                double theoretic_yaw = rotation_motion_model_ -> getTheoreticYaw(rest_frame_pos.x, rest_frame_pos.y);
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400 + rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 
+                    cv::Point2f(400 + rest_frame_pos.x/10 + std::sin(theoretic_yaw)*50, 
+                                400 - (rest_frame_pos.y/10 - std::cos(theoretic_yaw)*50)),
+                    cv::Scalar(0, 255, 0), 2);
+                RotationMotionState RMM_state = rotation_motion_model_ -> getState();
+                cv::putText(RMM_visualize_frame, 
+                    "period_RMM:"+std::to_string(rotation_motion_model_->getJumpPeriod()), 
                     cv::Point2f(20,20), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
-                cv::putText(PBEKF_visualize_frame, 
-                    "r:"+std::to_string(r), 
+                cv::putText(RMM_visualize_frame, 
+                    "RMM_state vyaw:"+std::to_string(RMM_state.vyaw), 
                     cv::Point2f(20,50), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "T:"+std::to_string(RMM_update_time), 
+                    cv::Point2f(20,80), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                if (using_predictor_type == PredictorType::RotationMotionModel) {
+                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(total_delay);
+                    cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
+                    std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
+                    float yaw_bias = M_PI / 180.0 * 0.0;
+                    yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
+                    for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
+                        SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
+                        cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + yaw_bias), -std::cos(RMM_pred_aim_armor.yaw + yaw_bias)};
+                        center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
+                    }
+                    int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
+                    predicted_armor_pos = {
+                        static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].x),
+                        static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].y),
+                        static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].z) 
+                    };
+                    predicted_aim_pos = predicted_armor_pos;
+                    fire_flag = true;
+                    cv::circle(RMM_visualize_frame, 
+                        cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
+                        cv::Scalar(0, 0, 255), 2);
+                    cv::putText(RMM_visualize_frame, 
+                        "r:"+std::to_string(RMM_pred_aim_data.r), 
+                        cv::Point2f(20,110), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                }
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400, 400), 
+                    cv::Point2f(400 - std::sin(total_yaw_rad_delayed_)*150, 
+                                400 - std::cos(total_yaw_rad_delayed_)*150),
+                    cv::Scalar(255, 255, 0), 2);
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400, 400), 
+                    cv::Point2f(400 - std::sin(total_yaw_rad_delayed_filter_ -> getExponentialValue())*150, 
+                                400 - std::cos(total_yaw_rad_delayed_filter_ -> getExponentialValue())*150),
+                    cv::Scalar(0, 255, 0), 2);
+                cv::putText(RMM_visualize_frame, 
+                    "total_yaw:"+std::to_string(total_yaw_rad_delayed_), 
+                    cv::Point2f(20,140), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "total_yaw_filter:"+std::to_string(total_yaw_rad_delayed_filter_ -> getExponentialValue()), 
+                    cv::Point2f(20,170), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
 #ifdef SHOW_WINDOWS
-                cv::imshow("PBEKF visualize", PBEKF_visualize_frame);
+                cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
+                    // ========================== RotationMotionModsel =========================== END
+//                 PBEKF_ObservedData observed_data = {
+//                     fps_counter -> avg_frame_time(),
+//                     rest_frame_pos.x,
+//                     rest_frame_pos.y,
+//                     rest_frame_pos.z,
+//                     rest_frame_euler_angles[0]
+//                 };
+//                 if (!PBEKFTracker) {
+//                     PBEKFTracker = std::make_shared<PBEKF_EKFTracker>(observed_data);
+//                 } else {
+//                     if (best_result.is_tracked_now) {
+//                         PBEKFTracker -> update(observed_data);
+//                     } else {
+//                         std::array<double, 4> predicted_result = PBEKFTracker -> predict(fps_counter -> avg_frame_time());
+//                         PBEKF_ObservedData predicted_observed_data = {
+//                             fps_counter -> avg_frame_time(),
+//                             predicted_result[0],
+//                             predicted_result[1],
+//                             predicted_result[2],
+//                             predicted_result[3]
+//                         };
+//                         PBEKFTracker -> update(predicted_observed_data);
+//                     }
+//                 }
+//                 std::array<double, 4> predicted_result = PBEKFTracker -> predict(total_delay);
+//                 predicted_armor_pos = {
+//                     predicted_result[0],
+//                     predicted_result[1],
+//                     predicted_result[2]
+//                 };
+//                 cv::Mat PBEKF_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
+//                 cv::circle(PBEKF_visualize_frame, cv::Point2f(400+observed_data.x/10, 400-observed_data.y/10), 8, cv::Scalar(255, 255, 0), 2);
+//                 cv::line(PBEKF_visualize_frame, 
+//                     cv::Point2f(400 + observed_data.x/10, 400-observed_data.y/10), 
+//                     cv::Point2f(400 + observed_data.x/10 + std::sin(observed_data.yaw)*50, 
+//                                 400 - (observed_data.y/10 - std::cos(observed_data.yaw)*50)),
+//                     cv::Scalar(255, 255, 0), 2);
+//                 std::vector<double> PBEKFStateForVisualization = PBEKFTracker -> getStateForVisualization();
+//                 float xc = PBEKFStateForVisualization[0];
+//                 float yc = PBEKFStateForVisualization[2];
+//                 float zc = PBEKFStateForVisualization[4];
+//                 float yaw_now = PBEKFStateForVisualization[5];
+//                 float vyaw = PBEKFStateForVisualization[6];
+//                 float r = PBEKFStateForVisualization[7];
+//                 cv::circle(PBEKF_visualize_frame, cv::Point2f(400+xc/10, 400-yc/10), 10, cv::Scalar(0, 255, 0), 3);
+//                 cv::line(PBEKF_visualize_frame, 
+//                     cv::Point2f(400 + xc/10, 400-yc/10), 
+//                     cv::Point2f(400 + xc/10 + std::sin(yaw_now)*50, 
+//                                 400 - (yc/10 - std::cos(yaw_now)*50)),
+//                     cv::Scalar(0, 255, 0), 2);
+//                 for (int i = 0; i < 3; i++) {
+//                     float yaw = PBEKFStateForVisualization[8+i];
+//                     float xa = xc + r * std::sin(yaw);
+//                     float ya = yc - r * std::cos(yaw);
+//                     cv::Point2f PBEKF_pixel = armor_solver_->project3DToPixel(rest_frame_ -> worldToPnpP3f(cv::Point3f(xa, ya, zc)));
+//                     cv::circle(frame, PBEKF_pixel, 8, cv::Scalar(0, 255, 0), 2);
+//                     cv::circle(PBEKF_visualize_frame, cv::Point2f(400+xa/10, 400-ya/10), 8, cv::Scalar(0, 255, 0), 2);
+//                 }
+//                 cv::putText(PBEKF_visualize_frame, 
+//                     "vyaw:"+std::to_string(vyaw), 
+//                     cv::Point2f(20,20), 
+//                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
+//                     cv::Scalar(0, 255, 0), 1, 8, false);
+//                 cv::putText(PBEKF_visualize_frame, 
+//                     "r:"+std::to_string(r), 
+//                     cv::Point2f(20,50), 
+//                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
+//                     cv::Scalar(0, 255, 0), 1, 8, false);
+// #ifdef SHOW_WINDOWS
+//                 cv::imshow("PBEKF visualize", PBEKF_visualize_frame);
+// #endif
 
                 // 统一转换回pnp相机坐标系    
                 predicted_aim_pos = rest_frame_ -> worldToPnpP3f(predicted_aim_pos);
@@ -238,7 +370,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
 //#endif
                 }
-                using_predictor_type = PredictorType::EKF;
+                using_predictor_type = PredictorType::RotationMotionModel;
             }
         }
     }
@@ -278,57 +410,161 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
             }
 
-            if (PBEKFTracker) {
-                std::array<double, 4> predicted_result = PBEKFTracker -> predict(fps_counter -> avg_frame_time());
-                PBEKF_ObservedData predicted_observed_data = {
-                    fps_counter -> avg_frame_time(),
-                    predicted_result[0],
-                    predicted_result[1],
-                    predicted_result[2],
-                    predicted_result[3]
-                };
-                PBEKFTracker -> update(predicted_observed_data);
+            // ==========================RotationMotionModel===========================
+            if (rotation_motion_model_) {
+                double RMM_update_time = (std::chrono::steady_clock::now() - node_start_time).count() / 1e9;
+                rotation_motion_model_ -> emptyUpdate(RMM_update_time);
+                
+                PredictResult RMM_pred_now_data = rotation_motion_model_ -> predict(0.0);
 
-                cv::Mat PBEKF_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
-                std::vector<double> PBEKFStateForVisualization = PBEKFTracker -> getStateForVisualization();
-                float xc = PBEKFStateForVisualization[0];
-                float yc = PBEKFStateForVisualization[2];
-                float zc = PBEKFStateForVisualization[4];
-                float yaw_now = PBEKFStateForVisualization[5];
-                float vyaw = PBEKFStateForVisualization[6];
-                float r = PBEKFStateForVisualization[7];
-                cv::circle(PBEKF_visualize_frame, cv::Point2f(400+xc/10, 400-yc/10), 10, cv::Scalar(0, 255, 0), 3);
-                cv::line(PBEKF_visualize_frame, 
-                    cv::Point2f(400 + xc/10, 400-yc/10), 
-                    cv::Point2f(400 + xc/10 + std::sin(yaw_now)*50, 
-                                400 - (yc/10 - std::cos(yaw_now)*50)),
-                    cv::Scalar(0, 255, 0), 2);
-                for (int i = 0; i < 3; i++) {
-                    float yaw = PBEKFStateForVisualization[8+i];
-                    float xa = xc + r * std::sin(yaw);
-                    float ya = yc - r * std::cos(yaw);
-                    cv::Point2f PBEKF_pixel = armor_solver_->project3DToPixel(rest_frame_ -> worldToPnpP3f(cv::Point3f(xa, ya, zc)));
-                    cv::circle(frame, PBEKF_pixel, 8, cv::Scalar(0, 255, 0), 2);
-                    cv::circle(PBEKF_visualize_frame, cv::Point2f(400+xa/10, 400-ya/10), 8, cv::Scalar(0, 255, 0), 2);
+                cv::Point3f RMM_pred_now_center_p3f = rest_frame_ -> worldToPnpP3f({
+                    static_cast<float>(RMM_pred_now_data.center_x), 
+                    static_cast<float>(RMM_pred_now_data.center_y), 
+                    static_cast<float>(RMM_pred_now_data.center_z)}
+                );
+                cv::Point2f RMM_pred_now_center_pixel = armor_solver_->project3DToPixel(RMM_pred_now_center_p3f);
+                cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(255, 0, 255), 2);
+
+                cv::Mat RMM_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
+                cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
+                for (int RMM_pred_now_armor_i = 0; RMM_pred_now_armor_i < RMM_pred_now_data.armors.size(); RMM_pred_now_armor_i += 1) {
+                    SimpleArmor& RMM_pred_now_armor = RMM_pred_now_data.armors[RMM_pred_now_armor_i];
+                    cv::Point3f RMM_pred_now_armor_p3f = rest_frame_ -> worldToPnpP3f({
+                        static_cast<float>(RMM_pred_now_armor.x), 
+                        static_cast<float>(RMM_pred_now_armor.y), 
+                        static_cast<float>(RMM_pred_now_armor.z)
+                    });
+                    cv::Point2f RMM_pred_now_armor_pixel = armor_solver_->project3DToPixel(RMM_pred_now_armor_p3f);
+                    cv::circle(frame, RMM_pred_now_armor_pixel, 6, cv::Scalar(0, 255, 0), 2);
+                    // cv::line(frame, RMM_pred_now_center_pixel, RMM_pred_now_armor_pixel, cv::Scalar(0, 255, 0), 2);
+                    
+                    cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 8, 
+                        cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
+                    // cv::line(RMM_visualize_frame, 
+                    //     cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 
+                    //     cv::Point2f(400+RMM_pred_now_armor.x/10, 400-RMM_pred_now_armor.y/10), 
+                    //     cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
                 }
-                cv::putText(PBEKF_visualize_frame, 
-                    "vyaw:"+std::to_string(vyaw), 
+                RotationMotionState RMM_state = rotation_motion_model_ -> getState();
+                cv::putText(RMM_visualize_frame, 
+                    "period_RMM:"+std::to_string(rotation_motion_model_->getJumpPeriod()), 
                     cv::Point2f(20,20), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
-                cv::putText(PBEKF_visualize_frame, 
-                    "r:"+std::to_string(r), 
+                cv::putText(RMM_visualize_frame, 
+                    "RMM_state vyaw:"+std::to_string(RMM_state.vyaw), 
                     cv::Point2f(20,50), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "T:"+std::to_string(RMM_update_time), 
+                    cv::Point2f(20,80), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                
+                if (using_predictor_type == PredictorType::RotationMotionModel) {
+                    PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(last_total_delay_);
+                    std::vector<float> cam_position = rest_frame_ -> getCamPosition();
+                    cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
+                    std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
+                    float yaw_bias = M_PI / 180.0 * 0.0;
+                    yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
+                    for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
+                        SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
+                        cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + yaw_bias), -std::cos(RMM_pred_aim_armor.yaw + yaw_bias)};
+                        center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
+                    }
+                    int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
+                    // predicted_armor_pos = {
+                    //     static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].x),
+                    //     static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].y),
+                    //     static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].z) 
+                    // };
+                    // predicted_aim_pos = predicted_armor_pos;
+                    fire_flag = true;
+                    cv::circle(RMM_visualize_frame, 
+                        cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
+                        cv::Scalar(0, 0, 255), 2);
+                    cv::putText(RMM_visualize_frame, 
+                        "r:"+std::to_string(RMM_pred_aim_data.r), 
+                        cv::Point2f(20,110), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                }
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400, 400), 
+                    cv::Point2f(400 - std::sin(total_yaw_rad_delayed_)*150, 
+                                400 - std::cos(total_yaw_rad_delayed_)*150),
+                    cv::Scalar(255, 255, 0), 2);
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400, 400), 
+                    cv::Point2f(400 - std::sin(total_yaw_rad_delayed_filter_ -> getExponentialValue())*150, 
+                                400 - std::cos(total_yaw_rad_delayed_filter_ -> getExponentialValue())*150),
+                    cv::Scalar(0, 255, 0), 2);
+                cv::putText(RMM_visualize_frame, 
+                    "total_yaw:"+std::to_string(total_yaw_rad_delayed_), 
+                    cv::Point2f(20,140), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "total_yaw_filter:"+std::to_string(total_yaw_rad_delayed_filter_ -> getExponentialValue()), 
+                    cv::Point2f(20,170), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
 #ifdef SHOW_WINDOWS
-                cv::imshow("PBEKF visualize", PBEKF_visualize_frame);
+                cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
             }
+            // ==========================RotationMotionModel=========================== END
+
+//             if (PBEKFTracker) {
+//                 std::array<double, 4> predicted_result = PBEKFTracker -> predict(fps_counter -> avg_frame_time());
+//                 PBEKF_ObservedData predicted_observed_data = {
+//                     fps_counter -> avg_frame_time(),
+//                     predicted_result[0],
+//                     predicted_result[1],
+//                     predicted_result[2],
+//                     predicted_result[3]
+//                 };
+//                 PBEKFTracker -> update(predicted_observed_data);
+//                 cv::Mat PBEKF_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
+//                 std::vector<double> PBEKFStateForVisualization = PBEKFTracker -> getStateForVisualization();
+//                 float xc = PBEKFStateForVisualization[0];
+//                 float yc = PBEKFStateForVisualization[2];
+//                 float zc = PBEKFStateForVisualization[4];
+//                 float yaw_now = PBEKFStateForVisualization[5];
+//                 float vyaw = PBEKFStateForVisualization[6];
+//                 float r = PBEKFStateForVisualization[7];
+//                 cv::circle(PBEKF_visualize_frame, cv::Point2f(400+xc/10, 400-yc/10), 10, cv::Scalar(0, 255, 0), 3);
+//                 cv::line(PBEKF_visualize_frame, 
+//                     cv::Point2f(400 + xc/10, 400-yc/10), 
+//                     cv::Point2f(400 + xc/10 + std::sin(yaw_now)*50, 
+//                                 400 - (yc/10 - std::cos(yaw_now)*50)),
+//                     cv::Scalar(0, 255, 0), 2);
+//                 for (int i = 0; i < 3; i++) {
+//                     float yaw = PBEKFStateForVisualization[8+i];
+//                     float xa = xc + r * std::sin(yaw);
+//                     float ya = yc - r * std::cos(yaw);
+//                     cv::Point2f PBEKF_pixel = armor_solver_->project3DToPixel(rest_frame_ -> worldToPnpP3f(cv::Point3f(xa, ya, zc)));
+//                     cv::circle(frame, PBEKF_pixel, 8, cv::Scalar(0, 255, 0), 2);
+//                     cv::circle(PBEKF_visualize_frame, cv::Point2f(400+xa/10, 400-ya/10), 8, cv::Scalar(0, 255, 0), 2);
+//                 }
+//                 cv::putText(PBEKF_visualize_frame, 
+//                     "vyaw:"+std::to_string(vyaw), 
+//                     cv::Point2f(20,20), 
+//                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
+//                     cv::Scalar(0, 255, 0), 1, 8, false);
+//                 cv::putText(PBEKF_visualize_frame, 
+//                     "r:"+std::to_string(r), 
+//                     cv::Point2f(20,50), 
+//                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
+//                     cv::Scalar(0, 255, 0), 1, 8, false);
+// #ifdef SHOW_WINDOWS
+//                 cv::imshow("PBEKF visualize", PBEKF_visualize_frame);
+// #endif
+//             }
         }
         oscilloscope_fire_ -> addDataPoint(result.fire_flag);
-
-        using_predictor_type = PredictorType::EKF;
 
     } else if ((!ballistic_valid_flag) && has_valid_ballistic) {
         result.reset = false;
