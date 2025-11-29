@@ -22,6 +22,7 @@
 #include "predictor/RotationMotionModel.h"
 #include "predictor/PredictorSwitcher.h"
 #include "macro/AutoAimMacro.h"
+#include "predictor/PBEKF.hpp"
 
 struct PredictorResult {
     bool reset = true;
@@ -212,4 +213,6 @@ private:
     float last_pixel_horizontal_center_distance = 1e10;
 
     bool has_valid_ballistic = false;
+
+    std::shared_ptr<PBEKF_EKFTracker> PBEKFTracker;
 };
