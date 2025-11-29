@@ -11,7 +11,6 @@
 #include "3d_processing/RestFrame.h"
 #include "2d_armor_detector/Armor.h"
 
-
 struct ObservedData {
     double x;
     double y;
@@ -21,13 +20,6 @@ struct ObservedData {
     
     ObservedData(double x_val, double y_val, double z_val, double yaw_val, double t_val)
         : x(x_val), y(y_val), z(z_val), yaw(yaw_val), t(t_val) {}
-};
-
-struct fitCenterXYResult {
-    double center_x;
-    double center_y;
-    double center_vx;
-    double center_vy;
 };
 
 struct SimpleArmor {
@@ -56,6 +48,203 @@ struct RotationMotionState {
     double center_x;
     double center_y;
     double center_z;
+};
+
+// 平移和半径跟踪的EKF
+class TranslationRadiusEKF {
+private:
+    static constexpr int STATE_DIM = 7;  // [xc, yc, zc, vx, vy, vz, r]
+    static constexpr int OBS_DIM = 3;    // [xa, ya, za]
+    
+    Eigen::VectorXd state_;              // [xc, yc, zc, vx, vy, vz, r]
+    Eigen::MatrixXd P_;                  // 协方差矩阵
+    Eigen::MatrixXd Q_;                  // 过程噪声
+    Eigen::MatrixXd R_;                  // 观测噪声
+    
+    bool initialized_ = false;
+    double last_time_ = 0.0;
+    
+public:
+    TranslationRadiusEKF() 
+        : state_(STATE_DIM), P_(STATE_DIM, STATE_DIM), 
+          Q_(STATE_DIM, STATE_DIM), R_(OBS_DIM, OBS_DIM) {
+        
+        // 初始化状态
+        state_ << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 250.0;
+        
+        // 初始化协方差
+        P_ = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM) * 10.0;
+        
+        // 初始化过程噪声
+        Q_ = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM) * 0.1;
+        
+        // 初始化观测噪声
+        R_ = Eigen::MatrixXd::Identity(OBS_DIM, OBS_DIM) * 1.0;
+    }
+    
+    void initialize(double xc, double yc, double zc, double r, double current_time) {
+        state_(0) = xc;
+        state_(1) = yc;
+        state_(2) = zc;
+        state_(6) = r;
+        last_time_ = current_time;
+        initialized_ = true;
+    }
+    
+    bool isInitialized() const { return initialized_; }
+    
+    /**
+     * 状态转移函数 - 匀速直线运动 + 恒定半径
+     */
+    Eigen::VectorXd processModel(const Eigen::VectorXd& state, double dt) {
+        Eigen::VectorXd new_state = state;
+        new_state(0) += state(3) * dt;  // xc += vx * dt
+        new_state(1) += state(4) * dt;  // yc += vy * dt  
+        new_state(2) += state(5) * dt;  // zc += vz * dt
+        // 速度保持不变，半径保持不变
+        return new_state;
+    }
+    
+    /**
+     * 观测模型 - 根据旋转中心、半径和装甲板yaw计算装甲板位置
+     */
+    Eigen::Vector3d observationModel(const Eigen::VectorXd& state, double armor_yaw) {
+        Eigen::Vector3d z_obs;
+        double xc = state(0), yc = state(1), zc = state(2), r = state(6);
+        
+        z_obs(0) = xc + r * std::sin(armor_yaw);  // xa = xc + r * sin(yaw)
+        z_obs(1) = yc - r * std::cos(armor_yaw);  // ya = yc - r * cos(yaw)
+        z_obs(2) = zc;                            // za = zc
+        
+        return z_obs;
+    }
+    
+    /**
+     * 状态转移雅可比矩阵
+     */
+    Eigen::MatrixXd jacobianF(double dt) {
+        Eigen::MatrixXd F = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
+        F(0, 3) = dt;  // ∂xc/∂vx
+        F(1, 4) = dt;  // ∂yc/∂vy
+        F(2, 5) = dt;  // ∂zc/∂vz
+        return F;
+    }
+    
+    /**
+     * 观测雅可比矩阵
+     */
+    Eigen::Matrix<double, 3, 7> jacobianH(const Eigen::VectorXd& state, double armor_yaw) {
+        Eigen::Matrix<double, 3, 7> H = Eigen::Matrix<double, 3, 7>::Zero();
+        double r = state(6);
+        
+        // ∂xa/∂xc = 1, ∂xa/∂r = sin(yaw)
+        H(0, 0) = 1.0;
+        H(0, 6) = std::sin(armor_yaw);
+        
+        // ∂ya/∂yc = 1, ∂ya/∂r = -cos(yaw)
+        H(1, 1) = 1.0;
+        H(1, 6) = -std::cos(armor_yaw);
+        
+        // ∂za/∂zc = 1
+        H(2, 2) = 1.0;
+        
+        return H;
+    }
+    
+    /**
+     * 更新过程噪声
+     */
+    void updateQ(double dt) {
+        // 过程噪声参数
+        double s2q_pos = 100.0;    // 位置过程噪声
+        double s2q_vel = 1.0;   // 速度过程噪声
+        double s2q_r = 0.1;    // 半径过程噪声
+        
+        Q_.setZero();
+        Q_(0, 0) = std::pow(dt, 4)/4 * s2q_pos;  // xc
+        Q_(1, 1) = std::pow(dt, 4)/4 * s2q_pos;  // yc
+        Q_(2, 2) = std::pow(dt, 4)/4 * s2q_pos;  // zc
+        Q_(3, 3) = std::pow(dt, 2) * s2q_vel;    // vx
+        Q_(4, 4) = std::pow(dt, 2) * s2q_vel;    // vy
+        Q_(5, 5) = std::pow(dt, 2) * s2q_vel;    // vz
+        Q_(6, 6) = dt * s2q_r;                   // r
+    }
+    
+    /**
+     * 预测步骤
+     */
+    void predict(double current_time) {
+        if (!initialized_) return;
+        
+        double dt = current_time - last_time_;
+        if (dt <= 0) return;
+        
+        // 更新过程噪声
+        updateQ(dt);
+        
+        // 计算雅可比矩阵
+        Eigen::MatrixXd F = jacobianF(dt);
+        
+        // 状态预测
+        state_ = processModel(state_, dt);
+        
+        // 协方差预测
+        P_ = F * P_ * F.transpose() + Q_;
+        
+        last_time_ = current_time;
+    }
+    
+    /**
+     * 更新步骤 - 使用装甲板观测数据
+     */
+    void update(double armor_x, double armor_y, double armor_z, double armor_yaw, double current_time) {
+        if (!initialized_) {
+            // 使用第一个观测初始化状态
+            double init_r = 250.0;  // 默认半径
+            double init_xc = armor_x - init_r * std::sin(armor_yaw);
+            double init_yc = armor_y + init_r * std::cos(armor_yaw);
+            initialize(init_xc, init_yc, armor_z, init_r, current_time);
+            return;
+        }
+        
+        // 预测步骤
+        predict(current_time);
+        
+        // 观测值
+        Eigen::Vector3d z;
+        z << armor_x, armor_y, armor_z;
+        
+        // 计算雅可比矩阵
+        Eigen::Matrix<double, 3, 7> H = jacobianH(state_, armor_yaw);
+        
+        // 计算卡尔曼增益
+        Eigen::Matrix3d S = H * P_ * H.transpose() + R_;
+        Eigen::Matrix<double, 7, 3> K = P_ * H.transpose() * S.inverse();
+        
+        // 观测预测
+        Eigen::Vector3d z_pred = observationModel(state_, armor_yaw);
+        
+        // 状态更新
+        Eigen::Vector3d innovation = z - z_pred;
+        state_ = state_ + K * innovation;
+        
+        // 协方差更新
+        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
+        P_ = (I - K * H) * P_;
+        
+        // 限制半径范围
+        state_(6) = std::max(100.0, std::min(600.0, state_(6)));
+    }
+    
+    // Getter方法
+    double getCenterX() const { return state_(0); }
+    double getCenterY() const { return state_(1); }
+    double getCenterZ() const { return state_(2); }
+    double getVelocityX() const { return state_(3); }
+    double getVelocityY() const { return state_(4); }
+    double getVelocityZ() const { return state_(5); }
+    double getRadius() const { return state_(6); }
+    const Eigen::VectorXd& getState() const { return state_; }
 };
 
 // 用于角度和角速度跟踪的EKF
@@ -269,14 +458,14 @@ public:
 
 class RotationMotionModel {
 private:
-    std::vector<ObservedData> observedDataHistory;
-    double center_vx;
-    double center_vy;
-    double center_vz;
-    double r;
-    double center_x;
-    double center_y;
-    double center_z;
+    // 移除滑动窗口
+    // std::vector<ObservedData> observedDataHistory;
+    
+    // 使用两个EKF分别处理平移半径和角度
+    std::unique_ptr<TranslationRadiusEKF> trans_radius_ekf_;
+    std::unique_ptr<AngleEKF> angle_ekf_;
+    
+    double last_update_time_;
     int max_history;
     double jump_period_frames = 1.0;
     double rotation_period;
@@ -286,16 +475,6 @@ private:
     double jump_rad;
     double delta_phase;
 
-    // 用于角度和角速度跟踪的EKF
-    std::unique_ptr<AngleEKF> angle_ekf_;
-    double last_update_time_;
-
-    // 私有方法
-    std::vector<std::vector<double>> getParams();
-    void calculateR();
-    void fitRotationParameters();
-    int getRotationDirection(const std::vector<double>& yawData);
-
     std::shared_ptr<RestFrame> rest_frame_;
     bool is_outpost;
 
@@ -303,11 +482,6 @@ public:
     RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost);
     void update(ObservedData& observedData);
     PredictResult predict(double predictTime);
-    fitCenterXYResult fitCenterXY(const std::vector<double>& armorYaw, 
-                                 const std::vector<double>& armorX,
-                                 const std::vector<double>& armorY,
-                                 const std::vector<double>& dataT,
-                                 double lastR);
     double getJumpPeriod();
     void emptyUpdate(double update_time);
     RotationMotionState getState();
