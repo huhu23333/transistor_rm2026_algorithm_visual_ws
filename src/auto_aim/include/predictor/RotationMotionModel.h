@@ -23,11 +23,13 @@ struct ObservedData {
         : x(x_val), y(y_val), z(z_val), yaw(yaw_val), t(t_val) {}
 };
 
-struct fitCenterXYResult {
+struct fitCenterXYZResult {
     double center_x;
     double center_y;
+    double center_z;  // 新增z坐标
     double center_vx;
     double center_vy;
+    double center_vz; // 新增z方向速度
 };
 
 struct SimpleArmor {
@@ -267,12 +269,13 @@ struct RotationMotionState {
     double center_z;
 };
 
+// 修改状态向量维度，从5维扩展到7维
 class RotationMotionModel {
 private:
-    // 扩展的状态向量： [center_x, center_y, center_vx, center_vy, r]
-    static constexpr int STATE_DIM = 5;
-    Eigen::MatrixXd P_center_;      // 5x5 协方差矩阵
-    Eigen::VectorXd x_center_;      // 5维状态向量
+    // 扩展的状态向量： [center_x, center_y, center_z, center_vx, center_vy, center_vz, r]
+    static constexpr int STATE_DIM = 7;  // 从5增加到7
+    Eigen::MatrixXd P_center_;      // 7x7 协方差矩阵
+    Eigen::VectorXd x_center_;      // 7维状态向量
     double lambda_;                 // 遗忘因子
     bool center_initialized_;
     
@@ -281,10 +284,11 @@ private:
     
     // 修改指数衰减最小二乘方法
     void initializeExponentialLS();
-    void updateExponentialLS(double armor_x, double armor_y, double armor_yaw, double t, double weight = 1.0);
-    fitCenterXYResult getCenterResult(double current_time);
+    void updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight=1.0);
+    fitCenterXYZResult getCenterResult(double current_time);
 
     std::vector<ObservedData> observedDataHistory;
+    ObservedData last_observed_data;
     double center_vx;
     double center_vy;
     double center_vz;
@@ -306,10 +310,7 @@ private:
     double last_update_time_;
 
     // 私有方法
-    std::vector<std::vector<double>> getParams();
-    void calculateR();
     void fitRotationParameters();
-    int getRotationDirection(const std::vector<double>& yawData);
 
     std::shared_ptr<RestFrame> rest_frame_;
     bool is_outpost;
@@ -318,7 +319,6 @@ public:
     RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost);
     void update(ObservedData& observedData);
     PredictResult predict(double predictTime);
-    double getJumpPeriod();
     void emptyUpdate(double update_time);
     RotationMotionState getState();
     double getTheoreticYaw(double armor_x, double armor_y);
