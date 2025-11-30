@@ -23,15 +23,6 @@ struct ObservedData {
         : x(x_val), y(y_val), z(z_val), yaw(yaw_val), t(t_val) {}
 };
 
-struct fitCenterXYZResult {
-    double center_x;
-    double center_y;
-    double center_z;  // 新增z坐标
-    double center_vx;
-    double center_vy;
-    double center_vz; // 新增z方向速度
-};
-
 struct SimpleArmor {
     double x;
     double y;
@@ -277,15 +268,14 @@ private:
     Eigen::MatrixXd P_center_;      // 7x7 协方差矩阵
     Eigen::VectorXd x_center_;      // 7维状态向量
     double lambda_;                 // 遗忘因子
-    bool center_initialized_;
     
     double r_prev_;                 // 上一步的半径值，用于正则化
     double regularization_weight_;  // 正则化权重
     
     // 修改指数衰减最小二乘方法
-    void initializeExponentialLS();
+    void resetExponentialLS();
     void updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight=1.0);
-    fitCenterXYZResult getCenterResult(double current_time);
+    void updateCenterResult(double current_time);
 
     std::vector<ObservedData> observedDataHistory;
     ObservedData last_observed_data;
@@ -297,13 +287,9 @@ private:
     double center_y;
     double center_z;
     int max_history;
-    double jump_period_frames = 1.0;
-    double rotation_period;
-    double current_phase;
     int n_armors;
     int rotation_direction;
     double jump_rad;
-    double delta_phase;
 
     // 用于角度和角速度跟踪的EKF
     std::unique_ptr<AngleEKF> angle_ekf_;

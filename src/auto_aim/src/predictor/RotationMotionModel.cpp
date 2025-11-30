@@ -18,11 +18,9 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     if (is_outpost) {
         n_armors = 3;
         r = 276.5;
-        delta_phase = 25.0 * M_PI / 180.0;
     } else {
         n_armors = 4;  // 4装甲板模式
         r = 250.0;
-        delta_phase = 25.0 * M_PI / 180.0;
     }
     
     r_prev_ = r;  // 初始化历史半径值
@@ -34,16 +32,14 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     center_z = initObservedData.z;  // 使用观测数据的z值初始化
     
     max_history = 90;
-    rotation_period = 0.0;
-    current_phase = 0.0;
     rotation_direction = 1;
     jump_rad = M_PI * 2.0 / n_armors;
     
     // 初始化指数衰减最小二乘
-    initializeExponentialLS();
+    resetExponentialLS();
 }
 
-void RotationMotionModel::initializeExponentialLS() {
+void RotationMotionModel::resetExponentialLS() {
     // 初始化7x7协方差矩阵
     P_center_ = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM) * 1000.0;
     
@@ -59,14 +55,9 @@ void RotationMotionModel::initializeExponentialLS() {
     
     // 遗忘因子，值越小遗忘越快
     lambda_ = 0.95;
-    center_initialized_ = true;
 }
 
 void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight) {
-    if (!center_initialized_) {
-        initializeExponentialLS();
-    }
-    
     // 构建三个测量方程
     
     // 测量1: 装甲板到中心的向量与装甲板朝向垂直 (xy平面)
@@ -145,32 +136,16 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
     if (x_center_(6) > 600.0) x_center_(6) = 600.0;
 }
 
-fitCenterXYZResult RotationMotionModel::getCenterResult(double current_time) {
-    fitCenterXYZResult result;
-    
-    if (center_initialized_) {
-        // 使用状态向量计算当前时刻的中心位置
-        result.center_x = x_center_(0) + x_center_(3) * current_time;
-        result.center_y = x_center_(1) + x_center_(4) * current_time;
-        result.center_z = x_center_(2) + x_center_(5) * current_time;  // 新增z坐标
-        result.center_vx = x_center_(3);
-        result.center_vy = x_center_(4);
-        result.center_vz = x_center_(5);  // 新增z方向速度
-        
-        // 更新半径值
-        r = x_center_(6);
-        r_prev_ = r;  // 保存当前r值用于下一次正则化
-    } else {
-        // 回退到简单估计
-        result.center_x = center_x;
-        result.center_y = center_y;
-        result.center_z = center_z;
-        result.center_vx = center_vx;
-        result.center_vy = center_vy;
-        result.center_vz = center_vz;
-    }
-    
-    return result;
+void RotationMotionModel::updateCenterResult(double current_time) {
+    center_x = x_center_(0) + x_center_(3) * current_time;
+    center_y = x_center_(1) + x_center_(4) * current_time;
+    center_z = x_center_(2) + x_center_(5) * current_time;
+    center_vx = x_center_(3);
+    center_vy = x_center_(4);
+    center_vz = x_center_(5);
+    // 更新半径值
+    r = x_center_(6);
+    r_prev_ = r;  // 保存当前r值用于下一次正则化
 }
 
 void RotationMotionModel::update(ObservedData& observedData) {
@@ -184,7 +159,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
     // 不再使用单独的线性回归计算z方向状态，统一使用指数衰减最小二乘
     
     // 使用指数衰减最小二乘更新所有状态（包括z轴）
-    initializeExponentialLS();
+    resetExponentialLS();
     double current_time = observedData.t;
     for (size_t i = 0; i < observedDataHistory.size(); ++i) {
         const auto& data = observedDataHistory[i];
@@ -197,13 +172,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
     }
     
     // 获取当前中心状态
-    fitCenterXYZResult centerResult = getCenterResult(0.0);  // 当前时刻
-    center_x = centerResult.center_x;
-    center_y = centerResult.center_y;
-    center_z = centerResult.center_z;      // 从结果中获取z坐标
-    center_vx = centerResult.center_vx;
-    center_vy = centerResult.center_vy;
-    center_vz = centerResult.center_vz;    // 从结果中获取z方向速度
+    updateCenterResult(0.0);  // 当前时刻
     
     // 使用EKF更新角度和角速度，传入xc, yc, r
     double dt = observedData.t - last_update_time_;
@@ -233,18 +202,6 @@ void RotationMotionModel::fitRotationParameters() {
     // 从EKF获取角度和角速度
     double ekf_yaw = angle_ekf_->getYaw();
     double ekf_vyaw = angle_ekf_->getVyaw();
-    
-    // 使用EKF的角速度计算旋转参数
-    rotation_direction = (ekf_vyaw >= 0) ? 1 : -1;
-    
-    if (std::abs(ekf_vyaw) > 1e-5) {
-        rotation_period = 2.0 * M_PI / std::abs(ekf_vyaw);
-    } else {
-        rotation_period = 0.0;
-    }
-    
-    // 更新当前相位
-    current_phase = ekf_yaw;
 }
 
 PredictResult RotationMotionModel::predict(double predictTime) {
