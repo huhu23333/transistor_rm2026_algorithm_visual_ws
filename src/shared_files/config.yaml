@@ -36,7 +36,7 @@ RESET_DISTANCE_THRESHOLD : 8.0e32 # 单位：mm
 
 # SharedMemoryClassifier参数
 CLASSIFIER_SHM_KEY : 0x0250
-classifier_model_relative_path : "src/shared_files/models/model_rm2026.pt"
+classifier_model_relative_path : "src/shared_files/models/model_rm2026_openvino/model.xml"
 
 YOLO_POSE_SHM_KEY : 0x0070
 yolo_pose_model_relative_path : "src/shared_files/models/armor-oneclass-yolo11n-pose-best_int8_openvino_model"

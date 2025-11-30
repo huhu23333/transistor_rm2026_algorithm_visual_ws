@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
-import os
-
-current_file_path = os.path.abspath(__file__)
-current_dir = os.path.dirname(current_file_path)
+import cv2
+# import onnxruntime
+# from openvino.tools import mo
+# from openvino.runtime import serialize
+import openvino as ov
 
 class TransistorRM2026Net(nn.Module):
     def __init__(self, num_classes=8):
@@ -68,15 +69,38 @@ class TransistorRM2026Net(nn.Module):
         result3 = self.head3(x)                             #1
         result4 = self.head4(x)                             #1
         result5 = self.head5(x)                             #num_classes
-        return (result1, result2, result3, result4, result5)
-    
-if __name__ == "__main__":
-    model = TransistorRM2026Net(num_classes=8)
-    model.load_state_dict(torch.load(os.path.join(current_dir, "best_model.pth"), weights_only=True))
+        return (result1, result2, result3, result4, result5) 
+
+def preprocess_image(image_path):
+    """预处理图像，与训练时相同"""
+    image = cv2.imread(image_path)
+    if image is None:
+        raise ValueError(f"无法读取图像: {image_path}")
+    # 转换为张量并归一化
+    image_tensor = torch.from_numpy(image).permute(2, 0, 1).float()
+    image_tensor = (image_tensor / 127.5) - 1.0
+    return image_tensor.unsqueeze(0)  # 添加batch维度
+
+def main():
+    model = TransistorRM2026Net()
+    model_path = "model_rm2026.pt"
+    model.load_state_dict(torch.load(model_path))
+    image_path = input("\n请输入图像路径(或输入'q'退出): ").strip()
+    image_data = preprocess_image(image_path)
     model.eval()
-    """ traced_model = torch.jit.trace(model, torch.rand(1, 3, 48, 64))
-    torch.jit.save(traced_model, os.path.join(current_dir, "model_rm2026.pt")) """
-    scripted_model = torch.jit.script(model)
-    torch.jit.save(scripted_model, os.path.join(current_dir, "model_rm2026.pt"))
-    """ model.eval()
-    torch.save(model.state_dict(), "model_rm2026.pt") """
+
+    with torch.no_grad():
+        # torch.onnx.export(model, image_data, 'model_rm2026.onnx',
+        #     do_constant_folding=True,
+        #     input_names=['input'],
+        #     output_names=['output'],
+        #     dynamic_axes={
+        #         'input': {0: 'batch_size'},
+        #         'output': {0: 'batch_size'}
+        #     })
+        ov_model = ov.convert_model(model, example_input=image_data)
+        ov.save_model(ov_model, 'model_rm2026_openvino/model.xml')
+
+
+if __name__ == "__main__":
+    main()
