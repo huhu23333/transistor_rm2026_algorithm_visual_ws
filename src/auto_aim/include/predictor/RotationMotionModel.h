@@ -269,6 +269,17 @@ public:
 
 class RotationMotionModel {
 private:
+    // 指数衰减最小二乘状态
+    Eigen::Matrix4d P_center_;      // 协方差矩阵
+    Eigen::Vector4d x_center_;      // 状态向量 [center_x, center_y, center_vx, center_vy]
+    double lambda_;                 // 遗忘因子 (0 < lambda <= 1)
+    bool center_initialized_;
+    
+    // 指数衰减最小二乘方法
+    void initializeExponentialLS();
+    void updateExponentialLS(double armor_x, double armor_y, double armor_yaw, double t, double weight = 1.0);
+    fitCenterXYResult getCenterResult(double current_time);
+
     std::vector<ObservedData> observedDataHistory;
     double center_vx;
     double center_vy;
@@ -303,11 +314,6 @@ public:
     RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost);
     void update(ObservedData& observedData);
     PredictResult predict(double predictTime);
-    fitCenterXYResult fitCenterXY(const std::vector<double>& armorYaw, 
-                                 const std::vector<double>& armorX,
-                                 const std::vector<double>& armorY,
-                                 const std::vector<double>& dataT,
-                                 double lastR);
     double getJumpPeriod();
     void emptyUpdate(double update_time);
     RotationMotionState getState();

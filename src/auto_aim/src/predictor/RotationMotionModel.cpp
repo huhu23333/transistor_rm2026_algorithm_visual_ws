@@ -36,6 +36,78 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     current_phase = 0.0;
     rotation_direction = 1;
     jump_rad = M_PI * 2.0 / n_armors;
+    
+    // 初始化指数衰减最小二乘
+    initializeExponentialLS();
+}
+
+void RotationMotionModel::initializeExponentialLS() {
+    // 初始化协方差矩阵为较大的值，表示初始不确定性
+    P_center_ = Eigen::Matrix4d::Identity() * 1000.0;
+    
+    // 初始状态估计
+    x_center_ = Eigen::Vector4d::Zero();
+    x_center_(0) = center_x;  // center_x
+    x_center_(1) = center_y;  // center_y
+    x_center_(2) = 0.0;       // center_vx
+    x_center_(3) = 0.0;       // center_vy
+    
+    // 遗忘因子，值越小遗忘越快
+    lambda_ = 0.95;
+    center_initialized_ = true;
+}
+
+void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_yaw, double t, double weight) {
+    if (!center_initialized_) {
+        initializeExponentialLS();
+    }
+    
+    // 构建测量向量和矩阵
+    double cosYaw = cos(armor_yaw);
+    double sinYaw = sin(armor_yaw);
+    double offAxisX = cosYaw;   // 垂直于装甲板朝向的单位向量x分量
+    double offAxisY = sinYaw;   // 垂直于装甲板朝向的单位向量y分量
+    
+    // 测量值：装甲板在垂直方向上的投影
+    double z = offAxisX * armor_x + offAxisY * armor_y;
+    
+    // 测量矩阵
+    Eigen::RowVector4d H;
+    H << offAxisX, offAxisY, offAxisX * t, offAxisY * t;
+    
+    // 计算卡尔曼增益
+    double S = H * P_center_ * H.transpose() + 1.0 / weight;  // 测量噪声方差倒数作为权重
+    Eigen::Vector4d K = P_center_ * H.transpose() / S;
+    
+    // 计算新息（测量残差）
+    double innovation = z - H * x_center_;
+    
+    // 更新状态估计
+    x_center_ = x_center_ + K * innovation;
+    
+    // 更新协方差矩阵（带指数衰减）
+    Eigen::Matrix4d I = Eigen::Matrix4d::Identity();
+    P_center_ = (I - K * H) * P_center_ / lambda_;
+}
+
+fitCenterXYResult RotationMotionModel::getCenterResult(double current_time) {
+    fitCenterXYResult result;
+    
+    if (center_initialized_) {
+        // 使用状态向量计算当前时刻的中心位置
+        result.center_x = x_center_(0) + x_center_(2) * current_time;
+        result.center_y = x_center_(1) + x_center_(3) * current_time;
+        result.center_vx = x_center_(2);
+        result.center_vy = x_center_(3);
+    } else {
+        // 回退到简单估计
+        result.center_x = center_x;
+        result.center_y = center_y;
+        result.center_vx = center_vx;
+        result.center_vy = center_vy;
+    }
+    
+    return result;
 }
 
 void RotationMotionModel::emptyUpdate(double update_time) {
@@ -53,6 +125,7 @@ void RotationMotionModel::emptyUpdate(double update_time) {
     update(update_data);
 }
 
+// 修改update方法
 void RotationMotionModel::update(ObservedData& observedData) {
     observedDataHistory.push_back(observedData);
     if (observedDataHistory.size() > max_history) {
@@ -67,12 +140,26 @@ void RotationMotionModel::update(ObservedData& observedData) {
     std::vector<double> zData = params[3];
     std::vector<double> yawData = params[4];
     
-    // 使用原始方法更新平移状态
+    // 使用原始方法更新z方向状态
     LinearRegressionResult zResult = linearRegression(tData, zData);
     center_z = zResult.a;
     center_vz = zResult.b;
     
-    fitCenterXYResult centerResult = fitCenterXY(yawData, xData, yData, tData, r);
+    // 使用指数衰减最小二乘更新xy平面状态
+    // 对最近的观测数据应用指数衰减最小二乘更新
+    double current_time = observedData.t;
+    for (size_t i = 0; i < observedDataHistory.size(); ++i) {
+        const auto& data = observedDataHistory[i];
+        double time_offset = data.t - current_time;  // 相对于当前时间的时间偏移
+        
+        // 计算权重：时间越近权重越大
+        double time_weight = std::exp(-std::abs(time_offset) * 0.1);
+        
+        updateExponentialLS(data.x, data.y, data.yaw, time_offset, time_weight);
+    }
+    
+    // 获取当前中心状态
+    fitCenterXYResult centerResult = getCenterResult(0.0);  // 当前时刻
     center_x = centerResult.center_x;
     center_y = centerResult.center_y;
     center_vx = centerResult.center_vx;
@@ -196,50 +283,50 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     return result;
 }
 
-fitCenterXYResult RotationMotionModel::fitCenterXY(const std::vector<double>& armorYaw,
-                                                  const std::vector<double>& armorX,
-                                                  const std::vector<double>& armorY,
-                                                  const std::vector<double>& dataT,
-                                                  double lastR) {
-    int n = armorYaw.size();
+// fitCenterXYResult RotationMotionModel::fitCenterXY(const std::vector<double>& armorYaw,
+//                                                   const std::vector<double>& armorX,
+//                                                   const std::vector<double>& armorY,
+//                                                   const std::vector<double>& dataT,
+//                                                   double lastR) {
+//     int n = armorYaw.size();
     
-    // 构建轴向量
-    std::vector<double> axisX(n), axisY(n);
-    std::vector<double> offAxisX(n), offAxisY(n);
+//     // 构建轴向量
+//     std::vector<double> axisX(n), axisY(n);
+//     std::vector<double> offAxisX(n), offAxisY(n);
     
-    for (int i = 0; i < n; i++) {
-        double cosYaw = cos(armorYaw[i]);
-        double sinYaw = sin(armorYaw[i]);
-        axisX[i] = -sinYaw;
-        axisY[i] = cosYaw;
-        offAxisX[i] = axisY[i];
-        offAxisY[i] = -axisX[i];
-    }
+//     for (int i = 0; i < n; i++) {
+//         double cosYaw = cos(armorYaw[i]);
+//         double sinYaw = sin(armorYaw[i]);
+//         axisX[i] = -sinYaw;
+//         axisY[i] = cosYaw;
+//         offAxisX[i] = axisY[i];
+//         offAxisY[i] = -axisX[i];
+//     }
     
-    // 构建设计矩阵
-    MatrixXd A(n, 4);
-    VectorXd b(n);
+//     // 构建设计矩阵
+//     MatrixXd A(n, 4);
+//     VectorXd b(n);
     
-    for (int i = 0; i < n; i++) {
-        A(i, 0) = offAxisX[i];
-        A(i, 1) = offAxisY[i];
-        A(i, 2) = offAxisX[i] * dataT[i];
-        A(i, 3) = offAxisY[i] * dataT[i];
-        b(i) = offAxisX[i] * armorX[i] + offAxisY[i] * armorY[i];
-    }
+//     for (int i = 0; i < n; i++) {
+//         A(i, 0) = offAxisX[i];
+//         A(i, 1) = offAxisY[i];
+//         A(i, 2) = offAxisX[i] * dataT[i];
+//         A(i, 3) = offAxisY[i] * dataT[i];
+//         b(i) = offAxisX[i] * armorX[i] + offAxisY[i] * armorY[i];
+//     }
     
-    // 使用SVD求解
-    JacobiSVD<MatrixXd> svd(A, ComputeThinU | ComputeThinV);
-    VectorXd x = svd.solve(b);
+//     // 使用SVD求解
+//     JacobiSVD<MatrixXd> svd(A, ComputeThinU | ComputeThinV);
+//     VectorXd x = svd.solve(b);
     
-    fitCenterXYResult result;
-    result.center_x = x(0);
-    result.center_y = x(1);
-    result.center_vx = x(2);
-    result.center_vy = x(3);
+//     fitCenterXYResult result;
+//     result.center_x = x(0);
+//     result.center_y = x(1);
+//     result.center_vx = x(2);
+//     result.center_vy = x(3);
     
-    return result;
-}
+//     return result;
+// }
 
 int RotationMotionModel::getRotationDirection(const std::vector<double>& yawData) {
     if (yawData.size() < 2) return 1;
