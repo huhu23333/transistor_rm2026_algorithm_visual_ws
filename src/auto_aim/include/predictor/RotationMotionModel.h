@@ -47,17 +47,6 @@ struct PredictResult {
     std::vector<SimpleArmor> armors;
 };
 
-struct RotationMotionState {
-    double center_vx;
-    double center_vy;
-    double center_vz;
-    double vyaw;
-    double r;
-    double center_x;
-    double center_y;
-    double center_z;
-};
-
 // 用于角度和角速度跟踪的EKF
 class AngleEKF {
 private:
@@ -267,15 +256,30 @@ public:
     const Eigen::Vector2d& getState() const { return state_; }
 };
 
+struct RotationMotionState {
+    double center_vx;
+    double center_vy;
+    double center_vz;
+    double vyaw;
+    double r;
+    double center_x;
+    double center_y;
+    double center_z;
+};
+
 class RotationMotionModel {
 private:
-    // 指数衰减最小二乘状态
-    Eigen::Matrix4d P_center_;      // 协方差矩阵
-    Eigen::Vector4d x_center_;      // 状态向量 [center_x, center_y, center_vx, center_vy]
-    double lambda_;                 // 遗忘因子 (0 < lambda <= 1)
+    // 扩展的状态向量： [center_x, center_y, center_vx, center_vy, r]
+    static constexpr int STATE_DIM = 5;
+    Eigen::MatrixXd P_center_;      // 5x5 协方差矩阵
+    Eigen::VectorXd x_center_;      // 5维状态向量
+    double lambda_;                 // 遗忘因子
     bool center_initialized_;
     
-    // 指数衰减最小二乘方法
+    double r_prev_;                 // 上一步的半径值，用于正则化
+    double regularization_weight_;  // 正则化权重
+    
+    // 修改指数衰减最小二乘方法
     void initializeExponentialLS();
     void updateExponentialLS(double armor_x, double armor_y, double armor_yaw, double t, double weight = 1.0);
     fitCenterXYResult getCenterResult(double current_time);

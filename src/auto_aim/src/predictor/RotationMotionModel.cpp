@@ -3,7 +3,6 @@
 
 using namespace Eigen;
 
-
 RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost)
     : rest_frame_(rest_frame_), is_outpost(is_outpost) {
     observedDataHistory.push_back(initObservedData);
@@ -26,6 +25,9 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
         delta_phase = 25.0 * M_PI / 180.0;
     }
     
+    r_prev_ = r;  // 初始化历史半径值
+    regularization_weight_ = 10.0;  // 正则化权重，可调整
+    
     // 初始化中心位置
     center_x = initObservedData.x - r * sin(initObservedData.yaw);
     center_y = initObservedData.y + r * cos(initObservedData.yaw);
@@ -42,15 +44,16 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
 }
 
 void RotationMotionModel::initializeExponentialLS() {
-    // 初始化协方差矩阵为较大的值，表示初始不确定性
-    P_center_ = Eigen::Matrix4d::Identity() * 1000.0;
+    // 初始化5x5协方差矩阵
+    P_center_ = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM) * 1000.0;
     
-    // 初始状态估计
-    x_center_ = Eigen::Vector4d::Zero();
+    // 初始状态估计 [center_x, center_y, center_vx, center_vy, r]
+    x_center_ = Eigen::VectorXd::Zero(STATE_DIM);
     x_center_(0) = center_x;  // center_x
     x_center_(1) = center_y;  // center_y
     x_center_(2) = 0.0;       // center_vx
     x_center_(3) = 0.0;       // center_vy
+    x_center_(4) = r;         // r
     
     // 遗忘因子，值越小遗忘越快
     lambda_ = 0.95;
@@ -62,32 +65,66 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         initializeExponentialLS();
     }
     
-    // 构建测量向量和矩阵
+    // 构建两个测量方程
+    
+    // 测量1: 装甲板到中心的向量与装甲板朝向垂直
+    // offAxisVector · armorToCenterVector = 0
     double cosYaw = cos(armor_yaw);
     double sinYaw = sin(armor_yaw);
     double offAxisX = cosYaw;   // 垂直于装甲板朝向的单位向量x分量
     double offAxisY = sinYaw;   // 垂直于装甲板朝向的单位向量y分量
     
-    // 测量值：装甲板在垂直方向上的投影
-    double z = offAxisX * armor_x + offAxisY * armor_y;
+    // 测量1的值：装甲板在垂直方向上的投影应为0
+    double z1 = offAxisX * armor_x + offAxisY * armor_y;
     
-    // 测量矩阵
-    Eigen::RowVector4d H;
-    H << offAxisX, offAxisY, offAxisX * t, offAxisY * t;
+    // 测量1的测量矩阵
+    Eigen::RowVectorXd H1(STATE_DIM);
+    H1 << offAxisX, offAxisY, offAxisX * t, offAxisY * t, 0.0;
     
-    // 计算卡尔曼增益
-    double S = H * P_center_ * H.transpose() + 1.0 / weight;  // 测量噪声方差倒数作为权重
-    Eigen::Vector4d K = P_center_ * H.transpose() / S;
+    // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于半径r
+    // axisVector · armorToCenterVector = r
+    double axisX = -sinYaw;     // 装甲板法向单位向量x分量
+    double axisY = cosYaw;      // 装甲板法向单位向量y分量
     
-    // 计算新息（测量残差）
-    double innovation = z - H * x_center_;
+    // 测量2的值：装甲板在法向上的投影应为r
+    double z2 = axisX * armor_x + axisY * armor_y;
     
-    // 更新状态估计
-    x_center_ = x_center_ + K * innovation;
+    // 测量2的测量矩阵
+    Eigen::RowVectorXd H2(STATE_DIM);
+    H2 << axisX, axisY, axisX * t, axisY * t, -1.0;
     
-    // 更新协方差矩阵（带指数衰减）
-    Eigen::Matrix4d I = Eigen::Matrix4d::Identity();
-    P_center_ = (I - K * H) * P_center_ / lambda_;
+    // 正则化测量: 保持r接近上一步的值
+    double z3 = r_prev_;  // 使用上一步的r值作为正则化目标
+    Eigen::RowVectorXd H3 = Eigen::RowVectorXd::Zero(STATE_DIM);
+    H3(4) = 1.0;  // 只对r进行正则化
+    
+    // 更新测量1
+    double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight;
+    Eigen::VectorXd K1 = P_center_ * H1.transpose() / S1;
+    double innovation1 = z1 - H1 * x_center_;
+    x_center_ = x_center_ + K1 * innovation1;
+    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
+    P_center_ = (I - K1 * H1) * P_center_ / lambda_;
+    
+    // 更新测量2（赋予较大权重，因为这是半径的主要约束）
+    double weight2 = weight * 1.0;  // 给第二个测量更大的权重
+    double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
+    Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
+    double innovation2 = z2 - H2 * x_center_;
+    x_center_ = x_center_ + K2 * innovation2;
+    P_center_ = (I - K2 * H2) * P_center_ / lambda_;
+    
+    // 更新正则化测量
+    double weight3 = regularization_weight_;  // 正则化权重
+    double S3 = H3 * P_center_ * H3.transpose() + 1.0 / weight3;
+    Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
+    double innovation3 = z3 - H3 * x_center_;
+    x_center_ = x_center_ + K3 * innovation3;
+    P_center_ = (I - K3 * H3) * P_center_ / lambda_;
+    
+    // 限制半径在合理范围内
+    if (x_center_(4) < 100.0) x_center_(4) = 100.0;
+    if (x_center_(4) > 600.0) x_center_(4) = 600.0;
 }
 
 fitCenterXYResult RotationMotionModel::getCenterResult(double current_time) {
@@ -99,6 +136,10 @@ fitCenterXYResult RotationMotionModel::getCenterResult(double current_time) {
         result.center_y = x_center_(1) + x_center_(3) * current_time;
         result.center_vx = x_center_(2);
         result.center_vy = x_center_(3);
+        
+        // 更新半径值
+        r = x_center_(4);
+        r_prev_ = r;  // 保存当前r值用于下一次正则化
     } else {
         // 回退到简单估计
         result.center_x = center_x;
@@ -110,22 +151,6 @@ fitCenterXYResult RotationMotionModel::getCenterResult(double current_time) {
     return result;
 }
 
-void RotationMotionModel::emptyUpdate(double update_time) {
-    if (observedDataHistory.empty()) return;
-    
-    ObservedData last_observed_data = observedDataHistory.back();
-    PredictResult pred_data_to_update = predict(update_time - last_observed_data.t);
-    ObservedData update_data({
-        pred_data_to_update.armors[0].x,
-        pred_data_to_update.armors[0].y,
-        pred_data_to_update.armors[0].z,
-        pred_data_to_update.armors[0].yaw,
-        update_time
-    });
-    update(update_data);
-}
-
-// 修改update方法
 void RotationMotionModel::update(ObservedData& observedData) {
     observedDataHistory.push_back(observedData);
     if (observedDataHistory.size() > max_history) {
@@ -145,8 +170,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
     center_z = zResult.a;
     center_vz = zResult.b;
     
-    // 使用指数衰减最小二乘更新xy平面状态
-    // 对最近的观测数据应用指数衰减最小二乘更新
+    // 使用指数衰减最小二乘更新xy平面状态和半径
     double current_time = observedData.t;
     for (size_t i = 0; i < observedDataHistory.size(); ++i) {
         const auto& data = observedDataHistory[i];
@@ -165,9 +189,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
     center_vx = centerResult.center_vx;
     center_vy = centerResult.center_vy;
     
-    if (!is_outpost) {
-        calculateR();
-    }
+    // 移除原有的 calculateR() 调用，因为r已经在updateExponentialLS中更新
     
     // 使用EKF更新角度和角速度，传入xc, yc, r
     double dt = observedData.t - last_update_time_;
@@ -179,6 +201,21 @@ void RotationMotionModel::update(ObservedData& observedData) {
     
     // 使用EKF状态拟合旋转参数
     fitRotationParameters();
+}
+
+void RotationMotionModel::emptyUpdate(double update_time) {
+    if (observedDataHistory.empty()) return;
+    
+    ObservedData last_observed_data = observedDataHistory.back();
+    PredictResult pred_data_to_update = predict(update_time - last_observed_data.t);
+    ObservedData update_data({
+        pred_data_to_update.armors[0].x,
+        pred_data_to_update.armors[0].y,
+        pred_data_to_update.armors[0].z,
+        pred_data_to_update.armors[0].yaw,
+        update_time
+    });
+    update(update_data);
 }
 
 std::vector<std::vector<double>> RotationMotionModel::getParams() {
@@ -194,24 +231,6 @@ std::vector<std::vector<double>> RotationMotionModel::getParams() {
     }
     
     return {tData, xData, yData, zData, yawData};
-}
-
-void RotationMotionModel::calculateR() {
-    auto params = getParams();
-    std::vector<double> tData = params[0];
-    std::vector<double> xData = params[1];
-    std::vector<double> yData = params[2];
-    
-    double sum = 0.0;
-    int n = tData.size();
-    for (int i = 0; i < n; i++) {
-        double dx = xData[i] - (center_x + center_vx * tData[i]);
-        double dy = yData[i] - (center_y + center_vy * tData[i]);
-        sum += sqrt(dx * dx + dy * dy);
-    }
-    
-    r = sum / n;
-    r = std::max(std::min(r, 600.0), 100.0);
 }
 
 void RotationMotionModel::fitRotationParameters() {
@@ -282,51 +301,6 @@ PredictResult RotationMotionModel::predict(double predictTime) {
 
     return result;
 }
-
-// fitCenterXYResult RotationMotionModel::fitCenterXY(const std::vector<double>& armorYaw,
-//                                                   const std::vector<double>& armorX,
-//                                                   const std::vector<double>& armorY,
-//                                                   const std::vector<double>& dataT,
-//                                                   double lastR) {
-//     int n = armorYaw.size();
-    
-//     // 构建轴向量
-//     std::vector<double> axisX(n), axisY(n);
-//     std::vector<double> offAxisX(n), offAxisY(n);
-    
-//     for (int i = 0; i < n; i++) {
-//         double cosYaw = cos(armorYaw[i]);
-//         double sinYaw = sin(armorYaw[i]);
-//         axisX[i] = -sinYaw;
-//         axisY[i] = cosYaw;
-//         offAxisX[i] = axisY[i];
-//         offAxisY[i] = -axisX[i];
-//     }
-    
-//     // 构建设计矩阵
-//     MatrixXd A(n, 4);
-//     VectorXd b(n);
-    
-//     for (int i = 0; i < n; i++) {
-//         A(i, 0) = offAxisX[i];
-//         A(i, 1) = offAxisY[i];
-//         A(i, 2) = offAxisX[i] * dataT[i];
-//         A(i, 3) = offAxisY[i] * dataT[i];
-//         b(i) = offAxisX[i] * armorX[i] + offAxisY[i] * armorY[i];
-//     }
-    
-//     // 使用SVD求解
-//     JacobiSVD<MatrixXd> svd(A, ComputeThinU | ComputeThinV);
-//     VectorXd x = svd.solve(b);
-    
-//     fitCenterXYResult result;
-//     result.center_x = x(0);
-//     result.center_y = x(1);
-//     result.center_vx = x(2);
-//     result.center_vy = x(3);
-    
-//     return result;
-// }
 
 int RotationMotionModel::getRotationDirection(const std::vector<double>& yawData) {
     if (yawData.size() < 2) return 1;
