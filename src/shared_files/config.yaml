@@ -61,7 +61,7 @@ cam_ip : "192.168.10.10"
 video_relative_path : "InputVideo/infantry_blue.mp4" # 使用视频输入时的视频路径
 images_relative_path : "InputImages" # 使用图片输入时的图片文件夹路径
 
-frame_rate : 300.0
+frame_rate : 30.0
 serial_delay_time : 30.0 # ms
 
 yaw_rad_to_x_pixel_ratio : 1300.0

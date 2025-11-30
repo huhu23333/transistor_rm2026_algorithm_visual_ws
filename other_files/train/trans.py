@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 import cv2
-import onnxruntime
+# import onnxruntime
+# from openvino.tools import mo
+# from openvino.runtime import serialize
+import openvino as ov
 
 class TransistorRM2026Net(nn.Module):
     def __init__(self, num_classes=8):
@@ -87,14 +90,17 @@ def main():
     model.eval()
 
     with torch.no_grad():
-        torch.onnx.export(model, image_data, 'model_rm2026.onnx',
-            do_constant_folding=True,
-            input_names=['input'],
-            output_names=['output'],
-            dynamic_axes={
-                'input': {0: 'batch_size'},
-                'output': {0: 'batch_size'}
-            })
+        # torch.onnx.export(model, image_data, 'model_rm2026.onnx',
+        #     do_constant_folding=True,
+        #     input_names=['input'],
+        #     output_names=['output'],
+        #     dynamic_axes={
+        #         'input': {0: 'batch_size'},
+        #         'output': {0: 'batch_size'}
+        #     })
+        ov_model = ov.convert_model(model, example_input=image_data)
+        ov.save_model(ov_model, 'model_rm2026_openvino/model.xml')
+
 
 if __name__ == "__main__":
     main()
