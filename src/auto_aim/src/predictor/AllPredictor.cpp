@@ -202,6 +202,21 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Point2f(20,170), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "vx:"+std::to_string(RMM_state.center_vx), 
+                    cv::Point2f(20,200), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "vy:"+std::to_string(RMM_state.center_vy), 
+                    cv::Point2f(20,230), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400 + RMM_pred_now_data.center_x/10, 400 - RMM_pred_now_data.center_y/10), 
+                    cv::Point2f(400 + (RMM_pred_now_data.center_x/10 + RMM_state.center_vx/5), 
+                                400 - (RMM_pred_now_data.center_y/10 + RMM_state.center_vy/5)),
+                    cv::Scalar(255, 255, 0), 2);
 #ifdef SHOW_WINDOWS
                 cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
@@ -461,7 +476,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Point2f(20,80), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
-                
                 if (using_predictor_type == PredictorType::RotationMotionModel) {
                     PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(last_total_delay_);
                     std::vector<float> cam_position = rest_frame_ -> getCamPosition();
@@ -511,6 +525,21 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Point2f(20,170), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "vx:"+std::to_string(RMM_state.center_vx), 
+                    cv::Point2f(20,200), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "vy:"+std::to_string(RMM_state.center_vy), 
+                    cv::Point2f(20,230), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400 + RMM_pred_now_data.center_x/10, 400 - RMM_pred_now_data.center_y/10), 
+                    cv::Point2f(400 + (RMM_pred_now_data.center_x/10 + RMM_state.center_vx/5), 
+                                400 - (RMM_pred_now_data.center_y/10 + RMM_state.center_vy/5)),
+                    cv::Scalar(255, 255, 0), 2);
 #ifdef SHOW_WINDOWS
                 cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
