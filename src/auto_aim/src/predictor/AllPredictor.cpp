@@ -63,7 +63,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 constexpr float image_latency = 0.013f;
                 constexpr float comm_latency  = 0.010f;
                 float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                float extra_time = 0.100f; // 0.300f
+                float extra_time = 0.300f; // 0.300f
                 float total_delay = image_latency + comm_latency + bullet_time + extra_time;
                 last_total_delay_ = total_delay;
 
