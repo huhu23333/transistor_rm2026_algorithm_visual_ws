@@ -136,7 +136,7 @@ public:
      */
     void updateQ(double dt) {
         double s2q_yaw = 0.1;    // yaw过程噪声
-        double s2q_vyaw = 0.1;   // 角速度过程噪声
+        double s2q_vyaw = 0.01;   // 角速度过程噪声
         
         Q_(0, 0) = std::pow(dt, 4) / 4.0 * s2q_yaw;
         Q_(0, 1) = std::pow(dt, 3) / 2.0 * s2q_yaw;
