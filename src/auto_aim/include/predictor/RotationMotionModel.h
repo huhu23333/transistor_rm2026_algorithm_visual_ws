@@ -250,14 +250,15 @@ public:
 };
 
 struct RotationMotionState {
-    double center_vx;
-    double center_vy;
-    double center_vz;
-    double vyaw;
-    double r;
     double center_x;
     double center_y;
     double center_z;
+    double center_vx;
+    double center_vy;
+    double center_vz;
+    double r;
+    double yaw;
+    double vyaw;
 };
 
 // 修改状态向量维度，从5维扩展到7维
@@ -294,9 +295,6 @@ private:
     // 用于角度和角速度跟踪的EKF
     std::unique_ptr<AngleEKF> angle_ekf_;
     double last_update_time_;
-
-    // 私有方法
-    void fitRotationParameters();
 
     std::shared_ptr<RestFrame> rest_frame_;
     bool is_outpost;

@@ -181,10 +181,8 @@ void RotationMotionModel::update(ObservedData& observedData) {
         angle_ekf_->update(observedData.yaw, observedData.x, observedData.y, 
                           center_x, center_y, r, dt);
         last_update_time_ = observedData.t;
+        rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;
     }
-    
-    // 使用EKF状态拟合旋转参数
-    fitRotationParameters();
 }
 
 void RotationMotionModel::emptyUpdate(double update_time) {
@@ -197,12 +195,6 @@ void RotationMotionModel::emptyUpdate(double update_time) {
         update_time
     });
     update(update_data);
-}
-
-void RotationMotionModel::fitRotationParameters() {
-    // 从EKF获取角度和角速度
-    double ekf_yaw = angle_ekf_->getYaw();
-    double ekf_vyaw = angle_ekf_->getVyaw();
 }
 
 PredictResult RotationMotionModel::predict(double predictTime) {
@@ -219,7 +211,6 @@ PredictResult RotationMotionModel::predict(double predictTime) {
         double ekf_yaw = angle_ekf_->getYaw();
         double ekf_vyaw = angle_ekf_->getVyaw();
         result.yaw = ekf_yaw + ekf_vyaw * predictTime;
-        rotation_direction = ekf_vyaw >= 0 ? 1.0 : -1.0;
         
         // 处理角度环绕
         if (result.yaw > M_PI) result.yaw -= 2.0 * M_PI;
@@ -255,8 +246,10 @@ RotationMotionState RotationMotionModel::getState() {
     state.center_z = center_z;
     
     if (angle_ekf_->isInitialized()) {
-        state.vyaw = angle_ekf_->getVyaw();  // 使用EKF的角速度
+        state.yaw = angle_ekf_->getYaw();
+        state.vyaw = angle_ekf_->getVyaw();
     } else {
+        state.yaw = 0.0;
         state.vyaw = 0.0;
     }
     
