@@ -219,6 +219,7 @@ PredictResult RotationMotionModel::predict(double predictTime) {
         double ekf_yaw = angle_ekf_->getYaw();
         double ekf_vyaw = angle_ekf_->getVyaw();
         result.yaw = ekf_yaw + ekf_vyaw * predictTime;
+        rotation_direction = ekf_vyaw >= 0 ? 1.0 : -1.0;
         
         // 处理角度环绕
         if (result.yaw > M_PI) result.yaw -= 2.0 * M_PI;
