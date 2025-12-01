@@ -100,14 +100,15 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
     H4(6) = 1.0;  // 只对r进行正则化
     
     // 更新测量1
-    double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight;
+    double weight1 = weight;
+    double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight1;
     Eigen::VectorXd K1 = P_center_ * H1.transpose() / S1;
     double innovation1 = z1 - H1 * x_center_;
     x_center_ = x_center_ + K1 * innovation1;
     Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
     P_center_ = (I - K1 * H1) * P_center_ / lambda_;
     
-    // 更新测量2（赋予较大权重，因为这是半径的主要约束）
+    // 更新测量2
     double weight2 = weight;
     double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
     Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
