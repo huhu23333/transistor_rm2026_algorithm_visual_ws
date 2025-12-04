@@ -8,7 +8,7 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     observedDataHistory.push_back(initObservedData);
     
     // 初始化EKF用于角度跟踪
-    angle_ekf_ = std::make_unique<AngleEKF>();
+    angle_ekf_ = std::make_unique<AngleEKF>(is_outpost);
     last_update_time_ = initObservedData.t;
     
     center_vx = 0.0;
@@ -34,6 +34,9 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     max_history = 90;
     rotation_direction = 1;
     jump_rad = M_PI * 2.0 / n_armors;
+
+    // 遗忘因子，值越小遗忘越快
+    lambda_ = is_outpost ? 0.99 : 0.95;
     
     // 初始化指数衰减最小二乘
     resetExponentialLS();
@@ -52,89 +55,144 @@ void RotationMotionModel::resetExponentialLS() {
     x_center_(4) = 0.0;       // center_vy
     x_center_(5) = 0.0;       // center_vz (新增)
     x_center_(6) = r;         // r
-    
-    // 遗忘因子，值越小遗忘越快
-    lambda_ = 0.95;
 }
 
 void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight) {
-    // 构建三个测量方程
+    // 构建测量方程
     
-    // 测量1: 装甲板到中心的向量与装甲板朝向垂直 (xy平面)
-    // offAxisVector · armorToCenterVector = 0
     double cosYaw = cos(armor_yaw);
     double sinYaw = sin(armor_yaw);
-    double offAxisX = cosYaw;   // 垂直于装甲板朝向的单位向量x分量
-    double offAxisY = sinYaw;   // 垂直于装甲板朝向的单位向量y分量
+    double offAxisX = cosYaw;
+    double offAxisY = sinYaw;
     
-    // 测量1的值：装甲板在垂直方向上的投影应为0
-    double z1 = offAxisX * armor_x + offAxisY * armor_y;
-    
-    // 测量1的测量矩阵 (7维)
-    Eigen::RowVectorXd H1(STATE_DIM);
-    H1 << offAxisX, offAxisY, 0.0, offAxisX * t, offAxisY * t, 0.0, 0.0;
-    
-    // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于半径r (xy平面)
-    // axisVector · armorToCenterVector = r
-    double axisX = -sinYaw;     // 装甲板法向单位向量x分量
-    double axisY = cosYaw;      // 装甲板法向单位向量y分量
-    
-    // 测量2的值：装甲板在法向上的投影应为r
-    double z2 = axisX * armor_x + axisY * armor_y;
-    
-    // 测量2的测量矩阵 (7维)
-    Eigen::RowVectorXd H2(STATE_DIM);
-    H2 << axisX, axisY, 0.0, axisX * t, axisY * t, 0.0, -1.0;
-    
-    // 测量3: z轴测量 - 装甲板z坐标与中心z坐标的关系
-    // armor_z = center_z + center_vz * t (假设装甲板在z方向没有相对运动)
-    double z3 = armor_z;
-    
-    // 测量3的测量矩阵 (7维)
-    Eigen::RowVectorXd H3(STATE_DIM);
-    H3 << 0.0, 0.0, 1.0, 0.0, 0.0, t, 0.0;
-    
-    // 正则化测量: 保持r接近上一步的值
-    double z4 = r_prev_;  // 使用上一步的r值作为正则化目标
-    Eigen::RowVectorXd H4 = Eigen::RowVectorXd::Zero(STATE_DIM);
-    H4(6) = 1.0;  // 只对r进行正则化
-    
-    // 更新测量1
-    double weight1 = weight;
-    double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight1;
-    Eigen::VectorXd K1 = P_center_ * H1.transpose() / S1;
-    double innovation1 = z1 - H1 * x_center_;
-    x_center_ = x_center_ + K1 * innovation1;
-    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
-    P_center_ = (I - K1 * H1) * P_center_ / lambda_;
-    
-    // 更新测量2
-    double weight2 = weight;
-    double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
-    Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
-    double innovation2 = z2 - H2 * x_center_;
-    x_center_ = x_center_ + K2 * innovation2;
-    P_center_ = (I - K2 * H2) * P_center_ / lambda_;
-    
-    // 更新测量3（z轴测量）
-    double weight3 = weight;  // z轴测量权重
-    double S3 = H3 * P_center_ * H3.transpose() + 1.0 / weight3;
-    Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
-    double innovation3 = z3 - H3 * x_center_;
-    x_center_ = x_center_ + K3 * innovation3;
-    P_center_ = (I - K3 * H3) * P_center_ / lambda_;
-    
-    // 更新正则化测量
-    double weight4 = regularization_weight_;  // 正则化权重
-    double S4 = H4 * P_center_ * H4.transpose() + 1.0 / weight4;
-    Eigen::VectorXd K4 = P_center_ * H4.transpose() / S4;
-    double innovation4 = z4 - H4 * x_center_;
-    x_center_ = x_center_ + K4 * innovation4;
-    P_center_ = (I - K4 * H4) * P_center_ / lambda_;
-    
-    // 限制半径在合理范围内
-    if (x_center_(6) < 100.0) x_center_(6) = 100.0;
-    if (x_center_(6) > 600.0) x_center_(6) = 600.0;
+    if (is_outpost) {
+        // 测量1的值：装甲板在垂直方向上的投影应为0
+        double z1 = offAxisX * armor_x + offAxisY * armor_y;
+        
+        // 测量1的测量矩阵 (7维)
+        Eigen::RowVectorXd H1(STATE_DIM);
+        H1 << offAxisX, offAxisY, 0.0, 0.0, 0.0, 0.0, 0.0;
+        
+        // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于半径r (xy平面)
+        // axisVector · armorToCenterVector = r
+        double axisX = -sinYaw;     // 装甲板法向单位向量x分量
+        double axisY = cosYaw;      // 装甲板法向单位向量y分量
+        
+        // 测量2的值：装甲板在法向上的投影应为r
+        double z2 = axisX * armor_x + axisY * armor_y;
+        
+        // 测量2的测量矩阵 (7维)
+        Eigen::RowVectorXd H2(STATE_DIM);
+        H2 << axisX, axisY, 0.0, 0.0, 0.0, 0.0, -1.0;
+        
+        // 测量3: z轴测量 - 装甲板z坐标与中心z坐标的关系
+        // armor_z = center_z + center_vz * t (假设装甲板在z方向没有相对运动)
+        double z3 = armor_z;
+        
+        // 测量3的测量矩阵 (7维)
+        Eigen::RowVectorXd H3(STATE_DIM);
+        H3 << 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
+        
+        // 更新测量1
+        double weight1 = weight;
+        double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight1;
+        Eigen::VectorXd K1 = P_center_ * H1.transpose() / S1;
+        double innovation1 = z1 - H1 * x_center_;
+        x_center_ = x_center_ + K1 * innovation1;
+        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
+        P_center_ = (I - K1 * H1) * P_center_ / lambda_;
+        
+        // 更新测量2
+        double weight2 = weight;
+        double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
+        Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
+        double innovation2 = z2 - H2 * x_center_;
+        x_center_ = x_center_ + K2 * innovation2;
+        P_center_ = (I - K2 * H2) * P_center_ / lambda_;
+        
+        // 更新测量3（z轴测量）
+        double weight3 = weight;  // z轴测量权重
+        double S3 = H3 * P_center_ * H3.transpose() + 1.0 / weight3;
+        Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
+        double innovation3 = z3 - H3 * x_center_;
+        x_center_ = x_center_ + K3 * innovation3;
+        P_center_ = (I - K3 * H3) * P_center_ / lambda_;
+        
+        x_center_(3) = 0.0;
+        x_center_(4) = 0.0;
+        x_center_(5) = 0.0;
+        x_center_(6) = 276.5;
+
+    } else {
+        // 测量1的值：装甲板在垂直方向上的投影应为0
+        double z1 = offAxisX * armor_x + offAxisY * armor_y;
+        
+        // 测量1的测量矩阵 (7维)
+        Eigen::RowVectorXd H1(STATE_DIM);
+        H1 << offAxisX, offAxisY, 0.0, offAxisX * t, offAxisY * t, 0.0, 0.0;
+        
+        // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于半径r (xy平面)
+        // axisVector · armorToCenterVector = r
+        double axisX = -sinYaw;     // 装甲板法向单位向量x分量
+        double axisY = cosYaw;      // 装甲板法向单位向量y分量
+        
+        // 测量2的值：装甲板在法向上的投影应为r
+        double z2 = axisX * armor_x + axisY * armor_y;
+        
+        // 测量2的测量矩阵 (7维)
+        Eigen::RowVectorXd H2(STATE_DIM);
+        H2 << axisX, axisY, 0.0, axisX * t, axisY * t, 0.0, -1.0;
+        
+        // 测量3: z轴测量 - 装甲板z坐标与中心z坐标的关系
+        // armor_z = center_z + center_vz * t (假设装甲板在z方向没有相对运动)
+        double z3 = armor_z;
+        
+        // 测量3的测量矩阵 (7维)
+        Eigen::RowVectorXd H3(STATE_DIM);
+        H3 << 0.0, 0.0, 1.0, 0.0, 0.0, t, 0.0;
+        
+        // 正则化测量: 保持r接近上一步的值
+        double z4 = r_prev_;  // 使用上一步的r值作为正则化目标
+        Eigen::RowVectorXd H4 = Eigen::RowVectorXd::Zero(STATE_DIM);
+        H4(6) = 1.0;  // 只对r进行正则化
+        
+        // 更新测量1
+        double weight1 = weight;
+        double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight1;
+        Eigen::VectorXd K1 = P_center_ * H1.transpose() / S1;
+        double innovation1 = z1 - H1 * x_center_;
+        x_center_ = x_center_ + K1 * innovation1;
+        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
+        P_center_ = (I - K1 * H1) * P_center_ / lambda_;
+        
+        // 更新测量2
+        double weight2 = weight;
+        double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
+        Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
+        double innovation2 = z2 - H2 * x_center_;
+        x_center_ = x_center_ + K2 * innovation2;
+        P_center_ = (I - K2 * H2) * P_center_ / lambda_;
+        
+        // 更新测量3（z轴测量）
+        double weight3 = weight;  // z轴测量权重
+        double S3 = H3 * P_center_ * H3.transpose() + 1.0 / weight3;
+        Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
+        double innovation3 = z3 - H3 * x_center_;
+        x_center_ = x_center_ + K3 * innovation3;
+        P_center_ = (I - K3 * H3) * P_center_ / lambda_;
+        
+        // 更新正则化测量
+        double weight4 = regularization_weight_;  // 正则化权重
+        double S4 = H4 * P_center_ * H4.transpose() + 1.0 / weight4;
+        Eigen::VectorXd K4 = P_center_ * H4.transpose() / S4;
+        double innovation4 = z4 - H4 * x_center_;
+        x_center_ = x_center_ + K4 * innovation4;
+        P_center_ = (I - K4 * H4) * P_center_ / lambda_;
+        
+        // 限制半径在合理范围内
+        if (x_center_(6) < 100.0) x_center_(6) = 100.0;
+        if (x_center_(6) > 600.0) x_center_(6) = 600.0;
+    }
 }
 
 void RotationMotionModel::updateCenterResult(double current_time) {

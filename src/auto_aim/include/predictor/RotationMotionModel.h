@@ -53,9 +53,11 @@ private:
     
     double last_yaw_ = 0.0;
     bool initialized_ = false;
+
+    bool is_outpost;
     
 public:
-    AngleEKF() : state_(2), P_(2, 2), Q_(2, 2), R_(3, 3) {
+    AngleEKF(bool is_outpost) : state_(2), P_(2, 2), Q_(2, 2), R_(3, 3), is_outpost(is_outpost) {
         // 初始化状态
         state_ << 0.0, 0.0;
         
@@ -135,8 +137,8 @@ public:
      * 更新过程噪声
      */
     void updateQ(double dt) {
-        double s2q_yaw = 0.1;    // yaw过程噪声
-        double s2q_vyaw = 0.01;   // 角速度过程噪声
+        double s2q_yaw = is_outpost ? 0.01 : 0.1;    // yaw过程噪声
+        double s2q_vyaw = is_outpost ? 0.001 : 0.01;   // 角速度过程噪声
         
         Q_(0, 0) = std::pow(dt, 4) / 4.0 * s2q_yaw;
         Q_(0, 1) = std::pow(dt, 3) / 2.0 * s2q_yaw;
@@ -147,17 +149,18 @@ public:
     /**
      * 处理角度跳变
      */
-    bool handleYawJump(double measured_yaw, double dt) {
+    bool handleYawJump(double& measured_yaw, double dt) {
         if (!initialized_) return false;
         
         double yaw_diff = measured_yaw - last_yaw_;
-        
+        double yaw_change = 0.0;
+
         // 处理角度环绕
-        if (yaw_diff > M_PI) yaw_diff -= 2.0 * M_PI;
-        if (yaw_diff < -M_PI) yaw_diff += 2.0 * M_PI;
+        while (yaw_diff > M_PI) {yaw_diff -= 2.0 * M_PI; yaw_change -= 2.0 * M_PI;}
+        while (yaw_diff < -M_PI) {yaw_diff += 2.0 * M_PI; yaw_change += 2.0 * M_PI;}
         
         // 如果角度差异超过阈值，可能是装甲板跳变
-        double jump_threshold = M_PI / 3.0; // 60度阈值
+        double jump_threshold = M_PI / 4.0; // 45度阈值
         
         if (std::abs(yaw_diff) > jump_threshold) {
             // 直接更新偏航角状态，保持角速度不变
@@ -165,6 +168,8 @@ public:
             std::cout << "Yaw jump detected! Updating yaw from " 
                       << last_yaw_ << " to " << measured_yaw << std::endl;
             return true;
+        } else {
+            measured_yaw += yaw_change;
         }
         
         return false;
@@ -240,7 +245,7 @@ public:
             state_(1) = 0.0;
         }
         
-        last_yaw_ = state_(0);
+        last_yaw_ = measured_yaw;
     }
     
     // Getter方法
