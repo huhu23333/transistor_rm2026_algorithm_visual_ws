@@ -1,38 +1,277 @@
+// RotationMotionModel.cpp
 #include "predictor/RotationMotionModel.h"
 
 using namespace Eigen;
 
-RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost)
-    : rest_frame_(rest_frame_), is_outpost(is_outpost) {
-    initObservedData.theoreticYaw = getTheoreticYaw(initObservedData.x, initObservedData.y);
+RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost, double init_r)
+    : rest_frame_(rest_frame_), is_outpost(is_outpost), last_observed_data(initObservedData) {
     observedDataHistory.push_back(initObservedData);
+    
+    // 初始化EKF用于角度跟踪
+    angle_ekf_ = std::make_unique<AngleEKF>(is_outpost);
+    last_update_time_ = initObservedData.t;
+    
     center_vx = 0.0;
     center_vy = 0.0;
     center_vz = 0.0;
-    vyaw = 0.0;
-    center_x = initObservedData.x - r * sin(initObservedData.yaw);
-    center_y = initObservedData.y + r * cos(initObservedData.yaw);
-    center_z = initObservedData.z;
-    max_history = 90;
-    refine_multiple = 30;
-    rotation_period = 0.0;
-    current_phase = 0.0;
+    
     if (is_outpost) {
         n_armors = 3;
-        r = 276.5;
-        delta_phase = 25.0 * M_PI / 180.0;
+        r_now = 276.5;
+        r_another = 276.5;
     } else {
         n_armors = 4;
-        r = 250.0;
-        delta_phase = 25.0 * M_PI / 180.0; // todo
+        r_now = init_r;
+        r_another = init_r;
     }
+    
+    r_now_prev_ = r_now;  // 初始化历史半径值
+    r_another_prev_ = r_another;
+    regularization_weight_ = 10.0;  // 正则化权重，可调整
+    
+    // 初始化中心位置
+    center_x = initObservedData.x - r_now * sin(initObservedData.yaw);
+    center_y = initObservedData.y + r_now * cos(initObservedData.yaw);
+    center_z = initObservedData.z;  // 使用观测数据的z值初始化
+    
+    max_history = 90;
     rotation_direction = 1;
     jump_rad = M_PI * 2.0 / n_armors;
+
+    // 遗忘因子，值越小遗忘越快
+    lambda_ = is_outpost ? 0.99 : 0.95;
+
+    last_yaw = initObservedData.yaw;
+    
+    // 初始化指数衰减最小二乘
+    resetExponentialLS();
+}
+
+void RotationMotionModel::resetExponentialLS() {
+    // 初始化7x7协方差矩阵
+    P_center_ = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM) * 1000.0;
+    
+    // 初始状态估计 [center_x, center_y, center_z, center_vx, center_vy, center_vz, r]
+    x_center_ = Eigen::VectorXd::Zero(STATE_DIM);
+    x_center_(0) = center_x;  // center_x
+    x_center_(1) = center_y;  // center_y
+    x_center_(2) = center_z;  // center_z (新增)
+    x_center_(3) = 0.0;       // center_vx
+    x_center_(4) = 0.0;       // center_vy
+    x_center_(5) = 0.0;       // center_vz (新增)
+    x_center_(6) = r_now;         // r
+}
+
+void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight, double delta_r) {
+    // 构建测量方程
+    
+    double cosYaw = cos(armor_yaw);
+    double sinYaw = sin(armor_yaw);
+    double offAxisX = cosYaw;
+    double offAxisY = sinYaw;
+    
+    if (is_outpost) {
+        // 测量1的值：装甲板在垂直方向上的投影应为0
+        double z1 = offAxisX * armor_x + offAxisY * armor_y;
+        
+        // 测量1的测量矩阵 - 只更新center_x, center_y
+        Eigen::RowVectorXd H1(STATE_DIM);
+        H1 << offAxisX, offAxisY, 0.0, 0.0, 0.0, 0.0, 0.0;
+        
+        // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于固定半径276.5 (xy平面)
+        double axisX = -sinYaw;     // 装甲板法向单位向量x分量
+        double axisY = cosYaw;      // 装甲板法向单位向量y分量
+        
+        // 测量2的值：装甲板在法向上的投影应为固定半径
+        double z2 = axisX * armor_x + axisY * armor_y;
+        
+        // 测量2的测量矩阵 - 只更新center_x, center_y
+        Eigen::RowVectorXd H2(STATE_DIM);
+        H2 << axisX, axisY, 0.0, 0.0, 0.0, 0.0, 0.0;
+        
+        // 测量3: z轴测量 - 装甲板z坐标与中心z坐标的关系
+        // armor_z = center_z (因为前哨站vz=0)
+        double z3 = armor_z;
+        
+        // 测量3的测量矩阵 - 只更新center_z
+        Eigen::RowVectorXd H3(STATE_DIM);
+        H3 << 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
+        
+        // 更新测量1
+        double weight1 = weight;
+        double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight1;
+        Eigen::VectorXd K1 = P_center_ * H1.transpose() / S1;
+        double innovation1 = z1 - H1 * x_center_;
+        x_center_ = x_center_ + K1 * innovation1;
+        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
+        P_center_ = (I - K1 * H1) * P_center_ / lambda_;
+        
+        // 更新测量2
+        double weight2 = weight;
+        double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
+        Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
+        double innovation2 = z2 - H2 * x_center_ + 276.5;  // 固定半径
+        x_center_ = x_center_ + K2 * innovation2;
+        P_center_ = (I - K2 * H2) * P_center_ / lambda_;
+        
+        // 更新测量3（z轴测量）
+        double weight3 = weight;  // z轴测量权重
+        double S3 = H3 * P_center_ * H3.transpose() + 1.0 / weight3;
+        Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
+        double innovation3 = z3 - H3 * x_center_;
+        x_center_ = x_center_ + K3 * innovation3;
+        P_center_ = (I - K3 * H3) * P_center_ / lambda_;
+        
+        // 强制固定前哨站模式的状态
+        x_center_(3) = 0.0;  // vx = 0
+        x_center_(4) = 0.0;  // vy = 0
+        x_center_(5) = 0.0;  // vz = 0
+        x_center_(6) = 276.5; // r = 276.5
+
+    } else {
+        // 测量1的值：装甲板在垂直方向上的投影应为0
+        double z1 = offAxisX * armor_x + offAxisY * armor_y;
+        
+        // 测量1的测量矩阵 (7维)
+        Eigen::RowVectorXd H1(STATE_DIM);
+        H1 << offAxisX, offAxisY, 0.0, offAxisX * t, offAxisY * t, 0.0, 0.0;
+        
+        // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于半径r (xy平面)
+        // axisVector · armorToCenterVector = r
+        double axisX = -sinYaw;     // 装甲板法向单位向量x分量
+        double axisY = cosYaw;      // 装甲板法向单位向量y分量
+        
+        // 测量2的值：装甲板在法向上的投影应为r
+        double z2 = axisX * armor_x + axisY * armor_y;
+        
+        // 测量2的测量矩阵 (7维)
+        Eigen::RowVectorXd H2(STATE_DIM);
+        H2 << axisX, axisY, 0.0, axisX * t, axisY * t, 0.0, -1.0;
+        
+        // 测量3: z轴测量 - 装甲板z坐标与中心z坐标的关系
+        // armor_z = center_z + center_vz * t (假设装甲板在z方向没有相对运动)
+        double z3 = armor_z;
+        
+        // 测量3的测量矩阵 (7维)
+        Eigen::RowVectorXd H3(STATE_DIM);
+        H3 << 0.0, 0.0, 1.0, 0.0, 0.0, t, 0.0;
+        
+        // 正则化测量: 保持r接近上一步的值
+        double z4 = r_now_prev_;  // 使用上一步的r值作为正则化目标
+        Eigen::RowVectorXd H4 = Eigen::RowVectorXd::Zero(STATE_DIM);
+        H4(6) = 1.0;  // 只对r进行正则化
+        
+        // 更新测量1
+        double weight1 = weight;
+        double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight1;
+        Eigen::VectorXd K1 = P_center_ * H1.transpose() / S1;
+        double innovation1 = z1 - H1 * x_center_;
+        x_center_ = x_center_ + K1 * innovation1;
+        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
+        P_center_ = (I - K1 * H1) * P_center_ / lambda_;
+        
+        // 更新测量2
+        double weight2 = weight;
+        double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
+        Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
+        double innovation2 = z2 - H2 * x_center_ - delta_r; // 根据两r差异设置目标 算出的x_center_(6)将趋向于原结果+delta_r
+        x_center_ = x_center_ + K2 * innovation2;
+        P_center_ = (I - K2 * H2) * P_center_ / lambda_;
+        
+        // 更新测量3（z轴测量）
+        double weight3 = weight;  // z轴测量权重
+        double S3 = H3 * P_center_ * H3.transpose() + 1.0 / weight3;
+        Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
+        double innovation3 = z3 - H3 * x_center_;
+        x_center_ = x_center_ + K3 * innovation3;
+        P_center_ = (I - K3 * H3) * P_center_ / lambda_;
+        
+        // 更新正则化测量
+        double weight4 = regularization_weight_;  // 正则化权重
+        double S4 = H4 * P_center_ * H4.transpose() + 1.0 / weight4;
+        Eigen::VectorXd K4 = P_center_ * H4.transpose() / S4;
+        double innovation4 = z4 - H4 * x_center_;
+        x_center_ = x_center_ + K4 * innovation4;
+        P_center_ = (I - K4 * H4) * P_center_ / lambda_;
+        
+        // 限制半径在合理范围内
+        if (!(x_center_(6) >= 100.0)) x_center_(6) = 100.0; // 限位，同时防止正则化导致nan传播
+        if (!(x_center_(6) <= 600.0)) x_center_(6) = 600.0;
+    }
+}
+
+void RotationMotionModel::updateCenterResult(double current_time) {
+    center_x = x_center_(0) + x_center_(3) * current_time;
+    center_y = x_center_(1) + x_center_(4) * current_time;
+    center_z = x_center_(2) + x_center_(5) * current_time;
+    center_vx = x_center_(3);
+    center_vy = x_center_(4);
+    center_vz = x_center_(5);
+    // 更新半径值
+    r_now = x_center_(6);
+    r_now_prev_ = r_now;  // 保存当前r值用于下一次正则化
+}
+
+void RotationMotionModel::update(ObservedData& observedData) {
+    update_frames_count += 1;
+    double theoretic_yaw = getTheoreticYaw(observedData.x, observedData.y);
+
+    if (isYawJump(theoretic_yaw)) {
+        observedData.yaw_jump = true;
+        if (!is_outpost) {
+            std::swap(r_now, r_another);
+            std::swap(r_now_prev_, r_another_prev_);
+        }
+        std::cout << "RMM Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump!" << std::endl;
+    }
+
+    observedDataHistory.push_back(observedData);
+    if (observedDataHistory.size() > max_history) {
+        observedDataHistory = std::vector<ObservedData>(
+            observedDataHistory.end() - max_history, observedDataHistory.end());
+    }
+    last_observed_data = observedData;
+
+    int yaw_jump_count = 0;
+    for (size_t i = 0; i < observedDataHistory.size(); ++i) {
+        const auto& data = observedDataHistory[i];
+        if (data.yaw_jump) {
+            yaw_jump_count += 1;
+        }
+    }
+    bool this_yaw_jump = yaw_jump_count%2==1;
+
+    // 使用指数衰减最小二乘更新中心状态
+    resetExponentialLS();
+    double current_time = observedData.t;
+    for (size_t i = 0; i < observedDataHistory.size(); ++i) {
+        const auto& data = observedDataHistory[i];
+        double time_offset = data.t - current_time;  // 相对于当前时间的时间偏移
+        // 计算权重：时间越近权重越大
+        double time_weight = std::exp(-std::abs(time_offset) * 0.1);
+        this_yaw_jump = data.yaw_jump ? (!this_yaw_jump) : this_yaw_jump;
+        if (!is_outpost) {
+            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, this_yaw_jump ? r_now-r_another : 0.0);
+        } else {
+            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, 0.0);
+        }
+    }
+    
+    // 获取当前中心状态
+    updateCenterResult(0.0);  // 当前时刻
+    
+    // 使用EKF更新角度和角速度，传入xc, yc, r
+    double dt = observedData.t - last_update_time_;
+    if (dt > 0) {
+        angle_ekf_->update(theoretic_yaw, observedData.x, observedData.y, 
+                          center_x, center_y, r_now, dt);
+        last_update_time_ = observedData.t;
+        rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;
+    }
 }
 
 void RotationMotionModel::emptyUpdate(double update_time) {
-    ObservedData last_observed_data = observedDataHistory.back();
-    PredictResult pred_data_to_update = predict(update_time - last_observed_data.t);
+    PredictResult pred_data_to_update = predict(update_time - last_update_time_);
     ObservedData update_data({
         pred_data_to_update.armors[0].x,
         pred_data_to_update.armors[0].y,
@@ -41,406 +280,81 @@ void RotationMotionModel::emptyUpdate(double update_time) {
         update_time
     });
     update(update_data);
-}
-
-
-void RotationMotionModel::update(ObservedData& observedData) {
-    observedData.theoreticYaw = getTheoreticYaw(observedData.x, observedData.y);
-    observedDataHistory.push_back(observedData);
-    if (observedDataHistory.size() > max_history) {
-        observedDataHistory = std::vector<ObservedData>(
-            observedDataHistory.end() - max_history, observedDataHistory.end());
-    }
-    
-    auto params = getParams();
-    std::vector<double> tData = params[0];
-    std::vector<double> xData = params[1];
-    std::vector<double> yData = params[2];
-    std::vector<double> zData = params[3];
-    std::vector<double> yawData = params[4];
-    
-    LinearRegressionResult zResult = linearRegression(tData, zData);
-    center_z = zResult.a;
-    center_vz = zResult.b;
-    
-    fitCenterXYResult centerResult = fitCenterXY(yawData, xData, yData, tData, r);
-    center_x = centerResult.center_x;
-    center_y = centerResult.center_y;
-    center_vx = centerResult.center_vx;
-    center_vy = centerResult.center_vy;
-    
-
-    if (!is_outpost) {
-        calculateR();
-    }
-    fitRotationParameters();
-}
-
-std::vector<std::vector<double>> RotationMotionModel::getParams() {
-    std::vector<double> tData, xData, yData, zData, yawData;
-    double lastT = observedDataHistory.back().t;
-    
-    for (const auto& data : observedDataHistory) {
-        tData.push_back(data.t - lastT);
-        xData.push_back(data.x);
-        yData.push_back(data.y);
-        zData.push_back(data.z);
-        yawData.push_back(data.yaw);
-    }
-    
-    return {tData, xData, yData, zData, yawData};
-}
-
-void RotationMotionModel::calculateR() {
-    auto params = getParams();
-    std::vector<double> tData = params[0];
-    std::vector<double> xData = params[1];
-    std::vector<double> yData = params[2];
-    
-    double sum = 0.0;
-    int n = tData.size();
-    for (int i = 0; i < n; i++) {
-        double dx = xData[i] - (center_x + center_vx * tData[i]);
-        double dy = yData[i] - (center_y + center_vy * tData[i]);
-        sum += sqrt(dx * dx + dy * dy);
-    }
-    
-    r = sum / n;
-    r = std::max(std::min(r, 600.0), 100.0);
-}
-
-fitCenterXYResult RotationMotionModel::fitCenterXY(const std::vector<double>& armorYaw,
-                                                  const std::vector<double>& armorX,
-                                                  const std::vector<double>& armorY,
-                                                  const std::vector<double>& dataT,
-                                                  double lastR,
-                                                  const std::vector<double>& weightT,
-                                                  double alpha,
-                                                  double tikhonovLambda) {
-    int n = armorYaw.size();
-    std::vector<double> localWeightT = weightT;
-    
-    if (localWeightT.empty()) {
-        localWeightT.resize(n, 1.0);
-    }
-    
-    for (int i = 0; i < n; i++) {
-        localWeightT[i] = std::max(localWeightT[i], 0.0);
-    }
-    
-    std::vector<double> sqrtWeights(n);
-    for (int i = 0; i < n; i++) {
-        sqrtWeights[i] = sqrt(localWeightT[i]);
-    }
-    
-    // Build axis vectors
-    std::vector<double> cosYaw(n), sinYaw(n);
-    std::vector<double> axisX(n), axisY(n);
-    std::vector<double> offAxisX(n), offAxisY(n);
-    
-    for (int i = 0; i < n; i++) {
-        cosYaw[i] = cos(armorYaw[i]);
-        sinYaw[i] = sin(armorYaw[i]);
-        axisX[i] = -sinYaw[i];
-        axisY[i] = cosYaw[i];
-        offAxisX[i] = axisY[i];
-        offAxisY[i] = -axisX[i];
-    }
-    
-    // Build main design matrix
-    MatrixXd A_main(n, 4);
-    VectorXd b_main(n);
-    
-    for (int i = 0; i < n; i++) {
-        A_main(i, 0) = offAxisX[i];
-        A_main(i, 1) = offAxisY[i];
-        A_main(i, 2) = offAxisX[i] * dataT[i];
-        A_main(i, 3) = offAxisY[i] * dataT[i];
-        b_main(i) = offAxisX[i] * armorX[i] + offAxisY[i] * armorY[i];
-    }
-    
-    // Build regularization design matrix
-    MatrixXd A_reg(n, 4);
-    VectorXd b_reg(n);
-    
-    for (int i = 0; i < n; i++) {
-        A_reg(i, 0) = axisX[i];
-        A_reg(i, 1) = axisY[i];
-        A_reg(i, 2) = axisX[i] * dataT[i];
-        A_reg(i, 3) = axisY[i] * dataT[i];
-        b_reg(i) = axisX[i] * armorX[i] + axisY[i] * armorY[i] + lastR;
-    }
-    
-    // Apply weights
-    for (int i = 0; i < n; i++) {
-        A_main.row(i) *= sqrtWeights[i];
-        b_main(i) *= sqrtWeights[i];
-        A_reg.row(i) *= sqrtWeights[i];
-        b_reg(i) *= sqrtWeights[i];
-    }
-    
-    // Compute condition number
-    JacobiSVD<MatrixXd> svd(A_main, ComputeThinU | ComputeThinV);
-    double cond_A = svd.singularValues()(0) / svd.singularValues()(svd.singularValues().size() - 1);
-    
-    // Adaptive regularization
-    double lambda_reg = alpha * std::min(cond_A, 1e10);
-    
-    // Build augmented system
-    MatrixXd A_aug(n * 2, 4);
-    VectorXd b_aug(n * 2);
-    
-    A_aug.block(0, 0, n, 4) = A_main;
-    A_aug.block(n, 0, n, 4) = std::sqrt(lambda_reg) * A_reg;
-    
-    b_aug.segment(0, n) = b_main;
-    b_aug.segment(n, n) = std::sqrt(lambda_reg) * b_reg;
-    
-    // Tikhonov regularization
-    MatrixXd A_tikh = MatrixXd::Zero(A_aug.rows() + 4, 4);
-    VectorXd b_tikh = VectorXd::Zero(A_aug.rows() + 4);
-    
-    A_tikh.block(0, 0, A_aug.rows(), 4) = A_aug;
-    A_tikh.block(A_aug.rows(), 0, 4, 4) = tikhonovLambda * MatrixXd::Identity(4, 4);
-    
-    b_tikh.segment(0, A_aug.rows()) = b_aug;
-    
-    // SVD solve
-    JacobiSVD<MatrixXd> svd_tikh(A_tikh, ComputeThinU | ComputeThinV);
-    VectorXd s_inv = svd_tikh.singularValues();
-    
-    double s_threshold = s_inv.maxCoeff() * std::max(A_tikh.rows(), A_tikh.cols()) * std::numeric_limits<double>::epsilon();
-    for (int i = 0; i < s_inv.size(); i++) {
-        s_inv(i) = (s_inv(i) > s_threshold) ? 1.0 / s_inv(i) : 0.0;
-    }
-    
-    VectorXd x = svd_tikh.matrixV() * (s_inv.asDiagonal() * (svd_tikh.matrixU().transpose() * b_tikh));
-    
-    fitCenterXYResult result;
-    result.center_x = x(0);
-    result.center_y = x(1);
-    result.center_vx = x(2);
-    result.center_vy = x(3);
-    
-    return result;
-}
-
-void RotationMotionModel::fitRotationParameters() {
-    if (observedDataHistory.size() < 10) return;
-    
-    auto params = getParams();
-    std::vector<double> tData = params[0];
-    std::vector<double> xData = params[1];
-    std::vector<double> yData = params[2];
-    std::vector<double> zData = params[3];
-    std::vector<double> yawData = params[4];
-    
-    // Remove linear trends
-    LinearRegressionResult xReg = linearRegression(tData, xData);
-    LinearRegressionResult yReg = linearRegression(tData, yData);
-    LinearRegressionResult zReg = linearRegression(tData, zData);
-    LinearRegressionResult yawReg = linearRegression(tData, yawData);
-    
-    for (size_t i = 0; i < tData.size(); i++) {
-        xData[i] -= (xReg.a + xReg.b * tData[i]);
-        yData[i] -= (yReg.a + yReg.b * tData[i]);
-        zData[i] -= (zReg.a + zReg.b * tData[i]);
-        yawData[i] -= (yawReg.a + yawReg.b * tData[i]);
-    }
-    
-    // Compute ACF for all components
-    std::vector<double> acf_x = computeModifiedACF(xData);
-    std::vector<double> acf_y = computeModifiedACF(yData);
-    std::vector<double> acf_z = computeModifiedACF(zData);
-    
-    std::vector<double> yawScaled(yawData.size());
-    for (size_t i = 0; i < yawData.size(); i++) {
-        yawScaled[i] = yawData[i] * r;
-    }
-    std::vector<double> acf_yaw = computeModifiedACF(yawScaled);
-    
-    // Combine ACF
-    size_t min_size = std::min({acf_x.size(), acf_y.size(), acf_z.size(), acf_yaw.size()});
-    std::vector<double> combined_acf(min_size, 0.0);
-    for (size_t i = 0; i < min_size; i++) {
-        combined_acf[i] = acf_x[i] + acf_y[i];// + acf_z[i] + acf_yaw[i];
-    }
-    
-    std::vector<double> refined_acf = lagStackWithDecay(combined_acf, refine_multiple);
-    int max_idx = std::distance(refined_acf.begin(), 
-                               std::max_element(refined_acf.begin(), refined_acf.end()));
-    jump_period_frames = static_cast<double>(max_idx) / refine_multiple;
-    
-    if (jump_period_frames > 1 && jump_period_frames < tData.size() / 2) {
-        double avg_interval = 0.0;
-        for (size_t i = 1; i < tData.size(); i++) {
-            avg_interval += (tData[i] - tData[i-1]);
-        }
-        avg_interval /= (tData.size() - 1);
-        
-        rotation_period = jump_period_frames * avg_interval * n_armors;
-        vyaw = (rotation_period > 0) ? (2 * M_PI / rotation_period) : 0.0;
-    }
-    
-    std::vector<double> TheoreticYawDataInCam(observedDataHistory.size());
-    for (size_t i = 0; i < observedDataHistory.size(); i++) {
-        TheoreticYawDataInCam[i] = (getTheoreticYawFacingArmor(observedDataHistory[i].x, observedDataHistory[i].y));
-    }
-    std::vector<double> dataToFit, fittedData;
-    std::vector<int> midPoints = findMidYaw(TheoreticYawDataInCam, jump_period_frames, dataToFit, fittedData);
-    rotation_direction = getRotationDirection(TheoreticYawDataInCam);
-    vyaw *= rotation_direction;
-    
-    if (!midPoints.empty()) {
-        int last_mid_idx = midPoints.back();
-        if (last_mid_idx < tData.size()) {
-            double time_since_mid = tData.back() - tData[last_mid_idx];
-            double camToCenterYaw = getCamToCenterYaw();
-            current_phase = fmod(time_since_mid * vyaw + delta_phase * rotation_direction + camToCenterYaw, 2 * M_PI);
-        }
-    }
-}
-
-double RotationMotionModel::getJumpPeriod() {
-    return jump_period_frames;
-}
-
-std::vector<int> RotationMotionModel::findMidYaw(const std::vector<double>& yawData, 
-                                                double periodFrames,
-                                                std::vector<double>& dataToFit,
-                                                std::vector<double>& fittedData) {
-    double yaw_mean = 0.0;
-    for (double val : yawData) {
-        yaw_mean += val;
-    }
-    yaw_mean /= yawData.size();
-    
-    dataToFit.resize(yawData.size());
-    for (size_t i = 0; i < yawData.size(); i++) {
-        double diff = yawData[i] - yaw_mean;
-        dataToFit[i] = tanh(diff * diff * 3);
-    }
-    
-    int n = dataToFit.size();
-    std::vector<double> ts(n);
-    for (int i = 0; i < n; i++) {
-        ts[i] = i;
-    }
-    
-    std::vector<double> thetas(n);
-    for (int i = 0; i < n; i++) {
-        thetas[i] = ts[i] / periodFrames * 2 * M_PI;
-    }
-    
-    double a0 = 0.0, a1 = 0.0, b1 = 0.0;
-    for (int i = 0; i < n; i++) {
-        a0 += dataToFit[i];
-        a1 += dataToFit[i] * cos(thetas[i]);
-        b1 += dataToFit[i] * sin(thetas[i]);
-    }
-    a0 /= n;
-    a1 = a1 * 2 / n;
-    b1 = b1 * 2 / n;
-    
-    double phi = atan2(b1, a1);
-    double A = sqrt(a1 * a1 + b1 * b1);
-    
-    std::vector<double> thetas_fitted(n);
-    for (int i = 0; i < n; i++) {
-        thetas_fitted[i] = thetas[i] - phi;
-    }
-    
-    fittedData.resize(n);
-    for (int i = 0; i < n; i++) {
-        fittedData[i] = a0 + A * cos(thetas_fitted[i]);
-    }
-    
-    std::vector<int> mid_points;
-    for (int i = 1; i < n - 1; i++) {
-        if (fittedData[i] <= fittedData[i-1] && fittedData[i] <= fittedData[i+1]) {
-            mid_points.push_back(i);
-        }
-    }
-    
-    return mid_points;
-}
-
-int RotationMotionModel::getRotationDirection(const std::vector<double>& yawData) {
-    if (yawData.size() < 2) return 1;
-    
-    double d_yaw_integrate = 0.0;
-    for (int first_idx = 0; first_idx < yawData.size() - 1; first_idx += 1) {
-        d_yaw_integrate += 0.1 * (yawData[first_idx + 1] - yawData[first_idx]) / 
-                           ((yawData[first_idx + 1] - yawData[first_idx]) * (yawData[first_idx + 1] - yawData[first_idx]) + 0.01);
-    }
-    
-    return (d_yaw_integrate > 0) ? 1 : -1;
-}
-
-double RotationMotionModel::centerResiduals(const std::vector<double>& params, 
-                                          double armorYaw, double armorX, 
-                                          double armorY, double dataT) {
-    double center_x = params[0];
-    double center_vx = params[1];
-    double center_y = params[2];
-    double center_vy = params[3];
-    
-    double axis_vector_x = -sin(armorYaw);
-    double axis_vector_y = cos(armorYaw);
-    double off_axis_vector_x = axis_vector_y;
-    double off_axis_vector_y = -axis_vector_x;
-    
-    double aromr_to_center_vector_x = center_x + dataT * center_vx - armorX;
-    double aromr_to_center_vector_y = center_y + dataT * center_vy - armorY;
-    
-    return aromr_to_center_vector_x * off_axis_vector_x + aromr_to_center_vector_y * off_axis_vector_y;
+    update_frames_count -= 1;
 }
 
 PredictResult RotationMotionModel::predict(double predictTime) {
     PredictResult result;
-    std::vector<double> start_yaw_distances(n_armors);
-    double latest_yaw = observedDataHistory.back().theoreticYaw;
-    for (int i = 0; i < n_armors; i++) {
-        start_yaw_distances[i] = std::min(std::min(
-            std::abs(current_phase + i * jump_rad - latest_yaw),
-            std::abs(current_phase + i * jump_rad - latest_yaw + 2 * M_PI)),
-            std::abs(current_phase + i * jump_rad - latest_yaw - 2 * M_PI));
-    }
-    auto start_yaw_distances_min_iter = std::min_element(start_yaw_distances.begin(), start_yaw_distances.end());
-    int start_yaw_distances_min_index = std::distance(start_yaw_distances.begin(), start_yaw_distances_min_iter);
-    double start_yaw = current_phase + start_yaw_distances_min_index * jump_rad;
-
+    
+    // 使用原始方法预测平移状态
     result.center_x = center_x + predictTime * center_vx;
     result.center_y = center_y + predictTime * center_vy;
     result.center_z = center_z + predictTime * center_vz;
-    result.r = r;
-    result.yaw = start_yaw + predictTime * vyaw;
+    result.r_now = r_now;
+    result.r_another = r_another;
+    
+    // 使用EKF预测角度
+    if (angle_ekf_->isInitialized()) {
+        double ekf_yaw = angle_ekf_->getYaw();
+        double ekf_vyaw = angle_ekf_->getVyaw();
+        result.yaw = ekf_yaw + ekf_vyaw * predictTime;
+        
+        // 处理角度环绕
+        if (result.yaw > M_PI) result.yaw -= 2.0 * M_PI;
+        if (result.yaw < -M_PI) result.yaw += 2.0 * M_PI;
+    } else {
+        result.yaw = last_observed_data.yaw;
+    }
+    
+    result.rotation_direction = rotation_direction;
+    
+    // 生成装甲板预测
     for (int i = 0; i < n_armors; i++) {
         double armor_yaw = result.yaw - i * rotation_direction * jump_rad;
+        double r_using = is_outpost ? r_now : ((i%2==0) ? r_now : r_another);
         result.armors.push_back(SimpleArmor({
-            result.center_x + r * std::sin(armor_yaw),
-            result.center_y - r * std::cos(armor_yaw),
+            result.center_x + r_using * std::sin(armor_yaw),
+            result.center_y - r_using * std::cos(armor_yaw),
             result.center_z,
+            r_using,
             armor_yaw
         }));
     }
 
-    result.rotation_direction = rotation_direction;
-
     return result;
+}
+
+RotationMotionState RotationMotionModel::getState() {
+    RotationMotionState state;
+    state.center_vx = center_vx;
+    state.center_vy = center_vy;
+    state.center_vz = center_vz;
+    state.r_now = r_now;
+    state.r_another = r_another;
+    state.center_x = center_x;
+    state.center_y = center_y;
+    state.center_z = center_z;
+    state.update_frames = update_frames_count;
+    
+    if (angle_ekf_->isInitialized()) {
+        state.yaw = angle_ekf_->getYaw();
+        state.vyaw = angle_ekf_->getVyaw();
+    } else {
+        state.yaw = 0.0;
+        state.vyaw = 0.0;
+    }
+    
+    return state;
 }
 
 double RotationMotionModel::getCamToCenterYaw() {
     std::vector<float> cam_center = rest_frame_ -> getCamPosition();
-    std::vector<double> cam_to_rotation_center_vector = {center_x - cam_center[0], center_y - cam_center[1]};
-    double cam_to_rotation_center_yaw = std::atan2(-cam_to_rotation_center_vector[0], cam_to_rotation_center_vector[1]);
+    double cam_to_rotation_center_yaw = std::atan2(-(center_x - cam_center[0]), center_y - cam_center[1]);
     return cam_to_rotation_center_yaw;
 }
 
 double RotationMotionModel::getTheoreticYaw(double armor_x, double armor_y) {
     double theoreticYawFacingArmor = getTheoreticYawFacingArmor(armor_x, armor_y);
-    std::vector<float> cam_center = rest_frame_ -> getCamPosition();
-    std::vector<double> cam_to_rotation_center_vector = {center_x - cam_center[0], center_y - cam_center[1]};
     double cam_to_rotation_center_yaw = getCamToCenterYaw();
     return cam_to_rotation_center_yaw + theoreticYawFacingArmor;
 }
@@ -452,25 +366,23 @@ double RotationMotionModel::getTheoreticYawFacingArmor(double armor_x, double ar
     std::vector<double> right_unit_v = {cam_to_rotation_center_vector[1] / cam_to_rotation_center_vector_len, - cam_to_rotation_center_vector[0] / cam_to_rotation_center_vector_len};
     std::vector<double> center_armor_v = {armor_x - center_x, armor_y - center_y};
     double right_shift = right_unit_v[0] * center_armor_v[0] + right_unit_v[1] * center_armor_v[1];
-    if (right_shift > r) {
+    if (right_shift > r_now) {
         return M_PI / 2.0;
     }
-    if (right_shift < -r) {
+    if (right_shift < -r_now) {
         return - M_PI / 2.0;
     }
-    return std::asin(right_shift / r);
+    return std::asin(right_shift / r_now);
 }
 
-RotationMotionState RotationMotionModel::getState() {
-    RotationMotionState state({
-        center_vx,
-        center_vy,
-        center_vz,
-        vyaw,
-        r,
-        center_x,
-        center_y,
-        center_z
-    });
-    return state;
+bool RotationMotionModel::isYawJump(double yaw_now) {
+    double yaw_diff = yaw_now - last_yaw;
+    while (yaw_diff > M_PI) yaw_diff -= 2.0 * M_PI;
+    while (yaw_diff < -M_PI) yaw_diff += 2.0 * M_PI;
+    double jump_threshold = M_PI / 4.0; // 45度阈值
+    last_yaw = yaw_now;
+    if (std::abs(yaw_diff) > jump_threshold) {
+        return true;
+    }
+    return false;
 }

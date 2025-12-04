@@ -212,4 +212,6 @@ private:
     float last_pixel_horizontal_center_distance = 1e10;
 
     bool has_valid_ballistic = false;
+    
+    float init_r = 250.0;
 };

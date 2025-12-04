@@ -168,7 +168,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         RMM_update_time
                     });
                     if (!rotation_motion_model_) {
-                        rotation_motion_model_ = std::make_unique<RotationMotionModel>(RMM_update_data, rest_frame_, armor_class==ArmorType::Outpost);
+                        rotation_motion_model_ = std::make_unique<RotationMotionModel>(RMM_update_data, rest_frame_, armor_class==ArmorType::Outpost, init_r);
                     } else {
                         if (best_result.is_tracked_now) {
                             rotation_motion_model_ -> update(RMM_update_data);
@@ -185,9 +185,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     });
                     cv::Point2f RMM_pred_now_center_pixel = armor_solver_->project3DToPixel(RMM_pred_now_center_p3f);
                     if (best_result.is_tracked_now) {
-                        cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(0, 255, 0), 2);
+                        cv::circle(frame, RMM_pred_now_center_pixel, 10, cv::Scalar(0, 255, 0), 2);
                     } else {
-                        cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(255, 0, 255), 2);
+                        cv::circle(frame, RMM_pred_now_center_pixel, 10, cv::Scalar(255, 0, 255), 2);
                     }
 
                     cv::Mat RMM_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
@@ -228,11 +228,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Scalar(0, 255, 0), 2);
                     RotationMotionState RMM_state = rotation_motion_model_ -> getState();
                     cv::putText(RMM_visualize_frame, 
-                        "period_RMM:"+std::to_string(rotation_motion_model_->getJumpPeriod()), 
-                        cv::Point2f(20,20), 
-                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
-                        cv::Scalar(0, 255, 0), 1, 8, false);
-                    cv::putText(RMM_visualize_frame, 
                         "RMM_state vyaw:"+std::to_string(RMM_state.vyaw), 
                         cv::Point2f(20,50), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
@@ -265,8 +260,13 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
                             cv::Scalar(0, 0, 255), 2);
                         cv::putText(RMM_visualize_frame, 
-                            "r:"+std::to_string(RMM_pred_aim_data.r), 
+                            "r_now:"+std::to_string(RMM_pred_aim_data.r_now), 
                             cv::Point2f(20,110), 
+                            cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                            cv::Scalar(0, 255, 0), 1, 8, false);
+                        cv::putText(RMM_visualize_frame, 
+                            "r_another:"+std::to_string(RMM_pred_aim_data.r_another), 
+                            cv::Point2f(300,110), 
                             cv::FONT_HERSHEY_COMPLEX, 0.7, 
                             cv::Scalar(0, 255, 0), 1, 8, false);
                     }
@@ -290,6 +290,21 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point2f(20,170), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
                         cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
+                        "vx:"+std::to_string(RMM_state.center_vx), 
+                        cv::Point2f(20,200), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
+                        "vy:"+std::to_string(RMM_state.center_vy), 
+                        cv::Point2f(20,230), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::line(RMM_visualize_frame, 
+                        cv::Point2f(400 + RMM_pred_now_data.center_x/10, 400 - RMM_pred_now_data.center_y/10), 
+                        cv::Point2f(400 + (RMM_pred_now_data.center_x/10 + RMM_state.center_vx/5), 
+                                    400 - (RMM_pred_now_data.center_y/10 + RMM_state.center_vy/5)),
+                        cv::Scalar(255, 255, 0), 2);
 #ifdef SHOW_WINDOWS
                     cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
@@ -424,7 +439,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                                 static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].y),
                                 static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].z) 
                             };
-                            RMM_period = rotation_motion_model_ -> getJumpPeriod();
+                            // RMM_period = rotation_motion_model_ -> getJumpPeriod();
                         }
 
                         using_predictor_type = predictor_switcher_ -> step(true, rest_frame_pos, 
@@ -456,7 +471,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             fire_data_predictor_ -> clearHistory();
             pred_fire_data_filter_ -> clearHistory();
             armor_distance_filter_ -> clearHistory();
-            rotation_motion_model_.reset();
+            if (rotation_motion_model_) {
+                RotationMotionState RMMstate = rotation_motion_model_ -> getState();
+                if (RMMstate.update_frames > 90) init_r = (RMMstate.r_now, RMMstate.r_another) / 2.0;
+                rotation_motion_model_.reset();
+            }
             is_reset = true;
             predictor_switcher_ -> clearHistory();
             last_pixel_horizontal_center_distance = 1e10;
@@ -469,6 +488,12 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             result.fire_flag = false;
 
             bool fire_flag = false;
+
+            if (result.fire_flag) {
+                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(0, 0, 255), 2);
+            } else {
+                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
+            }
 
             if (armor_class != ArmorType::Base) {
                 // ==========================FirePredictor===========================
@@ -501,7 +526,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         static_cast<float>(RMM_pred_now_data.center_z)}
                     );
                     cv::Point2f RMM_pred_now_center_pixel = armor_solver_->project3DToPixel(RMM_pred_now_center_p3f);
-                    cv::circle(frame, RMM_pred_now_center_pixel, 6, cv::Scalar(255, 0, 255), 2);
+                    cv::circle(frame, RMM_pred_now_center_pixel, 10, cv::Scalar(255, 0, 255), 2);
 
                     cv::Mat RMM_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
                     cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_data.center_x/10, 400-RMM_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
@@ -525,11 +550,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
                     RotationMotionState RMM_state = rotation_motion_model_ -> getState();
                     cv::putText(RMM_visualize_frame, 
-                        "period_RMM:"+std::to_string(rotation_motion_model_->getJumpPeriod()), 
-                        cv::Point2f(20,20), 
-                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
-                        cv::Scalar(0, 255, 0), 1, 8, false);
-                    cv::putText(RMM_visualize_frame, 
                         "RMM_state vyaw:"+std::to_string(RMM_state.vyaw), 
                         cv::Point2f(20,50), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
@@ -539,7 +559,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point2f(20,80), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
                         cv::Scalar(0, 255, 0), 1, 8, false);
-                    
                     if (using_predictor_type == PredictorType::RotationMotionModel) {
                         PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(last_total_delay_);
                         std::vector<float> cam_position = rest_frame_ -> getCamPosition();
@@ -564,8 +583,13 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
                             cv::Scalar(0, 0, 255), 2);
                         cv::putText(RMM_visualize_frame, 
-                            "r:"+std::to_string(RMM_pred_aim_data.r), 
+                            "r_now:"+std::to_string(RMM_pred_aim_data.r_now), 
                             cv::Point2f(20,110), 
+                            cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                            cv::Scalar(0, 255, 0), 1, 8, false);
+                        cv::putText(RMM_visualize_frame, 
+                            "r_another:"+std::to_string(RMM_pred_aim_data.r_another), 
+                            cv::Point2f(300,110), 
                             cv::FONT_HERSHEY_COMPLEX, 0.7, 
                             cv::Scalar(0, 255, 0), 1, 8, false);
                     }
@@ -589,6 +613,21 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point2f(20,170), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
                         cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
+                        "vx:"+std::to_string(RMM_state.center_vx), 
+                        cv::Point2f(20,200), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
+                        "vy:"+std::to_string(RMM_state.center_vy), 
+                        cv::Point2f(20,230), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::line(RMM_visualize_frame, 
+                        cv::Point2f(400 + RMM_pred_now_data.center_x/10, 400 - RMM_pred_now_data.center_y/10), 
+                        cv::Point2f(400 + (RMM_pred_now_data.center_x/10 + RMM_state.center_vx/5), 
+                                    400 - (RMM_pred_now_data.center_y/10 + RMM_state.center_vy/5)),
+                        cv::Scalar(255, 255, 0), 2);
 #ifdef SHOW_WINDOWS
                     cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
@@ -710,7 +749,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].y),
                         static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].z) 
                     };
-                    RMM_period = rotation_motion_model_ -> getJumpPeriod();
+                    // RMM_period = rotation_motion_model_ -> getJumpPeriod();
                 }
 
                 using_predictor_type = predictor_switcher_ -> step(false, cv::Point3f(0.0, 0.0, 0.0), 
