@@ -236,7 +236,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
     // 使用EKF更新角度和角速度，传入xc, yc, r
     double dt = observedData.t - last_update_time_;
     if (dt > 0) {
-        angle_ekf_->update(observedData.yaw, observedData.x, observedData.y, 
+        angle_ekf_->update(getTheoreticYaw(observedData.x, observedData.y), observedData.x, observedData.y, 
                           center_x, center_y, r, dt);
         last_update_time_ = observedData.t;
         rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;
