@@ -18,6 +18,8 @@ struct ObservedData {
     double z;
     double yaw;
     double t;
+
+    bool yaw_jump = false;
     
     ObservedData(double x_val, double y_val, double z_val, double yaw_val, double t_val)
         : x(x_val), y(y_val), z(z_val), yaw(yaw_val), t(t_val) {}
@@ -27,6 +29,7 @@ struct SimpleArmor {
     double x;
     double y;
     double z;
+    double r;
     double yaw;
 };
 
@@ -34,7 +37,8 @@ struct PredictResult {
     double center_x;
     double center_y;
     double center_z;
-    double r;
+    double r_now;
+    double r_another;
     double yaw;
     int rotation_direction;
     std::vector<SimpleArmor> armors;
@@ -261,7 +265,8 @@ struct RotationMotionState {
     double center_vx;
     double center_vy;
     double center_vz;
-    double r;
+    double r_now;
+    double r_another;
     double yaw;
     double vyaw;
 };
@@ -275,12 +280,13 @@ private:
     Eigen::VectorXd x_center_;      // 7维状态向量
     double lambda_;                 // 遗忘因子
     
-    double r_prev_;                 // 上一步的半径值，用于正则化
+    double r_now_prev_;             // 上一步的半径值，用于正则化
+    double r_another_prev_;
     double regularization_weight_;  // 正则化权重
     
     // 修改指数衰减最小二乘方法
     void resetExponentialLS();
-    void updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight=1.0);
+    void updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight=1.0, double delta_r=0.0);
     void updateCenterResult(double current_time);
 
     std::vector<ObservedData> observedDataHistory;
@@ -288,7 +294,8 @@ private:
     double center_vx;
     double center_vy;
     double center_vz;
-    double r;
+    double r_now;
+    double r_another;
     double center_x;
     double center_y;
     double center_z;
@@ -303,6 +310,9 @@ private:
 
     std::shared_ptr<RestFrame> rest_frame_;
     bool is_outpost;
+
+    bool isYawJump(double yaw_now);
+    double last_yaw;
 
 public:
     RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost);

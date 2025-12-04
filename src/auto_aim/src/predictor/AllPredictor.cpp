@@ -172,8 +172,13 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
                         cv::Scalar(0, 0, 255), 2);
                     cv::putText(RMM_visualize_frame, 
-                        "r:"+std::to_string(RMM_pred_aim_data.r), 
+                        "r_now:"+std::to_string(RMM_pred_aim_data.r_now), 
                         cv::Point2f(20,110), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
+                        "r_another:"+std::to_string(RMM_pred_aim_data.r_another), 
+                        cv::Point2f(300,110), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
                         cv::Scalar(0, 255, 0), 1, 8, false);
                 }
@@ -490,8 +495,13 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
                         cv::Scalar(0, 0, 255), 2);
                     cv::putText(RMM_visualize_frame, 
-                        "r:"+std::to_string(RMM_pred_aim_data.r), 
+                        "r_now:"+std::to_string(RMM_pred_aim_data.r_now), 
                         cv::Point2f(20,110), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
+                        "r_another:"+std::to_string(RMM_pred_aim_data.r_another), 
+                        cv::Point2f(300,110), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
                         cv::Scalar(0, 255, 0), 1, 8, false);
                 }

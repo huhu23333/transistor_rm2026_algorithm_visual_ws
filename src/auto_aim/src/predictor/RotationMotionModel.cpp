@@ -17,18 +17,21 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     
     if (is_outpost) {
         n_armors = 3;
-        r = 276.5;
+        r_now = 276.5;
+        r_another = 276.5;
     } else {
-        n_armors = 4;  // 4装甲板模式
-        r = 250.0;
+        n_armors = 4;
+        r_now = 250.0;
+        r_another = 250.0;
     }
     
-    r_prev_ = r;  // 初始化历史半径值
+    r_now_prev_ = r_now;  // 初始化历史半径值
+    r_another_prev_ = r_another;
     regularization_weight_ = 10.0;  // 正则化权重，可调整
     
     // 初始化中心位置
-    center_x = initObservedData.x - r * sin(initObservedData.yaw);
-    center_y = initObservedData.y + r * cos(initObservedData.yaw);
+    center_x = initObservedData.x - r_now * sin(initObservedData.yaw);
+    center_y = initObservedData.y + r_now * cos(initObservedData.yaw);
     center_z = initObservedData.z;  // 使用观测数据的z值初始化
     
     max_history = 90;
@@ -37,6 +40,8 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
 
     // 遗忘因子，值越小遗忘越快
     lambda_ = is_outpost ? 0.99 : 0.95;
+
+    last_yaw = initObservedData.yaw;
     
     // 初始化指数衰减最小二乘
     resetExponentialLS();
@@ -54,10 +59,10 @@ void RotationMotionModel::resetExponentialLS() {
     x_center_(3) = 0.0;       // center_vx
     x_center_(4) = 0.0;       // center_vy
     x_center_(5) = 0.0;       // center_vz (新增)
-    x_center_(6) = r;         // r
+    x_center_(6) = r_now;         // r
 }
 
-void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight) {
+void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight, double delta_r) {
     // 构建测量方程
     
     double cosYaw = cos(armor_yaw);
@@ -118,10 +123,10 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         P_center_ = (I - K3 * H3) * P_center_ / lambda_;
         
         // 强制固定前哨站模式的状态
-        // x_center_(3) = 0.0;  // vx = 0
-        // x_center_(4) = 0.0;  // vy = 0
-        // x_center_(5) = 0.0;  // vz = 0
-        // x_center_(6) = 276.5; // r = 276.5
+        x_center_(3) = 0.0;  // vx = 0
+        x_center_(4) = 0.0;  // vy = 0
+        x_center_(5) = 0.0;  // vz = 0
+        x_center_(6) = 276.5; // r = 276.5
 
     } else {
         // 测量1的值：装甲板在垂直方向上的投影应为0
@@ -152,7 +157,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         H3 << 0.0, 0.0, 1.0, 0.0, 0.0, t, 0.0;
         
         // 正则化测量: 保持r接近上一步的值
-        double z4 = r_prev_;  // 使用上一步的r值作为正则化目标
+        double z4 = r_now_prev_;  // 使用上一步的r值作为正则化目标
         Eigen::RowVectorXd H4 = Eigen::RowVectorXd::Zero(STATE_DIM);
         H4(6) = 1.0;  // 只对r进行正则化
         
@@ -169,7 +174,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         double weight2 = weight;
         double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
         Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
-        double innovation2 = z2 - H2 * x_center_;
+        double innovation2 = z2 - H2 * x_center_ - delta_r; // 根据两r差异设置目标 算出的x_center_(6)将趋向于原结果+delta_r
         x_center_ = x_center_ + K2 * innovation2;
         P_center_ = (I - K2 * H2) * P_center_ / lambda_;
         
@@ -190,8 +195,8 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         P_center_ = (I - K4 * H4) * P_center_ / lambda_;
         
         // 限制半径在合理范围内
-        if (x_center_(6) < 100.0) x_center_(6) = 100.0;
-        if (x_center_(6) > 600.0) x_center_(6) = 600.0;
+        if (!(x_center_(6) >= 100.0)) x_center_(6) = 100.0; // 限位，同时防止正则化导致nan传播
+        if (!(x_center_(6) <= 600.0)) x_center_(6) = 600.0;
     }
 }
 
@@ -203,31 +208,52 @@ void RotationMotionModel::updateCenterResult(double current_time) {
     center_vy = x_center_(4);
     center_vz = x_center_(5);
     // 更新半径值
-    r = x_center_(6);
-    r_prev_ = r;  // 保存当前r值用于下一次正则化
+    r_now = x_center_(6);
+    r_now_prev_ = r_now;  // 保存当前r值用于下一次正则化
 }
 
 void RotationMotionModel::update(ObservedData& observedData) {
+    double theoretic_yaw = getTheoreticYaw(observedData.x, observedData.y);
+
+    if (isYawJump(theoretic_yaw)) {
+        observedData.yaw_jump = true;
+        if (!is_outpost) {
+            std::swap(r_now, r_another);
+            std::swap(r_now_prev_, r_another_prev_);
+        }
+        std::cout << "RMM Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump!" << std::endl;
+    }
+
     observedDataHistory.push_back(observedData);
     if (observedDataHistory.size() > max_history) {
         observedDataHistory = std::vector<ObservedData>(
             observedDataHistory.end() - max_history, observedDataHistory.end());
     }
     last_observed_data = observedData;
-    
-    // 不再使用单独的线性回归计算z方向状态，统一使用指数衰减最小二乘
-    
-    // 使用指数衰减最小二乘更新所有状态（包括z轴）
+
+    int yaw_jump_count = 0;
+    for (size_t i = 0; i < observedDataHistory.size(); ++i) {
+        const auto& data = observedDataHistory[i];
+        if (data.yaw_jump) {
+            yaw_jump_count += 1;
+        }
+    }
+    bool this_yaw_jump = yaw_jump_count%2==1;
+
+    // 使用指数衰减最小二乘更新中心状态
     resetExponentialLS();
     double current_time = observedData.t;
     for (size_t i = 0; i < observedDataHistory.size(); ++i) {
         const auto& data = observedDataHistory[i];
         double time_offset = data.t - current_time;  // 相对于当前时间的时间偏移
-        
         // 计算权重：时间越近权重越大
         double time_weight = std::exp(-std::abs(time_offset) * 0.1);
-        
-        updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight);
+        this_yaw_jump = data.yaw_jump ? (!this_yaw_jump) : this_yaw_jump;
+        if (!is_outpost) {
+            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, this_yaw_jump ? r_now-r_another : 0.0);
+        } else {
+            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, 0.0);
+        }
     }
     
     // 获取当前中心状态
@@ -236,8 +262,8 @@ void RotationMotionModel::update(ObservedData& observedData) {
     // 使用EKF更新角度和角速度，传入xc, yc, r
     double dt = observedData.t - last_update_time_;
     if (dt > 0) {
-        angle_ekf_->update(getTheoreticYaw(observedData.x, observedData.y), observedData.x, observedData.y, 
-                          center_x, center_y, r, dt);
+        angle_ekf_->update(theoretic_yaw, observedData.x, observedData.y, 
+                          center_x, center_y, r_now, dt);
         last_update_time_ = observedData.t;
         rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;
     }
@@ -262,7 +288,8 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     result.center_x = center_x + predictTime * center_vx;
     result.center_y = center_y + predictTime * center_vy;
     result.center_z = center_z + predictTime * center_vz;
-    result.r = r;
+    result.r_now = r_now;
+    result.r_another = r_another;
     
     // 使用EKF预测角度
     if (angle_ekf_->isInitialized()) {
@@ -282,10 +309,12 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     // 生成装甲板预测
     for (int i = 0; i < n_armors; i++) {
         double armor_yaw = result.yaw - i * rotation_direction * jump_rad;
+        double r_using = is_outpost ? r_now : ((i%2==0) ? r_now : r_another);
         result.armors.push_back(SimpleArmor({
-            result.center_x + r * std::sin(armor_yaw),
-            result.center_y - r * std::cos(armor_yaw),
+            result.center_x + r_using * std::sin(armor_yaw),
+            result.center_y - r_using * std::cos(armor_yaw),
             result.center_z,
+            r_using,
             armor_yaw
         }));
     }
@@ -298,7 +327,8 @@ RotationMotionState RotationMotionModel::getState() {
     state.center_vx = center_vx;
     state.center_vy = center_vy;
     state.center_vz = center_vz;
-    state.r = r;
+    state.r_now = r_now;
+    state.r_another = r_another;
     state.center_x = center_x;
     state.center_y = center_y;
     state.center_z = center_z;
@@ -316,15 +346,12 @@ RotationMotionState RotationMotionModel::getState() {
 
 double RotationMotionModel::getCamToCenterYaw() {
     std::vector<float> cam_center = rest_frame_ -> getCamPosition();
-    std::vector<double> cam_to_rotation_center_vector = {center_x - cam_center[0], center_y - cam_center[1]};
-    double cam_to_rotation_center_yaw = std::atan2(-cam_to_rotation_center_vector[0], cam_to_rotation_center_vector[1]);
+    double cam_to_rotation_center_yaw = std::atan2(-(center_x - cam_center[0]), center_y - cam_center[1]);
     return cam_to_rotation_center_yaw;
 }
 
 double RotationMotionModel::getTheoreticYaw(double armor_x, double armor_y) {
     double theoreticYawFacingArmor = getTheoreticYawFacingArmor(armor_x, armor_y);
-    std::vector<float> cam_center = rest_frame_ -> getCamPosition();
-    std::vector<double> cam_to_rotation_center_vector = {center_x - cam_center[0], center_y - cam_center[1]};
     double cam_to_rotation_center_yaw = getCamToCenterYaw();
     return cam_to_rotation_center_yaw + theoreticYawFacingArmor;
 }
@@ -336,11 +363,23 @@ double RotationMotionModel::getTheoreticYawFacingArmor(double armor_x, double ar
     std::vector<double> right_unit_v = {cam_to_rotation_center_vector[1] / cam_to_rotation_center_vector_len, - cam_to_rotation_center_vector[0] / cam_to_rotation_center_vector_len};
     std::vector<double> center_armor_v = {armor_x - center_x, armor_y - center_y};
     double right_shift = right_unit_v[0] * center_armor_v[0] + right_unit_v[1] * center_armor_v[1];
-    if (right_shift > r) {
+    if (right_shift > r_now) {
         return M_PI / 2.0;
     }
-    if (right_shift < -r) {
+    if (right_shift < -r_now) {
         return - M_PI / 2.0;
     }
-    return std::asin(right_shift / r);
+    return std::asin(right_shift / r_now);
+}
+
+bool RotationMotionModel::isYawJump(double yaw_now) {
+    double yaw_diff = yaw_now - last_yaw;
+    while (yaw_diff > M_PI) yaw_diff -= 2.0 * M_PI;
+    while (yaw_diff < -M_PI) yaw_diff += 2.0 * M_PI;
+    double jump_threshold = M_PI / 4.0; // 45度阈值
+    last_yaw = yaw_now;
+    if (std::abs(yaw_diff) > jump_threshold) {
+        return true;
+    }
+    return false;
 }
