@@ -80,7 +80,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     RMM_update_time
                 });
                 if (!rotation_motion_model_) {
-                    rotation_motion_model_ = std::make_unique<RotationMotionModel>(RMM_update_data, rest_frame_, armor_class==ArmorType::Outpost);
+                    rotation_motion_model_ = std::make_unique<RotationMotionModel>(RMM_update_data, rest_frame_, armor_class==ArmorType::Outpost, init_r);
                 } else {
                     if (best_result.is_tracked_now) {
                         rotation_motion_model_ -> update(RMM_update_data);
@@ -403,7 +403,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             fire_data_predictor_ -> clearHistory();
             pred_fire_data_filter_ -> clearHistory();
             armor_distance_filter_ -> clearHistory();
-            rotation_motion_model_.reset();
+            if (rotation_motion_model_) {
+                RotationMotionState RMMstate = rotation_motion_model_ -> getState();
+                if (RMMstate.update_frames > 90) init_r = (RMMstate.r_now, RMMstate.r_another) / 2.0;
+                rotation_motion_model_.reset();
+            }
             is_reset = true;
             predictor_switcher_ -> clearHistory();
             last_pixel_horizontal_center_distance = 1e10;

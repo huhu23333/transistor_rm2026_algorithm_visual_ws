@@ -269,6 +269,7 @@ struct RotationMotionState {
     double r_another;
     double yaw;
     double vyaw;
+    unsigned long long update_frames;
 };
 
 // 修改状态向量维度，从5维扩展到7维
@@ -314,8 +315,10 @@ private:
     bool isYawJump(double yaw_now);
     double last_yaw;
 
+    unsigned long long update_frames_count = 0;
+
 public:
-    RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost);
+    RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost, double init_r);
     void update(ObservedData& observedData);
     PredictResult predict(double predictTime);
     void emptyUpdate(double update_time);

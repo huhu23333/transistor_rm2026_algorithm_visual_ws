@@ -215,4 +215,6 @@ private:
     bool has_valid_ballistic = false;
 
     std::shared_ptr<PBEKF_EKFTracker> PBEKFTracker;
+
+    float init_r = 250.0;
 };

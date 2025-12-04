@@ -3,7 +3,7 @@
 
 using namespace Eigen;
 
-RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost)
+RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost, double init_r)
     : rest_frame_(rest_frame_), is_outpost(is_outpost), last_observed_data(initObservedData) {
     observedDataHistory.push_back(initObservedData);
     
@@ -21,8 +21,8 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
         r_another = 276.5;
     } else {
         n_armors = 4;
-        r_now = 250.0;
-        r_another = 250.0;
+        r_now = init_r;
+        r_another = init_r;
     }
     
     r_now_prev_ = r_now;  // 初始化历史半径值
@@ -213,6 +213,7 @@ void RotationMotionModel::updateCenterResult(double current_time) {
 }
 
 void RotationMotionModel::update(ObservedData& observedData) {
+    update_frames_count += 1;
     double theoretic_yaw = getTheoreticYaw(observedData.x, observedData.y);
 
     if (isYawJump(theoretic_yaw)) {
@@ -279,6 +280,7 @@ void RotationMotionModel::emptyUpdate(double update_time) {
         update_time
     });
     update(update_data);
+    update_frames_count -= 1;
 }
 
 PredictResult RotationMotionModel::predict(double predictTime) {
@@ -332,6 +334,7 @@ RotationMotionState RotationMotionModel::getState() {
     state.center_x = center_x;
     state.center_y = center_y;
     state.center_z = center_z;
+    state.update_frames = update_frames_count;
     
     if (angle_ekf_->isInitialized()) {
         state.yaw = angle_ekf_->getYaw();
