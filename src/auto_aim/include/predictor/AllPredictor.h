@@ -127,7 +127,7 @@ public:
         oscilloscope_common_ -> setScale(2.0);
         oscilloscope_common_ -> setOffset(-1.0);
 
-        fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(fire_data_predictor_fit_step);
+        fire_data_predictor_ = std::make_shared<PeriodicDataPredictor>(fire_data_predictor_fit_step, 5);
         fire_data_predictor_ -> setPeriod(1);
         pred_fire_data_filter_ = std::make_shared<SimpleDataFilter>(1);
         pred_fire_data_filter_ -> setExponentialAlpha((*config_file_ptr)["pred_fire_data_smooth_factor"].as<float>());
@@ -136,7 +136,7 @@ public:
         armor_distance_filter_ = std::make_shared<SimpleDataFilter>(1);
         armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
 
-        predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node, predictor_switcher_check_frames_);
+        predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node, predictor_switcher_check_frames_, rest_frame_);
 
         total_yaw_rad_delayed_filter_ = std::make_shared<SimpleDataFilter>(1);
         total_yaw_rad_delayed_filter_ -> setExponentialAlpha((*config_file_ptr)["total_yaw_rad_delayed_smooth_factor"].as<float>());
@@ -210,4 +210,8 @@ private:
     cv::Point3f last_rest_frame_pos = {0.0, 0.0, 0.0};
 
     float last_pixel_horizontal_center_distance = 1e10;
+
+    bool has_valid_ballistic = false;
+    
+    float init_r = 250.0;
 };
