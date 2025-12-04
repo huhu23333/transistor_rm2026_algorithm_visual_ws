@@ -69,27 +69,26 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         // 测量1的值：装甲板在垂直方向上的投影应为0
         double z1 = offAxisX * armor_x + offAxisY * armor_y;
         
-        // 测量1的测量矩阵 (7维)
+        // 测量1的测量矩阵 - 只更新center_x, center_y
         Eigen::RowVectorXd H1(STATE_DIM);
         H1 << offAxisX, offAxisY, 0.0, 0.0, 0.0, 0.0, 0.0;
         
-        // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于半径r (xy平面)
-        // axisVector · armorToCenterVector = r
+        // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于固定半径276.5 (xy平面)
         double axisX = -sinYaw;     // 装甲板法向单位向量x分量
         double axisY = cosYaw;      // 装甲板法向单位向量y分量
         
-        // 测量2的值：装甲板在法向上的投影应为r
+        // 测量2的值：装甲板在法向上的投影应为固定半径
         double z2 = axisX * armor_x + axisY * armor_y;
         
-        // 测量2的测量矩阵 (7维)
+        // 测量2的测量矩阵 - 只更新center_x, center_y
         Eigen::RowVectorXd H2(STATE_DIM);
-        H2 << axisX, axisY, 0.0, 0.0, 0.0, 0.0, -1.0;
+        H2 << axisX, axisY, 0.0, 0.0, 0.0, 0.0, 0.0;
         
         // 测量3: z轴测量 - 装甲板z坐标与中心z坐标的关系
-        // armor_z = center_z + center_vz * t (假设装甲板在z方向没有相对运动)
+        // armor_z = center_z (因为前哨站vz=0)
         double z3 = armor_z;
         
-        // 测量3的测量矩阵 (7维)
+        // 测量3的测量矩阵 - 只更新center_z
         Eigen::RowVectorXd H3(STATE_DIM);
         H3 << 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
         
@@ -106,7 +105,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         double weight2 = weight;
         double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
         Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
-        double innovation2 = z2 - H2 * x_center_;
+        double innovation2 = z2 - H2 * x_center_ + 276.5;  // 固定半径
         x_center_ = x_center_ + K2 * innovation2;
         P_center_ = (I - K2 * H2) * P_center_ / lambda_;
         
@@ -118,10 +117,11 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         x_center_ = x_center_ + K3 * innovation3;
         P_center_ = (I - K3 * H3) * P_center_ / lambda_;
         
-        x_center_(3) = 0.0;
-        x_center_(4) = 0.0;
-        x_center_(5) = 0.0;
-        x_center_(6) = 276.5;
+        // 强制固定前哨站模式的状态
+        // x_center_(3) = 0.0;  // vx = 0
+        // x_center_(4) = 0.0;  // vy = 0
+        // x_center_(5) = 0.0;  // vz = 0
+        // x_center_(6) = 276.5; // r = 276.5
 
     } else {
         // 测量1的值：装甲板在垂直方向上的投影应为0
