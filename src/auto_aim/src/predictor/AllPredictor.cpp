@@ -17,6 +17,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     
     bool pnp_valid_flag = false;
     bool ballistic_valid_flag = false;
+
+    std::vector<float> cam_position = rest_frame_ -> getCamPosition();
+
     if (!classifyResults.empty()) {
         // 选择最佳目标（置信度最高）
         auto it = std::max_element(
@@ -74,7 +77,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 cv::Point3f predicted_armor_pos = rest_frame_pos;
                 cv::Point3f predicted_aim_pos = predicted_armor_pos;
                 bool fire_flag = true;
-                
 
                 if (armor_class != ArmorType::Base) {
                     // ========================== EKF 逻辑 (9D模型修改) ===========================
@@ -144,7 +146,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
 
                     // 计算弹道最近点并绘制（大紫色圈）
-                    std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                     cv::Point3f bullet_nearest_point = ballistic_solver_ -> calcNearestPointWithAirResistance( // todo
                         rest_frame_pos / 1000, {cam_position[0], cam_position[1], cam_position[2]}, last_aim_yaw_pitch_, bullet_velocity_) * 1000;
                     cv::Point3f pnp_bullet_nearest_point = rest_frame_ -> worldToPnpP3f(bullet_nearest_point);
@@ -312,10 +313,10 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 #ifdef SHOW_WINDOWS
                     cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
-                    result.enemy_position_x = RMM_state.center_x;
-                    result.enemy_position_y = RMM_state.center_y;
-                    last_enemy_position_x = RMM_state.center_x;
-                    last_enemy_position_y = RMM_state.center_y;
+                    last_enemy_position_x = RMM_state.center_x - cam_position[0];
+                    last_enemy_position_y = RMM_state.center_y - cam_position[1];
+                    result.enemy_position_x = last_enemy_position_x;
+                    result.enemy_position_y = last_enemy_position_y;
                     // ========================== RotationMotionModsel =========================== END
                 }
 
@@ -439,7 +440,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         float RMM_period = 1.0;
                         if (rotation_motion_model_) {
                             PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
-                            std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                             cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                             std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
                             float yaw_bias = M_PI / 180.0 * 15.0;
@@ -577,7 +577,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Scalar(0, 255, 0), 1, 8, false);
                     if (using_predictor_type == PredictorType::RotationMotionModel) {
                         PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(last_total_delay_);
-                        std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                         cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                         std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
                         float yaw_bias = M_PI / 180.0 * 0.0;
@@ -647,10 +646,10 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 #ifdef SHOW_WINDOWS
                     cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
-                    result.enemy_position_x = RMM_state.center_x;
-                    result.enemy_position_y = RMM_state.center_y;
-                    last_enemy_position_x = RMM_state.center_x;
-                    last_enemy_position_y = RMM_state.center_y;
+                    last_enemy_position_x = RMM_state.center_x - cam_position[0];
+                    last_enemy_position_y = RMM_state.center_y - cam_position[1];
+                    result.enemy_position_x = last_enemy_position_x;
+                    result.enemy_position_y = last_enemy_position_y;
                 }
                 // ==========================RotationMotionModel=========================== END
                 // 统一转换回pnp相机坐标系
@@ -753,7 +752,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 float RMM_period = 1.0;
                 if (rotation_motion_model_) {
                     PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
-                    std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                     cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                     std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
                     float yaw_bias = M_PI / 180.0 * 15.0;
