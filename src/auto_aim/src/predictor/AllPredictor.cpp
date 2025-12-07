@@ -11,6 +11,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 {
     PredictorResult result;
     total_yaw_rad_delayed_filter_ -> addPoint(total_yaw_rad_delayed_);
+
+    result.enemy_position_x = last_enemy_position_x;
+    result.enemy_position_y = last_enemy_position_y;
     
     bool pnp_valid_flag = false;
     bool ballistic_valid_flag = false;
@@ -309,6 +312,10 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 #ifdef SHOW_WINDOWS
                     cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
+                    result.enemy_position_x = RMM_state.center_x;
+                    result.enemy_position_y = RMM_state.center_y;
+                    last_enemy_position_x = RMM_state.center_x;
+                    last_enemy_position_y = RMM_state.center_y;
                     // ========================== RotationMotionModsel =========================== END
                 }
 
@@ -587,7 +594,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             static_cast<float>(RMM_pred_aim_data.armors[nearest_idx].z) 
                         };
                         predicted_aim_pos = predicted_armor_pos;
-                        fire_flag = true;
+                        // fire_flag = true;
                         cv::circle(RMM_visualize_frame, 
                             cv::Point2f(400+RMM_pred_aim_data.armors[nearest_idx].x/10, 400-RMM_pred_aim_data.armors[nearest_idx].y/10), 8, 
                             cv::Scalar(0, 0, 255), 2);
@@ -640,6 +647,10 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 #ifdef SHOW_WINDOWS
                     cv::imshow("RMM visualize", RMM_visualize_frame);
 #endif
+                    result.enemy_position_x = RMM_state.center_x;
+                    result.enemy_position_y = RMM_state.center_y;
+                    last_enemy_position_x = RMM_state.center_x;
+                    last_enemy_position_y = RMM_state.center_y;
                 }
                 // ==========================RotationMotionModel=========================== END
                 // 统一转换回pnp相机坐标系

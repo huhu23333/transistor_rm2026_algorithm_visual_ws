@@ -31,6 +31,10 @@ struct PredictorResult {
     PredictorType::PredictorType predictor_type = PredictorType::None;
     ArmorType::ArmorType armor_type = ArmorType::Hero;
     float pixel_horizontal_center_distance = 1e10;
+
+    // 哨兵新增 敌车地面系相对位置
+    float enemy_position_x;
+    float enemy_position_y;
 };
 
 class AllPredictor {
@@ -214,4 +218,7 @@ private:
     bool has_valid_ballistic = false;
     
     float init_r = 250.0;
+
+    float last_enemy_position_x = 0.0;
+    float last_enemy_position_y = 0.0;
 };

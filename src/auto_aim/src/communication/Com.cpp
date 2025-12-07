@@ -94,7 +94,7 @@ std::string SerialCommunicationClass::findAvailableSerialPort() {
     return port;
 }
 
-bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float yaw_target, bool fire, int16_t enemy_position_x, int16_t enemy_position_y) {
+bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float yaw_target, bool fire, float enemy_position_x, float enemy_position_y) {
     if (fd_ >= 0) {
         //pitch_target = -0.01; // 约 0.01对应30°
         //yaw_target = 0;
@@ -150,8 +150,10 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         }
 
         // 处理enemy_position (2+2字节)
-        memcpy(&tx_data[10], &enemy_position_x, sizeof(int16_t));
-        memcpy(&tx_data[12], &enemy_position_y, sizeof(int16_t));
+        int16_t enemy_position_x_int16 = static_cast<int16_t>(std::clamp(enemy_position_x, -32766.0f, 32766.0f));
+        int16_t enemy_position_y_int16 = static_cast<int16_t>(std::clamp(enemy_position_y, -32766.0f, 32766.0f));
+        memcpy(&tx_data[10], &enemy_position_x_int16, sizeof(int16_t));
+        memcpy(&tx_data[12], &enemy_position_y_int16, sizeof(int16_t));
         
         // 计算并添加CRC
         tx_data[14] = CRC8_Check_Sum(tx_data.data(), 14);

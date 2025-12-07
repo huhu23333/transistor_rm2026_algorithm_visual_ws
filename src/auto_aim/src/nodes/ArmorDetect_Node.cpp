@@ -513,15 +513,21 @@ private:
                 cv::Point2f(0, 100), 
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
-            // if (predictor_result.reset) {
-            //     RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
-            //     serial_communication_->sendData(true, 0.0, 0.0, false);
-            // } else {
-            //     RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
-            //     serial_communication_->sendData(false, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
-            // }
+            if (predictor_result.reset) {
+                RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d], enemy_x[%.2f] enemy_y[%.2f]", 0.0, 0.0, false, 0.0, 0.0);
+                serial_communication_->sendData(true, 0.0, 0.0, false, 0.0, 0.0);
+            } else {
+                RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d], enemy_x[%.2f] enemy_y[%.2f]", 
+                    predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag,
+                    predictor_result.enemy_position_x, predictor_result.enemy_position_y
+                );
+                serial_communication_->sendData(
+                    false, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag,
+                    predictor_result.enemy_position_x, predictor_result.enemy_position_y
+                );
+            }
             // serial_communication_->sendData(false, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
-            serial_communication_->sendData(true, 0.1, 0.2, true, -32667, 200);
+            // serial_communication_->sendData(true, 0.1, 0.2, true, -32667, 200);
             
             //计算帧率
             fps_counter->tick();
@@ -616,6 +622,7 @@ void signalHandler(int signum) {
         rclcpp::shutdown();
     }
 }
+
 int main(int argc, char * argv[]) {
     rclcpp::init(argc, argv);
     node = std::make_shared<ArmorDetectNode>();

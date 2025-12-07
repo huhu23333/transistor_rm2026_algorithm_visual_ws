@@ -26,6 +26,7 @@
 #include <cmath>
 #include <rclcpp/rclcpp.hpp>
 #include <functional>
+#include <algorithm>
 
 
 struct SerialData {
@@ -40,7 +41,7 @@ public:
     SerialCommunicationClass(rclcpp::Node* node, std::function<void(const SerialData&)> serialDataCallback);
     ~SerialCommunicationClass();
     void timerCallback();
-    bool sendData(bool reset, float pitch_target, float yaw_target, bool fire, int16_t enemy_position_x, int16_t enemy_position_y);
+    bool sendData(bool reset, float pitch_target, float yaw_target, bool fire, float enemy_position_x, float enemy_position_y);
     void timerThread();
     
 private:
