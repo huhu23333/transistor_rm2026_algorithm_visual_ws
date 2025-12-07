@@ -49,6 +49,7 @@ class ArmorDetectNode : public rclcpp::Node {
 public:
     ArmorDetectNode() : Node("armor_detect_node") {
         node_start_time = std::chrono::steady_clock::now();
+        reset_behavior_infos.last_time = node_start_time;
 
         // 1. 获取可执行文件路径    
         char exec_path[PATH_MAX];
@@ -514,8 +515,23 @@ private:
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
             if (predictor_result.reset) {
-                RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d], enemy_x[%.2f] enemy_y[%.2f]", 0.0, 0.0, false, 0.0, 0.0);
-                serial_communication_->sendData(true, 0.0, 0.0, false, 0.0, 0.0);
+                std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+                float dt = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(now - reset_behavior_infos.last_time).count()) / 1000.0f;
+                reset_behavior_infos.last_time = now;
+                reset_behavior_infos.yaw += reset_behavior_infos.v_yaw * dt;
+                reset_behavior_infos.pitch += reset_behavior_infos.v_pitch * reset_behavior_infos.v_pitch_direction * dt;
+                while (reset_behavior_infos.yaw > M_PI) {reset_behavior_infos.yaw -= 2.0 * M_PI;}
+                while (reset_behavior_infos.yaw < -M_PI) {reset_behavior_infos.yaw += 2.0 * M_PI;}
+                if (reset_behavior_infos.pitch >= reset_behavior_infos.max_pitch) {
+                    reset_behavior_infos.v_pitch_direction = -1.0f;
+                    reset_behavior_infos.pitch = reset_behavior_infos.max_pitch;
+                } else if (reset_behavior_infos.pitch <= reset_behavior_infos.min_pitch) {
+                    reset_behavior_infos.v_pitch_direction = 1.0f;
+                    reset_behavior_infos.pitch = reset_behavior_infos.min_pitch;
+                }
+
+                RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d], enemy_x[%.2f] enemy_y[%.2f]", reset_behavior_infos.yaw, reset_behavior_infos.pitch, false, 0.0, 0.0);
+                serial_communication_->sendData(true, reset_behavior_infos.yaw, reset_behavior_infos.pitch, false, 0.0, 0.0);
             } else {
                 RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d], enemy_x[%.2f] enemy_y[%.2f]", 
                     predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag,
@@ -525,6 +541,10 @@ private:
                     false, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag,
                     predictor_result.enemy_position_x, predictor_result.enemy_position_y
                 );
+
+                reset_behavior_infos.last_time = std::chrono::steady_clock::now();
+                reset_behavior_infos.yaw = predictor_result.command_yaw;
+                reset_behavior_infos.pitch = predictor_result.command_pitch;
             }
             // serial_communication_->sendData(false, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
             // serial_communication_->sendData(true, 0.1, 0.2, true, -32667, 200);
@@ -614,6 +634,19 @@ private:
     std::deque<HistoryFrame> history_frames;
     int yolo_delay_frame = 0;
     float extra_info_delay_time_ms = 0.0;
+
+    struct {
+        float v_yaw = -90.0f * M_PI / 180.0f;
+        float v_pitch = 100.0f * M_PI / 180.0f;
+        float max_pitch = 15.0f * M_PI / 180.0f;
+        float min_pitch = -30.0f * M_PI / 180.0f;
+
+        float v_pitch_direction = 1.0f;
+
+        std::chrono::steady_clock::time_point last_time;
+        float yaw = 0.0f;
+        float pitch = 0.0f;
+    } reset_behavior_infos;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
