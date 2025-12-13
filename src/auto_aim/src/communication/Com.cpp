@@ -108,7 +108,7 @@ bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target, bo
         tx_data[3] = 0x07;  // 数据长度为7（4字节pitch_target + 2字节yaw_target + 1字节fire）
         
         // 处理pitch_target (4字节)
-        pitch_target = pitch_target *180/M_PI * 0.01/30;
+        pitch_target = (pitch_target * 180/M_PI - 1.2) * 0.01 / 37.5;
         memcpy(&tx_data[4], &pitch_target, sizeof(float));  // 4字节float
         
         // 处理yaw_target (2字节)

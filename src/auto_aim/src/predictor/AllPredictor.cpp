@@ -319,13 +319,13 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     // has_valid_target_ = true;
 
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
-                    yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
+                    yaw_integration += ballistic_result.delta_yaw_rad * 0.1;
 
-                    if (pitch_integration > 10.0 * M_PI / 180.0) {
-                        pitch_integration = 10.0 * M_PI / 180.0;
+                    if (pitch_integration > 20.0 * M_PI / 180.0) {
+                        pitch_integration = 20.0 * M_PI / 180.0;
                     }
-                    if (pitch_integration < -10.0 * M_PI / 180.0) {
-                        pitch_integration = -10.0 * M_PI / 180.0;
+                    if (pitch_integration < -20.0 * M_PI / 180.0) {
+                        pitch_integration = -20.0 * M_PI / 180.0;
                     }
 
                     if (yaw_integration > 20.0 * M_PI / 180.0) {
@@ -624,13 +624,13 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     // has_valid_target_ = true;
 
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
-                    yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
+                    yaw_integration += ballistic_result.delta_yaw_rad * 0.1;
 
-                    if (pitch_integration > 10.0 * M_PI / 180.0) {
-                        pitch_integration = 10.0 * M_PI / 180.0;
+                    if (pitch_integration > 20.0 * M_PI / 180.0) {
+                        pitch_integration = 20.0 * M_PI / 180.0;
                     }
-                    if (pitch_integration < -10.0 * M_PI / 180.0) {
-                        pitch_integration = -10.0 * M_PI / 180.0;
+                    if (pitch_integration < -20.0 * M_PI / 180.0) {
+                        pitch_integration = -20.0 * M_PI / 180.0;
                     }
 
                     if (yaw_integration > 20.0 * M_PI / 180.0) {

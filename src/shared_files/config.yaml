@@ -41,7 +41,7 @@ yolo_pose_model_relative_path : "src/shared_files/models/armor-oneclass-yolo11n-
 enemy_color : "BLUE"
 
 MAX_LOST_TIME : 0.5              # 单位：秒
-camera_ExposureTime : 5000.0  # 5000.0
+camera_ExposureTime : 2000.0  # 5000.0
 camera_Gain : 16.0            # 16.0
 bullet_velocity_ : 15.0
 current_pitch_ : 0.0
