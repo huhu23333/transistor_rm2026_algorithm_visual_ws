@@ -108,7 +108,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         Tracker::State future_state = EKF_tracker_->predictAhead(total_delay);
                         
                         // 从预测的机器人中心状态，反解出未来时刻装甲板的位置
-                        double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
+                        double future_xc = future_state(0), future_yc = future_state(3), future_zc = future_state(6);
 
                         predicted_armor_pos = {
                             static_cast<float>(future_xc),
@@ -336,15 +336,22 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
                     yaw_integration += ballistic_result.delta_yaw_rad * 0.1;
 
-                    if (pitch_integration > 0.3) {
-                        pitch_integration = 0.3;
+                    if (pitch_integration > 20.0 * M_PI / 180.0) {
+                        pitch_integration = 20.0 * M_PI / 180.0;
                     }
-                    if (pitch_integration < -0.3) {
-                        pitch_integration = -0.3;
+                    if (pitch_integration < -20.0 * M_PI / 180.0) {
+                        pitch_integration = -20.0 * M_PI / 180.0;
+                    }
+
+                    if (yaw_integration > 20.0 * M_PI / 180.0) {
+                        yaw_integration = 20.0 * M_PI / 180.0;
+                    }
+                    if (yaw_integration < -20.0 * M_PI / 180.0) {
+                        yaw_integration = -20.0 * M_PI / 180.0;
                     }
                     
                     // 发布云台控制命令
-                    float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 1.0 + pitch_integration; // PI控制
+                    float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration + pitch_bias; // PI控制
                     float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 0.7 + yaw_integration; // 缓解yaw轴输入数据掉线问题
                     last_command_pitch_ = command_pitch;
                     last_command_yaw_ = command_yaw;
@@ -404,7 +411,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point3f EKF_to_check(0.0, 0.0, 0.0);
                         {
                             Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
-                            double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
+                            double future_xc = future_state(0), future_yc = future_state(3), future_zc = future_state(6);
                             EKF_to_check = {
                                 static_cast<float>(future_xc),
                                 static_cast<float>(future_yc),
@@ -658,11 +665,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
                     yaw_integration += ballistic_result.delta_yaw_rad * 0.1;
 
-                    if (pitch_integration > 10.0 * M_PI / 180.0) {
-                        pitch_integration = 10.0 * M_PI / 180.0;
+                    if (pitch_integration > 20.0 * M_PI / 180.0) {
+                        pitch_integration = 20.0 * M_PI / 180.0;
                     }
-                    if (pitch_integration < -10.0 * M_PI / 180.0) {
-                        pitch_integration = -10.0 * M_PI / 180.0;
+                    if (pitch_integration < -20.0 * M_PI / 180.0) {
+                        pitch_integration = -20.0 * M_PI / 180.0;
                     }
 
                     if (yaw_integration > 20.0 * M_PI / 180.0) {
@@ -673,7 +680,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     }
                     
                     // 发布云台控制命令
-                    float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration; // PI控制
+                    float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration + pitch_bias; // PI控制
                     float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 0.7 + yaw_integration; // 缓解yaw轴输入数据掉线问题
                     last_command_pitch_ = command_pitch;
                     last_command_yaw_ = command_yaw;
@@ -713,11 +720,10 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 cv::Point3f EKF_to_check(0.0, 0.0, 0.0);
                 {
                     Tracker::State future_state = EKF_tracker_->predictAhead(fps_counter -> avg_frame_time() * predictor_switcher_check_frames_);
-                    double future_xc = future_state(0), future_yc = future_state(2), future_zc = future_state(4);
-                    double future_yaw = future_state(6), future_r = future_state(8);
+                    double future_xc = future_state(0), future_yc = future_state(3), future_zc = future_state(6);
                     EKF_to_check = {
-                        static_cast<float>(future_xc - future_r * sin(future_yaw)),
-                        static_cast<float>(future_yc + future_r * cos(future_yaw)),
+                        static_cast<float>(future_xc),
+                        static_cast<float>(future_yc),
                         static_cast<float>(future_zc) 
                     };
                 }

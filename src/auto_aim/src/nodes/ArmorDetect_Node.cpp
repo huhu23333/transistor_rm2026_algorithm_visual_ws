@@ -329,7 +329,7 @@ private:
         cv::Point2f test_point_pos_pixel = armor_solver_ -> project3DToPixel(test_point_pos);
         cv::circle(result, test_point_pos_pixel, 8, cv::Scalar(255, 0, 255), 2);
 
-        // 1. 绘制灯条（绿色）
+        // // 1. 绘制灯条（绿色）
         // for (const auto& light : lights) {
         //     cv::Point2f vertices[4];
         //     light.el.points(vertices);
@@ -364,14 +364,14 @@ private:
         //     }
         // }
 
-        // 3. 绘制最终识别结果（红色）和跟踪信息
-        /* for (const auto& res : classifyResults_forFourierPredict) {
-            if (res.is_steady_tracked) {
-                for (auto& prediction : res.predictions) {
-                    cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
-                }
-            }
-        } */
+        // // 3. 绘制最终识别结果（红色）和跟踪信息
+        // /* for (const auto& res : classifyResults_forFourierPredict) {
+        //     if (res.is_steady_tracked) {
+        //         for (auto& prediction : res.predictions) {
+        //             cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
+        //         }
+        //     }
+        // } */
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
             if (res.is_tracked_now) {
@@ -522,6 +522,7 @@ private:
             if (predictor_result.reset) {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 serial_communication_->sendData(0.0, 0.0, false);
+                //serial_communication_->sendData(last_pitch_rad_delayed_, last_yaw_rad_delayed_, false);
             } else {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
