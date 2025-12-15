@@ -87,6 +87,8 @@ public:
 
         enemy_color_ = (*config_file_ptr)["enemy_color"].as<std::string>();
 
+        use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
+
         yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
         pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
         
@@ -165,6 +167,10 @@ public:
             ballistic_solver_, rest_frame_, fps_counter);
 
         yolo_pose_armor_detector = std::make_shared<YOLOPoseArmorDetector>(config_file_ptr, this);
+
+        if (yolo_pose_armor_detector) {
+            yolo_pose_armor_detector->setEnemyColor(enemy_color_ == "RED" ? Params::RED : Params::BLUE);
+        }
 
 
         // 初始化串口通信器
@@ -263,6 +269,9 @@ private:
         }
         if (light_detector_) {
             light_detector_->setEnemyColor(msg.color == 0 ? Params::RED : Params::BLUE);
+        }
+        if (yolo_pose_armor_detector) {
+            yolo_pose_armor_detector->setEnemyColor(msg.color == 0 ? Params::RED : Params::BLUE);
         }
 
         if (current_yaw_ < -M_PI/2 && last_yaw_rad_ > M_PI/2) {
