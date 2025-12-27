@@ -41,3 +41,9 @@ std::vector<Armor> YOLOPoseArmorDetector::detectArmors(const cv::Mat& frame, boo
 
     return result;
 }
+
+void YOLOPoseArmorDetector::setEnemyColor(Params::EnemyColor enemy_color) {
+    if (shm_python_yolo_pose) {
+        shm_python_yolo_pose -> setEnemyColor(enemy_color);
+    }
+}

@@ -10,6 +10,7 @@
 #include <yaml-cpp/yaml.h>
 #include <rclcpp/rclcpp.hpp>
 #include "macro/AutoAimMacro.h"
+#include "2d_armor_detector/Params.h"
 
 struct DetectionResult {
     float keypoints[8];  // 4个关键点，每个关键点(x,y)归一化坐标 (x1,y1,x2,y2,x3,y3,x4,y4)
@@ -26,6 +27,8 @@ public:
     // 处理单张图像，返回检测结果
     std::vector<DetectionResult> processImage(const cv::Mat& image, bool block, int now_history_frame_identifier);
 
+    void setEnemyColor(Params::EnemyColor enemy_color);
+
 private:
     rclcpp::Node* node;
     // 共享内存数据结构
@@ -34,7 +37,7 @@ private:
         // 控制数据区 (8字节，对齐到8字节边界)
         bool is_processed;     // 处理状态标志 (1字节)
         bool show_windows;     // 显示图像
-        bool reserved2;        // 备用标志2 (1字节) - 用于对齐  
+        uint8_t enemyColor;       // 识别颜色
         bool reserved3;        // 备用标志3 (1字节) - 用于对齐
         int reserved4;         // 备用标志4 (4字节) - 用于填充到8字节
         
@@ -60,6 +63,7 @@ private:
     int shm_id_;
     SharedData* shared_data_;
     int YOLO_POSE_SHM_KEY;
+    Params::EnemyColor enemyColor;
     
     void attachSharedMemory();
     void detachSharedMemory();
