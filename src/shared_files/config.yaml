@@ -44,6 +44,8 @@ yolo_pose_model_relative_path : "src/shared_files/models/armor-oneclass-yolo11n-
 # ArmorDetect_Node 参数
 enemy_color : "RED"
 
+use_yolo_pose : false
+
 MAX_LOST_TIME : 0.5              # 单位：秒
 camera_ExposureTime : 5000.0  # 5000.0
 camera_Gain : 16.0            # 16.0
@@ -120,6 +122,8 @@ THRES_MAX_COLOR_BLUE : 100
 
 # ArmorDetector 参数
 corners_expand_ratio : 1.5 # 装甲板角点坐标扩大比例
+corners_narrow_ratio : 0.8
+is_ture_yolo_armor_brightness_ratio : 1.0
 height_correct_ratio_small : 1.22 # 角点坐标修正比例系数 # 1.02 # 0.98 # 1.24 # 1.02
 width_correct_ratio_small : 1.12 # 1.12
 height_correct_ratio_large : 1.26 # 1.04

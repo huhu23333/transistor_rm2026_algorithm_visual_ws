@@ -81,6 +81,8 @@ class ShmYOLOPoseProcessorNode(Node):
 
         self.frame_rate_counter = FrameRateCounter()
 
+        self.enemyColor = 0
+
         self.run()
     
     def __del__(self):
@@ -107,11 +109,13 @@ class ShmYOLOPoseProcessorNode(Node):
         while True:
             try:
                 # 读取控制信息 - 只检查is_processed标志
-                control_data = self.shm.read(1, offset=0)  # 只读取第一个字节(is_processed)
+                control_data = np.frombuffer(self.shm.read(8, offset=0), dtype=np.uint8)
                 is_processed = control_data[0]
                 
                 if not is_processed:
                     t_start = time.time()
+
+                    self.enemyColor = control_data[2]
 
                     # 1. 读取图像数据
                     img_data = self.shm.read(self.IMAGE_DATA_SIZE, offset=self.IMAGE_DATA_OFFSET)
@@ -141,7 +145,7 @@ class ShmYOLOPoseProcessorNode(Node):
                                 class_id = int(box[5])
                                 
                                 # 提取4个关键点的归一化坐标
-                                if kpt.shape[0] >= 4:
+                                if class_id == self.enemyColor and kpt.shape[0] >= 4:
                                     # 取前4个关键点
                                     selected_keypoints = kpt[:4]
                                     normalized_keypoints = []
@@ -166,7 +170,7 @@ class ShmYOLOPoseProcessorNode(Node):
                     
                     # ============== 可视化部分 ==============
                     # 创建窗口用于显示图像
-                    if np.frombuffer(self.shm.read(1, offset=1), dtype=np.uint8)[0] == 1:
+                    if control_data[1] == 1:
                         cv2.namedWindow("YOLO Pose Image", cv2.WINDOW_NORMAL)
                         cv2.resizeWindow("YOLO Pose Image", 640, 640)
                         cv2.imshow("YOLO Pose Image", results[0].plot())
