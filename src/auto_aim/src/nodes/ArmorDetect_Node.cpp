@@ -338,7 +338,7 @@ private:
         cv::Point2f test_point_pos_pixel = armor_solver_ -> project3DToPixel(test_point_pos);
         cv::circle(result, test_point_pos_pixel, 8, cv::Scalar(255, 0, 255), 2);
 
-        // 1. 绘制灯条（绿色）
+        // // 1. 绘制灯条（绿色）
         // for (const auto& light : lights) {
         //     cv::Point2f vertices[4];
         //     light.el.points(vertices);
@@ -480,7 +480,6 @@ private:
             std::vector<ArmorResult> classifyResults;
             std::vector<ArmorResult> classifyResults_forFourierPredict;
             std::vector<std::vector<ArmorResult>> classifyResults_expanded;
-            std::vector<Armor> yolo_armors;
 
             // 检测灯条
             light_detector_->detectLights(frame);
@@ -491,6 +490,7 @@ private:
             armors = armor_detector_->detectArmors(lights);
 
             if (use_yolo_pose) {
+                std::vector<Armor> yolo_armors;
                 now_history_frame_identifier += 1;
                 if (now_history_frame_identifier == history_frame_identifier_loop) {
                     now_history_frame_identifier = 0;
@@ -511,9 +511,16 @@ private:
                         }
                     }
                 }
+                std::vector<Armor> true_yolo_armors;
+                for (Armor& yolo_armor : yolo_armors) {
+                    if (yolo_armor.is_true_yolo_armor(history_frames[history_frame_index].frame))
+                    {
+                        true_yolo_armors.push_back(yolo_armor);
+                    }
+                }
                 RCLCPP_INFO(this->get_logger(), "yolo_delay_frame: %d", yolo_delay_frame);
                 extra_info_delay_time_ms = fps_counter -> avg_frame_time() * yolo_delay_frame * 1000.0;
-                classifyResults_expanded = classifier_->classify(history_frames[history_frame_index].frame, yolo_armors, ground_stable_point);
+                classifyResults_expanded = classifier_->classify(history_frames[history_frame_index].frame, true_yolo_armors, ground_stable_point);
             } else {
                 extra_info_delay_time_ms = 0.0;
                 classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
