@@ -42,7 +42,7 @@ YOLO_POSE_SHM_KEY : 0x0070
 yolo_pose_model_relative_path : "src/shared_files/models/armor-oneclass-yolo11n-pose-best_int8_openvino_model"
 
 # ArmorDetect_Node 参数
-enemy_color : "RED"
+enemy_color : "BLUE"
 
 use_yolo_pose : false
 
