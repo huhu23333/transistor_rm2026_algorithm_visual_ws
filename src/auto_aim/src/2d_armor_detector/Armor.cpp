@@ -19,10 +19,12 @@ namespace ArmorType {
 Armor::Armor(const cv::RotatedRect& left, const cv::RotatedRect& right, std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, int history_frame_identifier) 
     : leftLight(left), rightLight(right), confidence(0.0f), node(node) {
     corners_expand_ratio = (*config_file_ptr)["corners_expand_ratio"].as<float>();
+    corners_narrow_ratio = (*config_file_ptr)["corners_narrow_ratio"].as<float>();
     height_correct_ratio_small = (*config_file_ptr)["height_correct_ratio_small"].as<float>();
     width_correct_ratio_small = (*config_file_ptr)["width_correct_ratio_small"].as<float>();
     height_correct_ratio_large = (*config_file_ptr)["height_correct_ratio_large"].as<float>();
     width_correct_ratio_large = (*config_file_ptr)["width_correct_ratio_large"].as<float>();
+    is_ture_yolo_armor_brightness_ratio = (*config_file_ptr)["is_ture_yolo_armor_brightness_ratio"].as<float>();
     calculateROI();
 
     if (history_frame_identifier != -1) {
@@ -158,6 +160,11 @@ void Armor::calculateCorners() {
     for (int i = 0; i < 4; i+=1) {
         corners_expanded.push_back(center + corners_expand_ratio * (corners[i] - center));
     }
+
+    // 计算缩小后角点坐标
+    for (int i = 0; i < 4; i+=1) {
+        corners_narrowed.push_back(center + corners_narrow_ratio * (corners[i] - center));
+    }
 }
 
 cv::Point2f Armor::vecToPoint(const cv::Vec2f& vec) {
@@ -196,4 +203,74 @@ cv::Point2f Armor::computeIntersection(const std::vector<cv::Point2f>& corners) 
     cv::Point2f P = A1 + t * a;
 
     return P;
+}
+
+bool Armor::is_true_yolo_armor(cv::Mat& frame) {
+    // 将图像转换为灰度图
+    cv::Mat gray;
+    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+
+    // 1. 计算左右灯条范围内的亮度均值
+    // 创建灯条区域的掩膜
+    cv::Mat light_mask = cv::Mat::zeros(gray.size(), CV_8UC1);
+    
+    // 获取左右灯条的顶点
+    cv::Point2f left_vertices[4], right_vertices[4];
+    leftLight.points(left_vertices);
+    rightLight.points(right_vertices);
+    
+    // 填充左灯条多边形
+    std::vector<cv::Point> left_poly(4);
+    for (int i = 0; i < 4; ++i) {
+        left_poly[i] = left_vertices[i];
+    }
+    cv::fillPoly(light_mask, std::vector<std::vector<cv::Point>>{left_poly}, cv::Scalar(255));
+    
+    // 填充右灯条多边形
+    std::vector<cv::Point> right_poly(4);
+    for (int i = 0; i < 4; ++i) {
+        right_poly[i] = right_vertices[i];
+    }
+    cv::fillPoly(light_mask, std::vector<std::vector<cv::Point>>{right_poly}, cv::Scalar(255));
+    
+    // 计算灯条区域的平均亮度
+    cv::Scalar light_mean_scalar = cv::mean(gray, light_mask);
+    double light_brightness_mean = light_mean_scalar[0];  // a
+
+    // 2. 计算corners_narrowed范围内的0.95分位值
+    // 创建装甲板缩小区域的掩膜
+    cv::Mat armor_mask = cv::Mat::zeros(gray.size(), CV_8UC1);
+    
+    // 填充装甲板缩小区域多边形
+    std::vector<cv::Point> armor_poly(4);
+    for (int i = 0; i < 4; ++i) {
+        armor_poly[i] = corners_narrowed[i];
+    }
+    cv::fillPoly(armor_mask, std::vector<std::vector<cv::Point>>{armor_poly}, cv::Scalar(255));
+    
+    // 提取装甲板区域内的像素值
+    std::vector<double> armor_pixel_values;
+    for (int y = 0; y < gray.rows; ++y) {
+        for (int x = 0; x < gray.cols; ++x) {
+            if (armor_mask.at<uchar>(y, x) > 0) {
+                armor_pixel_values.push_back(static_cast<double>(gray.at<uchar>(y, x)));
+            }
+        }
+    }
+    
+    // 如果没有像素，返回false
+    if (armor_pixel_values.empty()) {
+        return false;
+    }
+    
+    // 计算0.95分位值
+    std::sort(armor_pixel_values.begin(), armor_pixel_values.end());
+    size_t index_95 = static_cast<size_t>(armor_pixel_values.size() * 0.95);
+    if (index_95 >= armor_pixel_values.size()) {
+        index_95 = armor_pixel_values.size() - 1;
+    }
+    double armor_brightness_95percentile = armor_pixel_values[index_95];  // b
+
+    // 3. 比较并返回结果
+    return light_brightness_mean > armor_brightness_95percentile * is_ture_yolo_armor_brightness_ratio;
 }
