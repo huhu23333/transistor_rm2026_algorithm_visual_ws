@@ -14,6 +14,9 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     center_vx = 0.0;
     center_vy = 0.0;
     center_vz = 0.0;
+
+    center_ax = 0.0;
+    center_ay = 0.0;
     
     if (is_outpost) {
         n_armors = 3;
@@ -60,6 +63,8 @@ void RotationMotionModel::resetExponentialLS() {
     x_center_(4) = 0.0;       // center_vy
     x_center_(5) = 0.0;       // center_vz (新增)
     x_center_(6) = r_now;         // r
+    x_center_(7) = 0.0;       // ax
+    x_center_(8) = 0.0;       // ay
 }
 
 void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight, double delta_r) {
@@ -76,7 +81,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         
         // 测量1的测量矩阵 - 只更新center_x, center_y
         Eigen::RowVectorXd H1(STATE_DIM);
-        H1 << offAxisX, offAxisY, 0.0, 0.0, 0.0, 0.0, 0.0;
+        H1 << offAxisX, offAxisY, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
         
         // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于固定半径276.5 (xy平面)
         double axisX = -sinYaw;     // 装甲板法向单位向量x分量
@@ -87,7 +92,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         
         // 测量2的测量矩阵 - 只更新center_x, center_y
         Eigen::RowVectorXd H2(STATE_DIM);
-        H2 << axisX, axisY, 0.0, 0.0, 0.0, 0.0, 0.0;
+        H2 << axisX, axisY, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
         
         // 测量3: z轴测量 - 装甲板z坐标与中心z坐标的关系
         // armor_z = center_z (因为前哨站vz=0)
@@ -95,7 +100,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         
         // 测量3的测量矩阵 - 只更新center_z
         Eigen::RowVectorXd H3(STATE_DIM);
-        H3 << 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
+        H3 << 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
         
         // 更新测量1
         double weight1 = weight;
@@ -127,6 +132,8 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         x_center_(4) = 0.0;  // vy = 0
         x_center_(5) = 0.0;  // vz = 0
         x_center_(6) = 276.5; // r = 276.5
+        x_center_(7) = 0.0;  // ax = 0
+        x_center_(8) = 0.0;  // ay = 0
 
     } else {
         // 测量1的值：装甲板在垂直方向上的投影应为0
@@ -134,7 +141,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         
         // 测量1的测量矩阵 (7维)
         Eigen::RowVectorXd H1(STATE_DIM);
-        H1 << offAxisX, offAxisY, 0.0, offAxisX * t, offAxisY * t, 0.0, 0.0;
+        H1 << offAxisX, offAxisY, 0.0, offAxisX * t, offAxisY * t, 0.0, 0.0, offAxisX * t * t * 0.5, offAxisY * t * t * 0.5;
         
         // 测量2: 装甲板到中心的向量在装甲板法向上的投影等于半径r (xy平面)
         // axisVector · armorToCenterVector = r
@@ -146,7 +153,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         
         // 测量2的测量矩阵 (7维)
         Eigen::RowVectorXd H2(STATE_DIM);
-        H2 << axisX, axisY, 0.0, axisX * t, axisY * t, 0.0, -1.0;
+        H2 << axisX, axisY, 0.0, axisX * t, axisY * t, 0.0, -1.0, axisX * t * t * 0.5, axisY * t * t * 0.5;
         
         // 测量3: z轴测量 - 装甲板z坐标与中心z坐标的关系
         // armor_z = center_z + center_vz * t (假设装甲板在z方向没有相对运动)
@@ -154,7 +161,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         
         // 测量3的测量矩阵 (7维)
         Eigen::RowVectorXd H3(STATE_DIM);
-        H3 << 0.0, 0.0, 1.0, 0.0, 0.0, t, 0.0;
+        H3 << 0.0, 0.0, 1.0, 0.0, 0.0, t, 0.0, 0.0, 0.0;
         
         // 正则化测量: 保持r接近上一步的值
         double z4 = r_now_prev_;  // 使用上一步的r值作为正则化目标
@@ -210,6 +217,8 @@ void RotationMotionModel::updateCenterResult(double current_time) {
     // 更新半径值
     r_now = x_center_(6);
     r_now_prev_ = r_now;  // 保存当前r值用于下一次正则化
+    center_ax = x_center_(7);
+    center_ay = x_center_(8);
 }
 
 void RotationMotionModel::update(ObservedData& observedData) {
@@ -287,8 +296,8 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     PredictResult result;
     
     // 使用原始方法预测平移状态
-    result.center_x = center_x + predictTime * center_vx;
-    result.center_y = center_y + predictTime * center_vy;
+    result.center_x = center_x + predictTime * center_vx + 0.5 * predictTime * predictTime * center_ax;
+    result.center_y = center_y + predictTime * center_vy + 0.5 * predictTime * predictTime * center_ay;
     result.center_z = center_z + predictTime * center_vz;
     result.r_now = r_now;
     result.r_another = r_another;
@@ -335,6 +344,8 @@ RotationMotionState RotationMotionModel::getState() {
     state.center_y = center_y;
     state.center_z = center_z;
     state.update_frames = update_frames_count;
+    state.center_ax = center_ax;
+    state.center_ay = center_ay;
     
     if (angle_ekf_->isInitialized()) {
         state.yaw = angle_ekf_->getYaw();

@@ -265,6 +265,8 @@ struct RotationMotionState {
     double center_vx;
     double center_vy;
     double center_vz;
+    double center_ax;
+    double center_ay;
     double r_now;
     double r_another;
     double yaw;
@@ -276,7 +278,7 @@ struct RotationMotionState {
 class RotationMotionModel {
 private:
     // 扩展的状态向量： [center_x, center_y, center_z, center_vx, center_vy, center_vz, r]
-    static constexpr int STATE_DIM = 7;  // 从5增加到7
+    static constexpr int STATE_DIM = 9;  // 从5增加到7
     Eigen::MatrixXd P_center_;      // 7x7 协方差矩阵
     Eigen::VectorXd x_center_;      // 7维状态向量
     double lambda_;                 // 遗忘因子
@@ -295,6 +297,8 @@ private:
     double center_vx;
     double center_vy;
     double center_vz;
+    double center_ax;
+    double center_ay;
     double r_now;
     double r_another;
     double center_x;

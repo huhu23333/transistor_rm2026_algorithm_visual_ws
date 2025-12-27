@@ -63,7 +63,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 constexpr float image_latency = 0.013f;
                 constexpr float comm_latency  = 0.010f;
                 float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                float extra_time = 0.250f; // 0.300f
+                float extra_time = 0.200f; // 0.300f
                 float total_delay = image_latency + comm_latency + bullet_time + extra_time;
                 last_total_delay_ = total_delay;
 
@@ -334,7 +334,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     // has_valid_target_ = true;
 
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
-                    yaw_integration += ballistic_result.delta_yaw_rad * 0.1;
+                    yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
 
                     if (pitch_integration > 20.0 * M_PI / 180.0) {
                         pitch_integration = 20.0 * M_PI / 180.0;
@@ -352,7 +352,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     
                     // 发布云台控制命令
                     float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration + pitch_bias; // PI控制
-                    float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 0.7 + yaw_integration; // 缓解yaw轴输入数据掉线问题
+                    float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 1.0 + yaw_integration; // 缓解yaw轴输入数据掉线问题
                     last_command_pitch_ = command_pitch;
                     last_command_yaw_ = command_yaw;
                     //serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
@@ -663,7 +663,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     // has_valid_target_ = true;
 
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
-                    yaw_integration += ballistic_result.delta_yaw_rad * 0.1;
+                    yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
 
                     if (pitch_integration > 20.0 * M_PI / 180.0) {
                         pitch_integration = 20.0 * M_PI / 180.0;
@@ -681,7 +681,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     
                     // 发布云台控制命令
                     float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration + pitch_bias; // PI控制
-                    float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 0.7 + yaw_integration; // 缓解yaw轴输入数据掉线问题
+                    float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 1.0 + yaw_integration; // 缓解yaw轴输入数据掉线问题
                     last_command_pitch_ = command_pitch;
                     last_command_yaw_ = command_yaw;
                     //serial_communication_->sendData(command_pitch, command_yaw, fire_flag);

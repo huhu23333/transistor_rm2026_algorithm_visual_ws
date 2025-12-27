@@ -141,7 +141,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         //classify_confidence = 1.0;
 
         classify_confidence = 1.0; 
-        // current_number = 2; // 固定类型/////////////
+        current_number = 2; // 固定类型/////////////
 
         bool is_ture_armor = (is_armor_probability >= IS_ARMOR_THRESHOLD) &&
                              (classify_confidence >= CLASSIFY_THRESHOLD);
