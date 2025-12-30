@@ -229,7 +229,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
         msg.gimbal_pitch -= 2 * M_PI;
     }
     msg.gimbal_pitch = msg.gimbal_pitch + 0.40;
-    msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw_small) * M_PI / 4096.0f + frame.gimbal_yaw_big - 0.95;
+    msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw_small) * M_PI / 4096.0f + frame.gimbal_yaw_big * M_PI / 4096.0f;
     while (msg.gimbal_yaw > M_PI) {
         msg.gimbal_yaw -= 2 * M_PI;
     }
