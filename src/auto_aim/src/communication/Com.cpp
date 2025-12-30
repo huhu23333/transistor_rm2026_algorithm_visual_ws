@@ -115,9 +115,9 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         }
         
         // 处理pitch_target (2字节)
-        pitch_target = -pitch_target;
+        pitch_target = pitch_target - 0.40;
         int16_t pitch_int16 = static_cast<int16_t>(pitch_target * (180.0f / M_PI * 173.5f / 60.0f)) + 32844;
-        pitch_int16 -= 88; // 机械零点偏移约为88
+        pitch_int16 -= 72; // 机械零点偏移约为88
         uint16_t pitch_uint16;
         if (pitch_int16 >= 0) {
             pitch_uint16 = pitch_int16;
@@ -127,6 +127,7 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         memcpy(&tx_data[5], &pitch_uint16, sizeof(uint16_t));  // 2字节
         
         // 处理yaw_target (2字节)
+        yaw_target = yaw_target + 0.95;
         int16_t yaw_int16 = static_cast<int16_t>(yaw_target * 4096 / M_PI);  // 将float转换为定点数
         while (yaw_int16 > 4095) {
             yaw_int16 -= 8192;
@@ -173,11 +174,11 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
 
         ssize_t written = write(fd_, tx_data.data(), tx_data.size());
         if (written == static_cast<ssize_t>(tx_data.size())) {
-            RCLCPP_DEBUG(node->get_logger(), "TX: pitch_target=%.2f yaw_target=%.2f(int16=%d)", 
+            RCLCPP_INFO(node->get_logger(), "TX: pitch_target=%.2f yaw_target=%.2f(int16=%d)", 
                         pitch_target, yaw_target, yaw_int16);
             return true;
         } else {
-            RCLCPP_DEBUG(node->get_logger(), "TX write failed: written %ld bytes", 
+            RCLCPP_INFO(node->get_logger(), "TX write failed: written %ld bytes", 
                         written);
         }
     }
@@ -227,8 +228,8 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     if (msg.gimbal_pitch > M_PI) {
         msg.gimbal_pitch -= 2 * M_PI;
     }
-    msg.gimbal_pitch = -msg.gimbal_pitch;
-    msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw_small) * M_PI / 4096.0f + frame.gimbal_yaw_big;
+    msg.gimbal_pitch = msg.gimbal_pitch + 0.40;
+    msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw_small) * M_PI / 4096.0f + frame.gimbal_yaw_big - 0.95;
     while (msg.gimbal_yaw > M_PI) {
         msg.gimbal_yaw -= 2 * M_PI;
     }

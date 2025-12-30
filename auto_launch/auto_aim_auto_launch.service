@@ -4,9 +4,9 @@ After=network.target network-online.target
 
 [Service]
 Type=simple
-User=rm1
-ExecStart=/bin/bash -c "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/auto_launch/auto_aim_launch.sh"
-WorkingDirectory=/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws
+User=sentry-vision
+ExecStart=/bin/bash -c "/home/sentry-vision/rm2026/transistor_rm2026_algorithm_visual_ws/auto_launch/auto_aim_launch.sh"
+WorkingDirectory=/home/sentry-vision/rm2026/transistor_rm2026_algorithm_visual_ws
 
 [Install]
 WantedBy=multi-user.target

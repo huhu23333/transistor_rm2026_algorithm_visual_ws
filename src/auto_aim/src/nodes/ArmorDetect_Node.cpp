@@ -547,7 +547,7 @@ private:
                 }
 
                 RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d], enemy_x[%.2f] enemy_y[%.2f]", reset_behavior_infos.yaw, reset_behavior_infos.pitch, false, 0.0, 0.0);
-                serial_communication_->sendData(true, reset_behavior_infos.yaw, reset_behavior_infos.pitch, false, 0.0, 0.0);
+                serial_communication_->sendData(true, reset_behavior_infos.pitch, reset_behavior_infos.yaw, false, 0.0, 0.0);
             } else {
                 RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d], enemy_x[%.2f] enemy_y[%.2f]", 
                     predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag,
@@ -562,7 +562,9 @@ private:
                 reset_behavior_infos.yaw = predictor_result.command_yaw;
                 reset_behavior_infos.pitch = predictor_result.command_pitch;
             }
-            // serial_communication_->sendData(false, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
+            // serial_communication_->sendData(false, last_pitch_rad_delayed_, last_yaw_rad_delayed_, false, 0, 0);
+            RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f]", 
+                    last_pitch_rad_delayed_, last_yaw_rad_delayed_);
             // serial_communication_->sendData(true, 0.1, 0.2, true, -32667, 200);
             
             //计算帧率
@@ -580,7 +582,7 @@ private:
         }        
 
         // 获取处理帧率
-        // RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
+        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
     }
 
     // 参数文件
@@ -652,10 +654,10 @@ private:
     float extra_info_delay_time_ms = 0.0;
 
     struct {
-        float v_yaw = -90.0f * M_PI / 180.0f;
+        float v_yaw = -100.0f * M_PI / 180.0f;
         float v_pitch = 100.0f * M_PI / 180.0f;
         float max_pitch = 15.0f * M_PI / 180.0f;
-        float min_pitch = -30.0f * M_PI / 180.0f;
+        float min_pitch = -15.0f * M_PI / 180.0f;
 
         float v_pitch_direction = 1.0f;
 
