@@ -221,4 +221,6 @@ private:
 
     float last_enemy_position_x = 0.0;
     float last_enemy_position_y = 0.0;
+    
+    float pitch_bias = 0.0 * M_PI / 180.0;
 };

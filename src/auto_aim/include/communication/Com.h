@@ -62,24 +62,27 @@ private:
     static constexpr uint8_t FRAME_HEADER2 = 0x52;
     static constexpr uint8_t COMMAND_CODE = 0xCD;
     static constexpr size_t FRAME_MIN_SIZE = 5;
-    std::mutex queue_mutex_;
-    static constexpr size_t MAX_QUEUE_SIZE = 1;
+    // std::mutex queue_mutex_;
+    // static constexpr size_t MAX_QUEUE_SIZE = 1;
 
     int fd_;
     std::array<uint8_t, BUFFER_SIZE> buffer_;
     size_t buffer_index_ = 0;
-    std::atomic<int> received_commands_count_{0};
-    std::atomic<int> sent_commands_count_{0};
+    // std::atomic<int> received_commands_count_{0};
+    // std::atomic<int> sent_commands_count_{0};
 
     rclcpp::Node* node;
     std::function<void(const SerialData&)> serialDataCallback;
-    int error_print_slower = 0;
     bool running = true;
+
+    std::chrono::steady_clock::time_point last_reconnect_time;
+    std::chrono::steady_clock::time_point last_received_time;
     
     void initializeSerial();
     std::string findAvailableSerialPort();
     void processFrame(const uint8_t* data);
     void processBuffer();
+    void tryReconnect();
 };
 
 #endif // COM_H
