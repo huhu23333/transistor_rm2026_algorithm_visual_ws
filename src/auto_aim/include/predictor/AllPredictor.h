@@ -214,4 +214,6 @@ private:
     bool has_valid_ballistic = false;
     
     float init_r = 250.0;
+
+    float pitch_bias = 0.0 * M_PI / 180.0;
 };
