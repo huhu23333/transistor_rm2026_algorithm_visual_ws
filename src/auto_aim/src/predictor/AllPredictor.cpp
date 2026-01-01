@@ -332,15 +332,14 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     has_valid_ballistic = true;
                     // RCLCPP_INFO(node->get_logger(), "Target detected, publishing command");
                     // has_valid_target_ = true;
-
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
                     yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
 
-                    if (pitch_integration > 20.0 * M_PI / 180.0) {
-                        pitch_integration = 20.0 * M_PI / 180.0;
+                    if (pitch_integration > 60.0 * M_PI / 180.0) {
+                        pitch_integration = 60.0 * M_PI / 180.0;
                     }
-                    if (pitch_integration < -20.0 * M_PI / 180.0) {
-                        pitch_integration = -20.0 * M_PI / 180.0;
+                    if (pitch_integration < -60.0 * M_PI / 180.0) {
+                        pitch_integration = -60.0 * M_PI / 180.0;
                     }
 
                     if (yaw_integration > 20.0 * M_PI / 180.0) {
@@ -472,7 +471,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
         if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
             result.reset = true;
-            pitch_integration = 0.0; // 积分项重置
+            // pitch_integration = 0.0; // 积分项重置
             yaw_integration = 0.0;
             predictor3d -> clearHistory(); 
             fire_data_predictor_ -> clearHistory();
@@ -665,11 +664,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
                     yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
 
-                    if (pitch_integration > 20.0 * M_PI / 180.0) {
-                        pitch_integration = 20.0 * M_PI / 180.0;
+                    if (pitch_integration > 60.0 * M_PI / 180.0) {
+                        pitch_integration = 60.0 * M_PI / 180.0;
                     }
-                    if (pitch_integration < -20.0 * M_PI / 180.0) {
-                        pitch_integration = -20.0 * M_PI / 180.0;
+                    if (pitch_integration < -60.0 * M_PI / 180.0) {
+                        pitch_integration = -60.0 * M_PI / 180.0;
                     }
 
                     if (yaw_integration > 20.0 * M_PI / 180.0) {
