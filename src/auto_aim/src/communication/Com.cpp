@@ -139,8 +139,8 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         memcpy(&tx_data[5], &pitch_uint16, sizeof(uint16_t));  // 2字节
         
         // 处理yaw_target (2字节)
-        yaw_target = yaw_target + 0.95;
-        int16_t yaw_int16 = static_cast<int16_t>(yaw_target * 4096 / M_PI);  // 将float转换为定点数
+        // yaw_target = yaw_target + 0.95;
+        int16_t yaw_int16 = static_cast<int16_t>(yaw_target * 4096 / M_PI) + 1350;  // 将float转换为定点数
         while (yaw_int16 > 4095) {
             yaw_int16 -= 8192;
         }
@@ -241,7 +241,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
         msg.gimbal_pitch -= 2 * M_PI;
     }
     msg.gimbal_pitch = msg.gimbal_pitch + 0.40;
-    msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw_small) * M_PI / 4096.0f + frame.gimbal_yaw_big * M_PI / 4096.0f;
+    msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw_small - 1350) * M_PI / 4096.0f + frame.gimbal_yaw_big * M_PI / 4096.0f;
     while (msg.gimbal_yaw > M_PI) {
         msg.gimbal_yaw -= 2 * M_PI;
     }
