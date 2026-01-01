@@ -5,6 +5,8 @@
 SerialCommunicationClass::SerialCommunicationClass(rclcpp::Node* node, std::function<void(const SerialData&)> serialDataCallback) 
 : node(node), serialDataCallback(serialDataCallback), fd_(-1) {
     initializeSerial();
+    last_reconnect_time = std::chrono::steady_clock::now();
+    last_received_time = std::chrono::steady_clock::now();
 }
 
 SerialCommunicationClass::~SerialCommunicationClass() {
@@ -12,6 +14,16 @@ SerialCommunicationClass::~SerialCommunicationClass() {
     if (fd_ >= 0) {
         close(fd_);
     }
+}
+
+void SerialCommunicationClass::tryReconnect() {
+    if (fd_ >= 0) {
+        close(fd_);
+    }
+    buffer_index_ = 0;
+    initializeSerial();
+    last_reconnect_time = std::chrono::steady_clock::now();
+    last_received_time = std::chrono::steady_clock::now();
 }
     
 void SerialCommunicationClass::initializeSerial() {
@@ -188,6 +200,8 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     msg.color = frame.color;
     
     serialDataCallback(msg);
+
+    last_received_time = std::chrono::steady_clock::now();
 }
 
 void SerialCommunicationClass::processBuffer() {
@@ -285,10 +299,17 @@ void SerialCommunicationClass::processBuffer() {
 void SerialCommunicationClass::timerCallback() {
     // 检查串口状态
     if (fd_ < 0) {
-        if (error_print_slower % 1000 == 0) {
-            RCLCPP_ERROR(node->get_logger(), "Serial port not available");
+        if (std::chrono::steady_clock::now() - last_reconnect_time > std::chrono::seconds(5)) {
+            RCLCPP_ERROR(node->get_logger(), "Serial port not available, trying reconnect");
+            tryReconnect();
         }
-        error_print_slower += 1;
+        return;
+    }
+    if (std::chrono::steady_clock::now() - last_received_time > std::chrono::seconds(5)) {
+        if (std::chrono::steady_clock::now() - last_reconnect_time > std::chrono::seconds(5)) {
+            RCLCPP_ERROR(node->get_logger(), "No data received, trying reconnect");
+            tryReconnect();
+        }
         return;
     }
 
