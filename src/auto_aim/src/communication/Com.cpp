@@ -176,7 +176,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     memcpy(&frame.z_rotation_velocity, &data[offset], sizeof(float));
 
     // 格式化输出
-    RCLCPP_DEBUG(node->get_logger(), 
+    RCLCPP_INFO(node->get_logger(), 
         "\033[1;34m[Received Data]\033[0m\n"
         "\033[1;32mBullet Velocity:\033[0m %.2f m/s\n"
         "\033[1;32mBullet Angle:\033[0m %.2f\n"
