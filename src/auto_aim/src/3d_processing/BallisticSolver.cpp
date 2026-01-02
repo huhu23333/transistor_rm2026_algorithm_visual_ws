@@ -376,6 +376,8 @@ BallisticInfo BallisticSolver::calcBallisticAngle(float x_camera, float y_camera
     result.delta_yaw_rad = target_delta_yaw;
     result.valid = true;
     return result;
+
+    result.delta_pitch_rad = final_pitch_rad - cur_pitch + extra_delta_pitch;
 }
 
 /*

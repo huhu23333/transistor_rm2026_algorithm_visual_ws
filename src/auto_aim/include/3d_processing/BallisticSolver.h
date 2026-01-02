@@ -99,6 +99,8 @@ private:
         int thread_index;
         RefineInfo refine_info;
     };
+
+    float extra_delta_pitch = 0.0 * M_PI / 180.0f;
 };
 
 #endif // BALLISTIC_SOLVER_H
