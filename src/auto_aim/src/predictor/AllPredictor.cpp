@@ -336,11 +336,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
                     yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
 
-                    if (pitch_integration > 60.0 * M_PI / 180.0) {
-                        pitch_integration = 60.0 * M_PI / 180.0;
+                    if (pitch_integration > 20.0 * M_PI / 180.0) {
+                        pitch_integration = 20.0 * M_PI / 180.0;
                     }
-                    if (pitch_integration < -60.0 * M_PI / 180.0) {
-                        pitch_integration = -60.0 * M_PI / 180.0;
+                    if (pitch_integration < -20.0 * M_PI / 180.0) {
+                        pitch_integration = -20.0 * M_PI / 180.0;
                     }
 
                     if (yaw_integration > 20.0 * M_PI / 180.0) {
@@ -666,11 +666,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
                     yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
 
-                    if (pitch_integration > 60.0 * M_PI / 180.0) {
-                        pitch_integration = 60.0 * M_PI / 180.0;
+                    if (pitch_integration > 20.0 * M_PI / 180.0) {
+                        pitch_integration = 20.0 * M_PI / 180.0;
                     }
-                    if (pitch_integration < -60.0 * M_PI / 180.0) {
-                        pitch_integration = -60.0 * M_PI / 180.0;
+                    if (pitch_integration < -20.0 * M_PI / 180.0) {
+                        pitch_integration = -20.0 * M_PI / 180.0;
                     }
 
                     if (yaw_integration > 20.0 * M_PI / 180.0) {
