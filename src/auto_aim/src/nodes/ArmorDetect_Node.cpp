@@ -133,6 +133,7 @@ public:
         //camera_ = std::make_shared<Camera>(0);
         camera_->setExposureTime((*config_file_ptr)["camera_ExposureTime"].as<float>());
         camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
+        camera_ -> start();
 #endif
 #endif
         serial_delay_time = (*config_file_ptr)["serial_delay_time"].as<float>();
@@ -433,13 +434,7 @@ private:
     void processImage() {
         
         cv::Mat frame;
-#ifdef USE_VIDEO
-        while (image_used)
-        {
-            usleep(1000);
-        }
-#endif
-#ifdef USE_IMAGES
+#if defined(USE_VIDEO) || defined(USE_IMAGES) || defined(SYNC_CAMERA_FPS)
         while (image_used)
         {
             usleep(1000);
