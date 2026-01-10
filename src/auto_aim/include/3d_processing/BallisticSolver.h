@@ -49,7 +49,7 @@ private:
         float air_density;     // 空气密度
         float bullet_diameter; // 弹丸直径
         float bullet_mass;     // 弹丸质量
-        BallisticParams() : drag_coeff(0.47f), air_density(1.225f), bullet_diameter(17.0*1e-3), bullet_mass(3.2*1e-3) {}
+        BallisticParams() : drag_coeff(1.50f), air_density(1.225f), bullet_diameter(17.0*1e-3), bullet_mass(3.2*1e-3) {}
     };
     
     // 统一的弹道模拟结果结构
