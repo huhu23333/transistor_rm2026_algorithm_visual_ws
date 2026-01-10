@@ -4,25 +4,34 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <atomic>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <opencv2/opencv.hpp>
-#include <pthread.h>
-#include <unistd.h>
 #include "MvCameraControl.h"
 
-extern bool g_bExit;
 extern cv::Mat g_image;
 extern pthread_mutex_t g_mutex;
+extern bool g_bExit;
+extern bool image_used;
 
 enum CameraType {
     GIGE_CAMERA,
     USB_CAMERA
 };
 
+enum CameraStatus {
+    DISCONNECTED,
+    CONNECTING,
+    CONNECTED,
+    GRABBING,
+    ERROR
+};
+
 class Camera {
 public:
-    void* handle;
-    MV_CC_DEVICE_INFO_LIST stDeviceList;
-    unsigned int nPayloadSize;
     // GigE相机构造函数
     Camera(const std::string& deviceIp, const std::string& netIp);
     
@@ -32,11 +41,14 @@ public:
     // 析构函数：释放资源
     ~Camera();
     
+    // 开始连接和取流
+    bool start();
+    
+    // 停止连接和取流
+    void stop();
+    
     // IP地址解析函数
     static void parseIp(const std::string& ip, unsigned int& parsedIp);
-
-    // 摄像头取流线程
-    static void* workThread(void* pUser);
 
     // 新增：设置曝光时间（单位：微秒）
     bool setExposureTime(float exposureTime);
@@ -46,17 +58,61 @@ public:
     
     // 枚举USB设备
     static std::vector<std::string> enumUSBDevices();
+    
+    // 获取相机状态
+    CameraStatus getStatus() const { return status.load(); }
 
 private:
+    // 句柄和状态
+    void* handle;
+    std::atomic<CameraStatus> status;
     CameraType cameraType;
+    std::atomic<bool> running;
     
-    // 新增：初始化相机参数
-    bool initCameraParams();
-    bool initCameraCommonParams();
-    bool startGrabbing();
+    // GigE参数
+    std::string deviceIp;
+    std::string netIp;
+    
+    // USB参数
+    int deviceIndex;
+    
+    // 图像相关
+    std::atomic<std::chrono::steady_clock::time_point> lastFrameTime;
+    cv::Mat lastValidImage; // 用于检测图像变化
+    
+    // 重连相关
+    std::thread reconnectThread;
+    std::atomic<std::chrono::steady_clock::time_point> lastReconnectTime;
+    std::mutex reconnectMutex;
+    std::condition_variable reconnectCV;
+    
+    // 取流线程相关
+    std::thread grabThread;
+    std::atomic<bool> grabbing;
+    std::atomic<bool> needReconnect;
+    
+    // 内部方法
+    void reconnectLoop();
+    void grabLoop();
+    bool connectDevice();
+    void disconnectDevice();
+    bool tryConnectGigE();
+    bool tryConnectUSB();
     
     // 图像处理
     bool processImage(unsigned char* pData, MV_FRAME_OUT_INFO_EX& stImageInfo, cv::Mat& outputImage);
+    
+    // 初始化相机参数
+    bool initCameraParams();
+    bool initCameraCommonParams();
+    
+    // 检查图像是否有变化
+    bool isImageChanged(const cv::Mat& newImage);
+    
+    // 设置连接时间为当前时间
+    void updateReconnectTime() {
+        lastReconnectTime.store(std::chrono::steady_clock::now());
+    }
 };
 
 #endif // CAMERA_H
