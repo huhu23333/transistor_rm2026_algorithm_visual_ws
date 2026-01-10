@@ -253,7 +253,7 @@ private:
 
     void serialDataCallback(const SerialData& msg) {
         bullet_velocity_ = msg.bullet_velocity;
-        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180 * 1.18; // 测定pitch轴传入数据1.8大约对应30°
+        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180 * 1.18 + 0.25; // 测定pitch轴传入数据1.8大约对应30°
         current_yaw_ = - ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
         while (current_yaw_ < -M_PI) {
             current_yaw_ += 2 * M_PI;
@@ -284,7 +284,7 @@ private:
         last_pitch_rad_ = current_pitch_;
         last_yaw_rad_ = current_yaw_;
 
-        RCLCPP_DEBUG(this->get_logger(), 
+        RCLCPP_INFO(this->get_logger(), 
             "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f",
             bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str(),
             yaw_circle_, total_yaw_rad_);

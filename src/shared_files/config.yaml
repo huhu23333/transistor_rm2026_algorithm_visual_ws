@@ -47,7 +47,7 @@ enemy_color : "BLUE"
 use_yolo_pose : false
 
 MAX_LOST_TIME : 0.5              # 单位：秒
-camera_ExposureTime : 2000.0  # 5000.0
+camera_ExposureTime : 4000.0  # 5000.0
 camera_Gain : 16.0            # 16.0
 bullet_velocity_ : 15.0
 current_pitch_ : 0.0
@@ -142,10 +142,11 @@ min_armor_confidence : 0.3   # 最小置信度阈值 # 0.3
 ## dist_coeffs: [-4.04955462e-01,  2.26197532e+00,  1.29448324e-03, -3.48454807e-04, -3.01050035e+01] # 畸变xishu hero
 
 camera_matrix: # 相机内参矩阵
-  - [1.31280460e+03, 0.00000000e+00, 6.38736364e+02]
-  - [0.00000000e+00, 1.31309593e+03, 5.34133502e+02]
+  - [1.31247948e+03, 0.00000000e+00, 6.45033153e+02]
+  - [0.00000000e+00, 1.31262338e+03, 5.04349186e+02]
   - [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
-dist_coeffs: [-0.05392145, -0.02516686, -0.00222499, -0.00149047,  0.43693918] # 畸变系数 infantry
+dist_coeffs: [-0.07695277, 0.17359923, -0.00017619, -0.00075521, -0.14730178] # 畸变系数 
+
 max_expected_small_distance_mismatch_ratio : 0.35
 max_expected_large_distance_mismatch_ratio : 0.35
 

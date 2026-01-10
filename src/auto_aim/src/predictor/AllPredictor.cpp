@@ -63,7 +63,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 constexpr float image_latency = 0.013f;
                 constexpr float comm_latency  = 0.010f;
                 float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-                float extra_time = 0.300f; // 0.300f
+                float extra_time = 0.250f; // 0.300f
                 float total_delay = image_latency + comm_latency + bullet_time + extra_time;
                 last_total_delay_ = total_delay;
 
@@ -256,7 +256,12 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             static_cast<float>(nearest_armor.y),
                             static_cast<float>(nearest_armor.z) 
                         };
-                        predicted_aim_pos = predicted_armor_pos;
+                        // predicted_aim_pos = predicted_armor_pos;
+                        predicted_aim_pos = {
+                            static_cast<float>(RMM_pred_aim_data.center_x),
+                            static_cast<float>(RMM_pred_aim_data.center_y),
+                            static_cast<float>(RMM_pred_aim_data.center_z) 
+                        };
                         float nearest_armor_yaw_bias = (nearest_armor.yaw - (rotation_motion_model_ -> getCamToCenterYaw())) * static_cast<float>(RMM_pred_aim_data.rotation_direction);
                         while (nearest_armor_yaw_bias < -M_PI) {
                             nearest_armor_yaw_bias += 2*M_PI;
@@ -264,7 +269,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         while (nearest_armor_yaw_bias > M_PI) {
                             nearest_armor_yaw_bias -= 2*M_PI;
                         }
-                        fire_flag = (nearest_armor_yaw_bias > -30.0 * M_PI / 180.0) && (nearest_armor_yaw_bias < 30.0 * M_PI / 180.0);
+                        // fire_flag = (nearest_armor_yaw_bias > -30.0 * M_PI / 180.0) && (nearest_armor_yaw_bias < 30.0 * M_PI / 180.0);
+                        fire_flag = (nearest_armor_yaw_bias > -10.0 * M_PI / 180.0) && (nearest_armor_yaw_bias < 10.0 * M_PI / 180.0);
                         cv::circle(RMM_visualize_frame, 
                             cv::Point2f(400+nearest_armor.x/10, 400-nearest_armor.y/10), 8, 
                             cv::Scalar(0, 0, 255), 2);
@@ -594,7 +600,12 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             static_cast<float>(nearest_armor.y),
                             static_cast<float>(nearest_armor.z) 
                         };
-                        predicted_aim_pos = predicted_armor_pos;
+                        // predicted_aim_pos = predicted_armor_pos;
+                        predicted_aim_pos = {
+                            static_cast<float>(RMM_pred_aim_data.center_x),
+                            static_cast<float>(RMM_pred_aim_data.center_y),
+                            static_cast<float>(RMM_pred_aim_data.center_z) 
+                        };
                         float nearest_armor_yaw_bias = (nearest_armor.yaw - (rotation_motion_model_ -> getCamToCenterYaw())) * static_cast<float>(RMM_pred_aim_data.rotation_direction);
                         while (nearest_armor_yaw_bias < -M_PI) {
                             nearest_armor_yaw_bias += 2*M_PI;
@@ -602,7 +613,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         while (nearest_armor_yaw_bias > M_PI) {
                             nearest_armor_yaw_bias -= 2*M_PI;
                         }
-                        fire_flag = (nearest_armor_yaw_bias > -30.0 * M_PI / 180.0) && (nearest_armor_yaw_bias < 30.0 * M_PI / 180.0);
+                        // fire_flag = (nearest_armor_yaw_bias > -30.0 * M_PI / 180.0) && (nearest_armor_yaw_bias < 30.0 * M_PI / 180.0);
+                        fire_flag = (nearest_armor_yaw_bias > -10.0 * M_PI / 180.0) && (nearest_armor_yaw_bias < 10.0 * M_PI / 180.0);
                         cv::circle(RMM_visualize_frame, 
                             cv::Point2f(400+nearest_armor.x/10, 400-nearest_armor.y/10), 8, 
                             cv::Scalar(0, 0, 255), 2);
