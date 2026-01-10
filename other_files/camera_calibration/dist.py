@@ -3,8 +3,8 @@ import cv2
 import glob
 
 # 棋盘格参数
-chessboard_size = (12, 8)  # 棋盘格角点数目
-square_size = 2.35  # 棋盘格每个小方块的边长（厘米）
+chessboard_size = (11, 8) # (12, 8)  # 棋盘格角点数目
+square_size = 3.0 # 2.35  # 棋盘格每个小方块的边长（厘米）
 
 # 准备棋盘格角点坐标
 objpoints = []  # 世界坐标系中的三维点
