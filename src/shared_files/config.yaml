@@ -57,6 +57,8 @@ delta_x_ : 50.0   # 待修正
 delta_y_ : -50.0  # 待测
 delta_z_ : 30.0   # 待修正
 
+max_armor_position_height : 1500.0 # 最大装甲板高度，超过此值视为无效
+
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 

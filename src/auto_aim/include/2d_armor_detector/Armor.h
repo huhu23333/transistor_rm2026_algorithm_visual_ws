@@ -117,6 +117,8 @@ struct ArmorResult {
     cv::Point2f center_predicted;
     bool is_steady_tracked;
 
+    AimResult solve_armor_result;
+
     ArmorResult(const Armor& a, int n, float conf, 
         bool is_tracked_now, bool is_large, bool not_slant,
         std::vector<cv::Point2f> predictions, cv::Point2f center_predicted, 

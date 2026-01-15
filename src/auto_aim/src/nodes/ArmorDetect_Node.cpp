@@ -91,6 +91,8 @@ public:
 
         yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
         pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
+
+        max_armor_position_height = (*config_file_ptr)["max_armor_position_height"].as<float>(); 
         
         params_.min_light_height = (*config_file_ptr)["min_light_height"].as<int>();
         params_.light_slope_offset = (*config_file_ptr)["light_slope_offset"].as<int>();
@@ -320,8 +322,7 @@ private:
     void drawResults(cv::Mat& image, 
                      const std::vector<Light>& lights,
                      const std::vector<Armor>& armors,
-                     const std::vector<ArmorResult>& classifyResults,
-                     const std::vector<ArmorResult>& classifyResults_forFourierPredict) {
+                     const std::vector<ArmorResult>& classifyResults) {
         cv::Mat result = image.clone();
 
         // 0. 绘制平面地面系不动点（DEBUG）
@@ -375,13 +376,6 @@ private:
         // }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
-        /* for (const auto& res : classifyResults_forFourierPredict) {
-            if (res.is_steady_tracked) {
-                for (auto& prediction : res.predictions) {
-                    cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
-                }
-            }
-        } */
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
             if (res.is_tracked_now) {
@@ -524,7 +518,17 @@ private:
             classifyResults = classifyResults_expanded[0];
             classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch); // Todo
+            std::vector<ArmorResult> classifyResults_withSolveArmorResult;
+            for (ArmorResult &classify_result : classifyResults) {
+                AimResult solve_armor_result = armor_solver_->solveArmor(classify_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
+                cv::Point3f rest_frame_pos = rest_frame_ -> pnpToWorldP3f(solve_armor_result.position);
+                if (rest_frame_pos.z < max_armor_position_height) { // 高度高于一定值视为无效
+                    classifyResults_withSolveArmorResult.emplace_back(classify_result);
+                    classifyResults_withSolveArmorResult.back().solve_armor_result = solve_armor_result;
+                }
+            }
+
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch); // Todo
             cv::putText(frame, 
                 "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
                 cv::Point2f(0, 100), 
@@ -549,7 +553,7 @@ private:
                 cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(0, 255, 0), 1);
 
-            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
+            drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
         }        
 
         // 获取处理帧率
@@ -623,6 +627,8 @@ private:
     std::deque<HistoryFrame> history_frames;
     int yolo_delay_frame = 0;
     float extra_info_delay_time_ms = 0.0;
+
+    float max_armor_position_height;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

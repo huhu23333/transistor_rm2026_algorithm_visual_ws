@@ -30,7 +30,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
         );
         if (it != classifyResults.end()) {
             auto best_result = *it;
-            AimResult aim = armor_solver_->solveArmor(best_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
+            AimResult aim = best_result.solve_armor_result;// armor_solver_->solveArmor(best_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
             if (aim.valid) {
                 pnp_valid_flag = true;
 
