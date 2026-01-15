@@ -24,10 +24,11 @@
 #include "2d_armor_detector/ArmorTracker.h"
 #include "macro/AutoAimMacro.h"
 
+namespace fs = std::filesystem;
 
 class ArmorClassifier {
 public:
-    ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
+    ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, fs::path ws_dir_path);
     std::vector<std::vector<ArmorResult>> classify(const cv::Mat& img, const std::vector<Armor>& armors, const cv::Point2f& ground_stable_point);
 
 private:
@@ -45,6 +46,8 @@ private:
     float CLASSIFY_THRESHOLD;
     int INPUT_HEIGHT;
     int INPUT_WIDTH;
+
+    fs::path ws_dir_path; // 用于保存图片路径
     
     cv::Mat preprocessROI(const cv::Mat& img, const Armor& roi);
 };

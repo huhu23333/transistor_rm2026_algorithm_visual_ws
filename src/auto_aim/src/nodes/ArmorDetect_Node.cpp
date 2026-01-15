@@ -34,6 +34,7 @@
 #include "2d_armor_detector/YOLOPoseArmorDetector.h"
 #include "predictor/PredictorSwitcher.h"
 #include "2d_armor_detector/Armor.h"
+#include "communication/WatchdogClient.h"
 
 namespace fs = std::filesystem;
 
@@ -160,7 +161,7 @@ public:
 
         light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
-        classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, this);
+        classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, this, ws_dir_path);
         armor_solver_ = std::make_shared<ArmorSolver>(config_file_ptr, this);
         ballistic_solver_ = std::make_shared<BallisticSolver>(config_file_ptr, this);
 
@@ -189,6 +190,11 @@ public:
 
         // 串口通信下位机初始化
         serial_communication_->sendData(0, 0, false);
+
+        watchdog_client = std::make_shared<WatchdogClient>();
+        watchdog_client -> init();
+        watchdog_client -> feed();
+        last_feed_dog_time = std::chrono::steady_clock::now();
 
 #ifdef DEBUG_CODE
         debug_code();
@@ -547,9 +553,6 @@ private:
                 serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             }
             
-            //计算帧率
-            fps_counter->tick();
-            
             // 显示当前参数状态
             cv::putText(frame, 
                 cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
@@ -559,6 +562,14 @@ private:
                 cv::Scalar(0, 255, 0), 1);
 
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
+
+            //计算帧率
+            fps_counter->tick();
+
+            if (std::chrono::steady_clock::now() - last_feed_dog_time >= std::chrono::seconds(3)) {
+                watchdog_client -> feed();
+                last_feed_dog_time = std::chrono::steady_clock::now();
+            } // 正常运行时，每3秒喂一次狗
         }        
 
         // 获取处理帧率
@@ -634,6 +645,9 @@ private:
     float extra_info_delay_time_ms = 0.0;
 
     float max_armor_position_height;
+
+    std::shared_ptr<WatchdogClient> watchdog_client;
+    std::chrono::steady_clock::time_point last_feed_dog_time;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

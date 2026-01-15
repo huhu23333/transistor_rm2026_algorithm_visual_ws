@@ -77,6 +77,7 @@ add_library(armor_detector SHARED
     src/communication/SharedMemoryYOLOPose.cpp
     src/communication/Com.cpp
     src/communication/CRC.cpp
+    src/communication/WatchdogClient.cpp
     src/utils/FrameRateCounter.cpp
     src/utils/SimpleDataFilter.cpp
     src/utils/DataProcessFuncs.cpp
