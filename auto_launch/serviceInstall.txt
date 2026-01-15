@@ -1,4 +1,4 @@
-/etc/systemd/system/auto_aim_auto_launch.service
+#/etc/systemd/system/auto_aim_auto_launch.service
 
 sudo chmod +x ./auto_aim_launch.sh
 sudo cp ./auto_aim_auto_launch.service /etc/systemd/system/
