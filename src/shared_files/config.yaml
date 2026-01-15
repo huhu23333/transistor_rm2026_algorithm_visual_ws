@@ -68,8 +68,9 @@ images_relative_path : "InputImages" # 使用图片输入时的图片文件夹�
 frame_rate : 30.0
 serial_delay_time : 30.0 # ms
 
-yaw_rad_to_x_pixel_ratio : 1300.0
-pitch_rad_to_y_pixel_ratio : 1350.0
+# 根据相机内参自动提取，不再需要手动输入
+# yaw_rad_to_x_pixel_ratio : 1300.0
+# pitch_rad_to_y_pixel_ratio : 1350.0
 
 reset_com_time : 1500.0 # ms
 
