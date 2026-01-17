@@ -528,7 +528,7 @@ private:
             for (ArmorResult &classify_result : classifyResults) {
                 AimResult solve_armor_result = armor_solver_->solveArmor(classify_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
                 cv::Point3f rest_frame_pos = rest_frame_ -> pnpToWorldP3f(solve_armor_result.position);
-                if (rest_frame_pos.z < max_armor_position_height) { // 高度高于一定值视为无效
+                if (rest_frame_pos.z < max_armor_position_height && solve_armor_result.valid) { // 高度高于一定值视为无效
                     classifyResults_withSolveArmorResult.emplace_back(classify_result);
                     classifyResults_withSolveArmorResult.back().solve_armor_result = solve_armor_result;
                 }
