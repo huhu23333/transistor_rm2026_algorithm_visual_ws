@@ -8,7 +8,15 @@ void PredictorMain::update_serial_info(float bullet_velocity, float last_pitch_r
     }
 }
 
-PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor) {
+PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor, bool auto_aim_switch) {
+
+    if (last_auto_aim_switch == false && auto_aim_switch == true) {
+        for (size_t all_predictors_index = 0; all_predictors_index < classify_classes; all_predictors_index++) {
+            all_predictors_[all_predictors_index] -> reset_integration();
+        }
+    }
+    last_auto_aim_switch = auto_aim_switch;
+
     std::vector<std::vector<ArmorResult>> classified_classifyResults(classify_classes);
     for (ArmorResult& classify_result : classifyResults) {
         classified_classifyResults[classify_result.number].push_back(classify_result);

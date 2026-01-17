@@ -308,7 +308,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                 // 绘制装甲板预测点（天蓝色）
                 cv::circle(frame, pred_armor_pixel, 8, cv::Scalar(255, 255, 0), 2);
-                oscilloscope_common_ -> addDataPoint(((float)(result.fire_flag))/11.0, 1);
             }
         }
     }
@@ -557,4 +556,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     result.armor_type = armor_class;
     result.pixel_horizontal_center_distance = last_pixel_horizontal_center_distance;
     return result;
+}
+
+void AllPredictor::reset_integration() {
+    pitch_integration = 0.0;
+    yaw_integration = 0.0;
 }
