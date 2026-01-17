@@ -165,7 +165,4 @@ MIN_TRACKING_COUNT : 2     # 最小连续跟踪次数           // 2
 IS_NEAR_MAX_DIST_RATIO : 1.5     # 50.0
 fit_step : 5
 predict_step : 5
-fourier_fit_step : 60
-fourier_fit_order : 5
-fourier_predict_step : 30
-MAX_FOURIER_TRACKING_AGE_MS : 1000
+

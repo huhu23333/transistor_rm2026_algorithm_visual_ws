@@ -73,7 +73,7 @@ struct alignas(64) RoiImageThreadInfo { // 64字节对齐
     size_t armor_index;
 };
 
-std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
+std::vector<ArmorResult> ArmorClassifier::classify(
     const cv::Mat& img, const std::vector<Armor>& armors, const cv::Point2f& ground_stable_point) {
     
     int process_armors_count = armors.size();
@@ -160,7 +160,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         }
     }
 
-    std::vector<std::vector<ArmorResult>> results = armor_tracker -> afterProcess();
+    std::vector<ArmorResult> results = armor_tracker -> afterProcess();
 
     return results;
 }

@@ -29,7 +29,7 @@ namespace fs = std::filesystem;
 class ArmorClassifier {
 public:
     ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, fs::path ws_dir_path);
-    std::vector<std::vector<ArmorResult>> classify(const cv::Mat& img, const std::vector<Armor>& armors, const cv::Point2f& ground_stable_point);
+    std::vector<ArmorResult> classify(const cv::Mat& img, const std::vector<Armor>& armors, const cv::Point2f& ground_stable_point);
 
 private:
     rclcpp::Node* node;                  // 用于打印的节点

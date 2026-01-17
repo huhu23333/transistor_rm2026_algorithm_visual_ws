@@ -17,7 +17,7 @@ public:
 
     void preProcess(const cv::Point2f& ground_stable_point);
     void addArmor(Armor& armor, int number, bool is_large, bool not_slant, float confidence);
-    std::vector<std::vector<ArmorResult>> afterProcess();
+    std::vector<ArmorResult> afterProcess();
 
 private:
     struct TrackedArmor {
@@ -50,7 +50,6 @@ private:
     rclcpp::Node* node;
 
     std::vector<TrackedArmor> tracked_armors;
-    std::vector<TrackedArmor> classified_latest_tracked_armors;
 
     int classify_classes;
 
@@ -59,11 +58,6 @@ private:
     float IS_NEAR_MAX_DIST_RATIO;
     int fit_step;
     int predict_step;
-
-    int fourier_fit_step;
-    int fourier_fit_order;
-    int fourier_predict_step;
-    int MAX_FOURIER_TRACKING_AGE_MS;
 
     cv::Point2f now_ground_stable_point;
 

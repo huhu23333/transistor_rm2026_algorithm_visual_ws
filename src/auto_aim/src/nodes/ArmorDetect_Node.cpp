@@ -478,8 +478,6 @@ private:
             std::vector<Light> lights;
             std::vector<Armor> armors;
             std::vector<ArmorResult> classifyResults;
-            std::vector<ArmorResult> classifyResults_forFourierPredict;
-            std::vector<std::vector<ArmorResult>> classifyResults_expanded;
 
             // 检测灯条
             light_detector_->detectLights(frame);
@@ -520,14 +518,11 @@ private:
                 }
                 RCLCPP_INFO(this->get_logger(), "yolo_delay_frame: %d", yolo_delay_frame);
                 extra_info_delay_time_ms = fps_counter -> avg_frame_time() * yolo_delay_frame * 1000.0;
-                classifyResults_expanded = classifier_->classify(history_frames[history_frame_index].frame, true_yolo_armors, ground_stable_point);
+                classifyResults = classifier_->classify(history_frames[history_frame_index].frame, true_yolo_armors, ground_stable_point);
             } else {
                 extra_info_delay_time_ms = 0.0;
-                classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
+                classifyResults = classifier_->classify(frame, armors, ground_stable_point);
             }
-
-            classifyResults = classifyResults_expanded[0];
-            classifyResults_forFourierPredict = classifyResults_expanded[1];
 
             std::vector<ArmorResult> classifyResults_withSolveArmorResult;
             for (ArmorResult &classify_result : classifyResults) {
