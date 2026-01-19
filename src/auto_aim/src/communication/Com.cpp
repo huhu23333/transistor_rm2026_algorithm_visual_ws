@@ -174,6 +174,8 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     memcpy(&frame.color, &data[offset], sizeof(uint8_t));
     offset += sizeof(uint8_t);
     memcpy(&frame.z_rotation_velocity, &data[offset], sizeof(float));
+    offset += sizeof(float);
+    memcpy(&frame.auto_aim_switch, &data[offset], sizeof(uint8_t));
 
     // 格式化输出
     RCLCPP_INFO(node->get_logger(), 
@@ -197,6 +199,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     msg.bullet_angle = frame.bullet_angle;
     msg.gimbal_yaw = frame.gimbal_yaw;
     msg.color = frame.color;
+    msg.auto_aim_switch = frame.auto_aim_switch == 1;
     
     serialDataCallback(msg);
 

@@ -33,6 +33,7 @@ struct SerialData {
     float bullet_angle;    // 子弹角度
     int16_t gimbal_yaw;       // 云台当前偏航角
     uint8_t color;            // 敌方颜色(0:红色, 1:蓝色)
+    bool auto_aim_switch;
 };
 
 class SerialCommunicationClass {
@@ -51,6 +52,7 @@ private:
         uint16_t mark;
         uint8_t color;
         float z_rotation_velocity;
+        uint8_t auto_aim_switch;
     };
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;
