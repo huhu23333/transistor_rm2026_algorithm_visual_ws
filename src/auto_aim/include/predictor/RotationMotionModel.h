@@ -37,6 +37,7 @@ struct PredictResult {
     double center_x;
     double center_y;
     double center_z;
+    double z_another;
     double r_now;
     double r_another;
     double yaw;
@@ -262,6 +263,7 @@ struct RotationMotionState {
     double center_x;
     double center_y;
     double center_z;
+    double z_another;
     double center_vx;
     double center_vy;
     double center_vz;
@@ -287,7 +289,7 @@ private:
     
     // 修改指数衰减最小二乘方法
     void resetExponentialLS();
-    void updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight=1.0, double delta_r=0.0);
+    void updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight=1.0, double delta_r=0.0, double delta_z=0.0);
     void updateCenterResult(double current_time);
 
     std::vector<ObservedData> observedDataHistory;
@@ -300,6 +302,7 @@ private:
     double center_x;
     double center_y;
     double center_z;
+    double z_another;
     int max_history;
     int n_armors;
     int rotation_direction;
