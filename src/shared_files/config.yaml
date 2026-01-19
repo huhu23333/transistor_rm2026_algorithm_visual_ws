@@ -10,7 +10,6 @@ enemy_color : "BLUE"
 
 use_yolo_pose : false
 
-MAX_LOST_TIME : 0.5              # 单位：秒
 camera_ExposureTime : 5000.0  # 5000.0
 camera_Gain : 16.0            # 16.0
 bullet_velocity_ : 15.0
@@ -36,7 +35,7 @@ serial_delay_time : 30.0 # ms
 # yaw_rad_to_x_pixel_ratio : 1300.0
 # pitch_rad_to_y_pixel_ratio : 1350.0
 
-reset_com_time : 1500.0 # ms
+reset_predictor_time : 1500.0 # ms
 
 armor_distance_smooth_factor : 1.0 # 0.05
 

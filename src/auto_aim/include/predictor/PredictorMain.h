@@ -44,5 +44,11 @@ private:
     int classify_classes;
     std::vector<std::shared_ptr<AllPredictor>> all_predictors_;
 
-    bool last_auto_aim_switch = false;
+
+    float last_pitch_rad_delayed_ = 0;
+    float last_yaw_rad_delayed_ = 0;
+    float total_yaw_rad_delayed_ = 0;
+
+    float pitch_integration = 0.0;
+    float yaw_integration = 0.0;
 };

@@ -24,6 +24,8 @@ struct PredictorResult {
     bool reset = true;
     float command_pitch = 0.0;
     float command_yaw = 0.0;
+    float command_delta_pitch = 0.0;
+    float command_delta_yaw = 0.0;
     bool fire_flag = false;
     PredictorType::PredictorType predictor_type = PredictorType::None;
     ArmorType::ArmorType armor_type = ArmorType::Hero;
@@ -50,9 +52,7 @@ public:
         yaw_rad_to_x_pixel_ratio = camera_matrix_Node[0][0].as<float>(); 
         pitch_rad_to_y_pixel_ratio = camera_matrix_Node[1][1].as<float>(); 
 
-        MAX_LOST_TIME = (*config_file_ptr)["MAX_LOST_TIME"].as<float>(); 
-
-        reset_com_time = (*config_file_ptr)["reset_com_time"].as<float>(); 
+        reset_predictor_time = (*config_file_ptr)["reset_predictor_time"].as<float>(); 
 
         last_com_time = std::chrono::steady_clock::now();
 
@@ -69,8 +69,6 @@ public:
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
 
-    void reset_integration();
-
     bool is_reset = false;
 
 private:
@@ -85,10 +83,6 @@ private:
     std::shared_ptr<RestFrame> rest_frame_;
     std::shared_ptr<FrameRateCounter> fps_counter;
 
-    int current_target_id_ = -1;      // 当前跟踪目标ID - EKF
-
-    float MAX_LOST_TIME;              // 单位：秒
-
     float last_total_delay_ = 0.0;
 
     std::shared_ptr<Oscilloscope> oscilloscope_common_;
@@ -101,16 +95,12 @@ private:
     float last_yaw_rad_delayed_ = 0;
     float total_yaw_rad_delayed_ = 0;
 
-    float pitch_integration = 0.0;
-    float yaw_integration = 0.0;
     float yaw_rad_to_x_pixel_ratio;
     float pitch_rad_to_y_pixel_ratio;
-    float reset_com_time;
+    float reset_predictor_time;
     std::chrono::steady_clock::time_point last_com_time;
     cv::Point2f last_aim_yaw_pitch_;
     cv::Point2f last_aim_yaw_pitch_pixel_;
-    float last_command_pitch_;
-    float last_command_yaw_;
 
     std::shared_ptr<PredictorSwitcher> predictor_switcher_;
 
@@ -121,6 +111,4 @@ private:
     bool has_valid_ballistic = false;
     
     float init_r = 250.0;
-
-    float pitch_bias = 0.0 * M_PI / 180.0;
 };

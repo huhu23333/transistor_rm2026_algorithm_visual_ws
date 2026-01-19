@@ -251,40 +251,13 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 has_valid_ballistic = true;
                 // RCLCPP_INFO(node->get_logger(), "Target detected, publishing command");
                 // has_valid_target_ = true;
-                pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
-                yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
-
-                if (pitch_integration > 60.0 * M_PI / 180.0) {
-                    pitch_integration = 60.0 * M_PI / 180.0;
-                }
-                if (pitch_integration < -60.0 * M_PI / 180.0) {
-                    pitch_integration = -60.0 * M_PI / 180.0;
-                }
-
-                if (yaw_integration > 20.0 * M_PI / 180.0) {
-                    yaw_integration = 20.0 * M_PI / 180.0;
-                }
-                if (yaw_integration < -20.0 * M_PI / 180.0) {
-                    yaw_integration = -20.0 * M_PI / 180.0;
-                }
                 
                 // 发布云台控制命令
-                float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration + pitch_bias; // PI控制
-                float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 1.0 + yaw_integration; // 缓解yaw轴输入数据掉线问题
-                last_command_pitch_ = command_pitch;
-                last_command_yaw_ = command_yaw;
                 //serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
                 result.reset = false;
-                result.command_pitch = command_pitch;
-                result.command_yaw = command_yaw;
+                result.command_delta_pitch = ballistic_result.delta_pitch_rad;
+                result.command_delta_yaw = ballistic_result.delta_yaw_rad;
                 result.fire_flag = fire_flag;
-
-                RCLCPP_DEBUG(node->get_logger(),
-                    "Target %d: Position[%.2f, %.2f, %.2f] mm, "
-                    "Command[pitch: %.2f, yaw: %.2f] rad",
-                    static_cast<int>(armor_class),
-                    predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z,
-                    command_pitch, command_yaw);
                 
                 // 绘制瞄准预测点（黄色）
                 cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
@@ -313,10 +286,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     }
 
     else {
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_com_time) {
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_predictor_time) {
             result.reset = true;
-            // pitch_integration = 0.0; // 积分项重置
-            yaw_integration = 0.0;
             armor_distance_filter_ -> clearHistory();
             if (rotation_motion_model_) {
                 RotationMotionState RMMstate = rotation_motion_model_ -> getState();
@@ -329,8 +300,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
         } else {
             
             result.reset = false;
-            result.command_pitch = last_command_pitch_;
-            result.command_yaw = last_command_yaw_;
+            result.command_delta_pitch = 0.0;
+            result.command_delta_yaw = 0.0;
             result.fire_flag = false;
 
             bool fire_flag = false;
@@ -484,40 +455,12 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     // RCLCPP_INFO(node->get_logger(), "Target detected, publishing command");
                     // has_valid_target_ = true;
 
-                    pitch_integration += ballistic_result.delta_pitch_rad * 0.1;
-                    yaw_integration += ballistic_result.delta_yaw_rad * 0.02;
-
-                    if (pitch_integration > 60.0 * M_PI / 180.0) {
-                        pitch_integration = 60.0 * M_PI / 180.0;
-                    }
-                    if (pitch_integration < -60.0 * M_PI / 180.0) {
-                        pitch_integration = -60.0 * M_PI / 180.0;
-                    }
-
-                    if (yaw_integration > 20.0 * M_PI / 180.0) {
-                        yaw_integration = 20.0 * M_PI / 180.0;
-                    }
-                    if (yaw_integration < -20.0 * M_PI / 180.0) {
-                        yaw_integration = -20.0 * M_PI / 180.0;
-                    }
-                    
                     // 发布云台控制命令
-                    float command_pitch = last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad * 0.8 + pitch_integration + pitch_bias; // PI控制
-                    float command_yaw = last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad * 1.0 + yaw_integration; // 缓解yaw轴输入数据掉线问题
-                    last_command_pitch_ = command_pitch;
-                    last_command_yaw_ = command_yaw;
                     //serial_communication_->sendData(command_pitch, command_yaw, fire_flag);
                     result.reset = false;
-                    result.command_pitch = command_pitch;
-                    result.command_yaw = command_yaw;
+                    result.command_delta_pitch = ballistic_result.delta_pitch_rad;
+                    result.command_delta_yaw = ballistic_result.delta_yaw_rad;
                     result.fire_flag = fire_flag;
-
-                    RCLCPP_DEBUG(node->get_logger(),
-                        "Target %d: Position[%.2f, %.2f, %.2f] mm, "
-                        "Command[pitch: %.2f, yaw: %.2f] rad",
-                        static_cast<int>(armor_class),
-                        predicted_aim_pos.x, predicted_aim_pos.y, predicted_aim_pos.z,
-                        command_pitch, command_yaw);
                 }
 
                 // 绘制瞄准预测点（黄色）
@@ -530,8 +473,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
             if ((!ballistic_valid_flag) && has_valid_ballistic) {
                 result.reset = false;
-                result.command_pitch = last_command_pitch_;
-                result.command_yaw = last_command_yaw_;
+                result.command_delta_pitch = 0.0;
+                result.command_delta_yaw = 0.0;
                 result.fire_flag = false;
             }
             if (result.fire_flag) {
@@ -556,9 +499,4 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     result.armor_type = armor_class;
     result.pixel_horizontal_center_distance = last_pixel_horizontal_center_distance;
     return result;
-}
-
-void AllPredictor::reset_integration() {
-    pitch_integration = 0.0;
-    yaw_integration = 0.0;
 }
