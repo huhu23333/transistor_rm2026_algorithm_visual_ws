@@ -33,6 +33,7 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     center_x = initObservedData.x - r_now * sin(initObservedData.yaw);
     center_y = initObservedData.y + r_now * cos(initObservedData.yaw);
     center_z = initObservedData.z;  // 使用观测数据的z值初始化
+    z_another = center_z;
     
     max_history = 90;
     rotation_direction = 1;
@@ -62,7 +63,7 @@ void RotationMotionModel::resetExponentialLS() {
     x_center_(6) = r_now;         // r
 }
 
-void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight, double delta_r) {
+void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight, double delta_r, double delta_z) {
     // 构建测量方程
     
     double cosYaw = cos(armor_yaw);
@@ -182,7 +183,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         double weight3 = weight;  // z轴测量权重
         double S3 = H3 * P_center_ * H3.transpose() + 1.0 / weight3;
         Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
-        double innovation3 = z3 - H3 * x_center_;
+        double innovation3 = z3 - H3 * x_center_ - delta_z;
         x_center_ = x_center_ + K3 * innovation3;
         P_center_ = (I - K3 * H3) * P_center_ / lambda_;
         
@@ -221,6 +222,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
         if (!is_outpost) {
             std::swap(r_now, r_another);
             std::swap(r_now_prev_, r_another_prev_);
+            std::swap(center_z, z_another);
         }
         std::cout << "RMM Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump!" << std::endl;
     }
@@ -251,9 +253,11 @@ void RotationMotionModel::update(ObservedData& observedData) {
         double time_weight = std::exp(-std::abs(time_offset) * 0.1);
         this_yaw_jump = data.yaw_jump ? (!this_yaw_jump) : this_yaw_jump;
         if (!is_outpost) {
-            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, this_yaw_jump ? r_now-r_another : 0.0);
+            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, 
+                this_yaw_jump ? r_now-r_another : 0.0, 
+                this_yaw_jump ? center_z-z_another : 0.0);
         } else {
-            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, 0.0);
+            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, 0.0, 0.0);
         }
     }
     
@@ -290,6 +294,7 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     result.center_x = center_x + predictTime * center_vx;
     result.center_y = center_y + predictTime * center_vy;
     result.center_z = center_z + predictTime * center_vz;
+    result.z_another = z_another + predictTime * center_vz;
     result.r_now = r_now;
     result.r_another = r_another;
     
@@ -312,10 +317,11 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     for (int i = 0; i < n_armors; i++) {
         double armor_yaw = result.yaw - i * rotation_direction * jump_rad;
         double r_using = is_outpost ? r_now : ((i%2==0) ? r_now : r_another);
+        double z_using = is_outpost ? result.center_z : ((i%2==0) ? result.center_z : result.z_another);
         result.armors.push_back(SimpleArmor({
             result.center_x + r_using * std::sin(armor_yaw),
             result.center_y - r_using * std::cos(armor_yaw),
-            result.center_z,
+            z_using,
             r_using,
             armor_yaw
         }));
@@ -334,6 +340,7 @@ RotationMotionState RotationMotionModel::getState() {
     state.center_x = center_x;
     state.center_y = center_y;
     state.center_z = center_z;
+    state.z_another = z_another;
     state.update_frames = update_frames_count;
     
     if (angle_ekf_->isInitialized()) {
