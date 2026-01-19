@@ -73,6 +73,7 @@ add_library(armor_detector SHARED
     src/predictor/PredictorMain.cpp
     # src/predictor/RotationJudge.cpp
     src/visualizer/DataVisualizer.cpp
+    src/visualizer/RestFrameDraw.cpp
     src/communication/SharedMemoryClassifier.cpp
     src/communication/SharedMemoryYOLOPose.cpp
     src/communication/Com.cpp

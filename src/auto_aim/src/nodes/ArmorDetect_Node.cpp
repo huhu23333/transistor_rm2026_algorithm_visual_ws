@@ -35,6 +35,7 @@
 #include "predictor/PredictorSwitcher.h"
 #include "2d_armor_detector/Armor.h"
 #include "communication/WatchdogClient.h"
+#include "visualizer/RestFrameDraw.h"
 
 namespace fs = std::filesystem;
 
@@ -248,7 +249,7 @@ private:
 
                 SerialData fakeSerialData;
                 fakeSerialData.bullet_velocity = 25.0;  // 子弹速度
-                fakeSerialData.bullet_angle = 0 * 1.8 / 30; // std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
+                fakeSerialData.bullet_angle = std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
                 fakeSerialData.gimbal_yaw =  
                     // static_cast<int16_t>(60.0 * 4095.0 / 180.0);
                     // static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 2 * M_PI), std::cos(debug_time_count * 2 * M_PI)) * 4095.0 / M_PI / 12); 
@@ -556,6 +557,8 @@ private:
                 cv::Point(10, 60),
                 cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(0, 255, 0), 1);
+
+            drawRestFrame(frame, rest_frame_, armor_solver_);
 
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
 

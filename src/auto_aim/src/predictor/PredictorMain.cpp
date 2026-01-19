@@ -70,6 +70,6 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
         }
     }
     chosen_result.command_pitch = last_pitch_rad_delayed_ + chosen_result.command_delta_pitch * 1.0 + pitch_integration; // PI控制
-    chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * 1.0 + yaw_integration; // 缓解yaw轴输入数据掉线问题
+    chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * 1.0 + yaw_integration; // 缓解yaw轴输入数据掉线问题（并不能()）
     return chosen_result;
 }
