@@ -34,6 +34,8 @@
 #include "2d_armor_detector/YOLOPoseArmorDetector.h"
 #include "predictor/PredictorSwitcher.h"
 #include "2d_armor_detector/Armor.h"
+#include "communication/WatchdogClient.h"
+#include "visualizer/RestFrameDraw.h"
 
 namespace fs = std::filesystem;
 
@@ -90,8 +92,15 @@ public:
 
         use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
 
-        yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
-        pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
+        // 根据相机内参自动提取，不再需要手动输入
+        // yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
+        // pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
+        const YAML::Node& camera_matrix_Node = (*config_file_ptr)["camera_matrix"];
+        yaw_rad_to_x_pixel_ratio = camera_matrix_Node[0][0].as<float>(); 
+        pitch_rad_to_y_pixel_ratio = camera_matrix_Node[1][1].as<float>(); 
+
+
+        max_armor_position_height = (*config_file_ptr)["max_armor_position_height"].as<float>(); 
         
         params_.min_light_height = (*config_file_ptr)["min_light_height"].as<int>();
         params_.light_slope_offset = (*config_file_ptr)["light_slope_offset"].as<int>();
@@ -154,7 +163,7 @@ public:
 
         light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
-        classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, this);
+        classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, this, ws_dir_path);
         armor_solver_ = std::make_shared<ArmorSolver>(config_file_ptr, this);
         ballistic_solver_ = std::make_shared<BallisticSolver>(config_file_ptr, this);
 
@@ -183,6 +192,11 @@ public:
 
         // 串口通信下位机初始化
         //serial_communication_->sendData(true, 0.0, 0.0, false);
+
+        watchdog_client = std::make_shared<WatchdogClient>();
+        watchdog_client -> init();
+        watchdog_client -> feed();
+        last_feed_dog_time = std::chrono::steady_clock::now();
 
 #ifdef DEBUG_CODE
         debug_code();
@@ -236,7 +250,7 @@ private:
 
                 SerialData fakeSerialData;
                 fakeSerialData.bullet_velocity = 25.0;  // 子弹速度
-                fakeSerialData.gimbal_yaw = 0 * M_PI / 180; // std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
+                fakeSerialData.gimbal_pitch = std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
                 fakeSerialData.gimbal_yaw =  
                     // static_cast<int16_t>(60.0 * 4095.0 / 180.0);
                     // static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 2 * M_PI), std::cos(debug_time_count * 2 * M_PI)) * 4095.0 / M_PI / 12); 
@@ -315,8 +329,7 @@ private:
     void drawResults(cv::Mat& image, 
                      const std::vector<Light>& lights,
                      const std::vector<Armor>& armors,
-                     const std::vector<ArmorResult>& classifyResults,
-                     const std::vector<ArmorResult>& classifyResults_forFourierPredict) {
+                     const std::vector<ArmorResult>& classifyResults) {
         cv::Mat result = image.clone();
 
         // 0. 绘制平面地面系不动点（DEBUG）
@@ -370,13 +383,6 @@ private:
         // }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
-        /* for (const auto& res : classifyResults_forFourierPredict) {
-            if (res.is_steady_tracked) {
-                for (auto& prediction : res.predictions) {
-                    cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
-                }
-            }
-        } */
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
             if (res.is_tracked_now) {
@@ -468,8 +474,6 @@ private:
             std::vector<Light> lights;
             std::vector<Armor> armors;
             std::vector<ArmorResult> classifyResults;
-            std::vector<ArmorResult> classifyResults_forFourierPredict;
-            std::vector<std::vector<ArmorResult>> classifyResults_expanded;
 
             // 检测灯条
             light_detector_->detectLights(frame);
@@ -510,16 +514,24 @@ private:
                 }
                 RCLCPP_INFO(this->get_logger(), "yolo_delay_frame: %d", yolo_delay_frame);
                 extra_info_delay_time_ms = fps_counter -> avg_frame_time() * yolo_delay_frame * 1000.0;
-                classifyResults_expanded = classifier_->classify(history_frames[history_frame_index].frame, true_yolo_armors, ground_stable_point);
+                classifyResults = classifier_->classify(history_frames[history_frame_index].frame, true_yolo_armors, ground_stable_point);
             } else {
                 extra_info_delay_time_ms = 0.0;
-                classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
+                classifyResults = classifier_->classify(frame, armors, ground_stable_point);
             }
 
-            classifyResults = classifyResults_expanded[0];
-            classifyResults_forFourierPredict = classifyResults_expanded[1];
+            std::vector<ArmorResult> classifyResults_withSolveArmorResult;
+            for (ArmorResult &classify_result : classifyResults) {
+                AimResult solve_armor_result = armor_solver_->solveArmor(classify_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
+                cv::Point3f rest_frame_pos = rest_frame_ -> pnpToWorldP3f(solve_armor_result.position);
+                if (rest_frame_pos.z < max_armor_position_height && solve_armor_result.valid) { // 高度高于一定值视为无效
+                    classifyResults_withSolveArmorResult.emplace_back(classify_result);
+                    classifyResults_withSolveArmorResult.back().solve_armor_result = solve_armor_result;
+                }
+            }
 
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch); // Todo
+            bool auto_aim_switch = true;
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch, auto_aim_switch); // Todo
             cv::putText(frame, 
                 "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
                 cv::Point2f(0, 100), 
@@ -562,9 +574,6 @@ private:
                     last_pitch_rad_delayed_, last_yaw_rad_delayed_);
             // serial_communication_->sendData(true, 0.1, 0.2, true, -32667, 200);
             
-            //计算帧率
-            fps_counter->tick();
-            
             // 显示当前参数状态
             cv::putText(frame, 
                 cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
@@ -573,7 +582,17 @@ private:
                 cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(0, 255, 0), 1);
 
-            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
+            drawRestFrame(frame, rest_frame_, armor_solver_);
+
+            drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
+
+            //计算帧率
+            fps_counter->tick();
+
+            if (std::chrono::steady_clock::now() - last_feed_dog_time >= std::chrono::seconds(3)) {
+                watchdog_client -> feed();
+                last_feed_dog_time = std::chrono::steady_clock::now();
+            } // 正常运行时，每3秒喂一次狗
         }        
 
         // 获取处理帧率
@@ -636,7 +655,7 @@ private:
     std::shared_ptr<PredictorMain> predictor_main_;
 
     std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
-    bool use_yolo_pose = false;
+    bool use_yolo_pose;
     int max_history_frame = 10;
     int history_frame_identifier_loop = 30;
     int now_history_frame_identifier = 0;
@@ -660,6 +679,11 @@ private:
         float yaw = 0.0f;
         float pitch = 0.0f;
     } reset_behavior_infos;
+
+    float max_armor_position_height;
+
+    std::shared_ptr<WatchdogClient> watchdog_client;
+    std::chrono::steady_clock::time_point last_feed_dog_time;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

@@ -4,8 +4,11 @@
 Trans2DPredTo3DClass::Trans2DPredTo3DClass(std::shared_ptr<YAML::Node> config_file_ptr) 
 : config_file_ptr(config_file_ptr) {
 
-    yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
-    pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
+    // yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
+    // pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
+    const YAML::Node& camera_matrix_Node = (*config_file_ptr)["camera_matrix"];
+    yaw_rad_to_x_pixel_ratio = camera_matrix_Node[0][0].as<float>(); 
+    pitch_rad_to_y_pixel_ratio = camera_matrix_Node[1][1].as<float>(); 
     
 }
 
