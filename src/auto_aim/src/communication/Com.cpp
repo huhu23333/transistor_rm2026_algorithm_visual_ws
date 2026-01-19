@@ -302,14 +302,14 @@ void SerialCommunicationClass::processBuffer() {
 void SerialCommunicationClass::timerCallback() {
     // 检查串口状态
     if (fd_ < 0) {
-        if (std::chrono::steady_clock::now() - last_reconnect_time > std::chrono::seconds(5)) {
+        if (std::chrono::steady_clock::now() - last_reconnect_time > std::chrono::seconds(3)) {
             RCLCPP_ERROR(node->get_logger(), "Serial port not available, trying reconnect");
             tryReconnect();
         }
         return;
     }
-    if (std::chrono::steady_clock::now() - last_received_time > std::chrono::seconds(5)) {
-        if (std::chrono::steady_clock::now() - last_reconnect_time > std::chrono::seconds(5)) {
+    if (std::chrono::steady_clock::now() - last_received_time > std::chrono::seconds(3)) {
+        if (std::chrono::steady_clock::now() - last_reconnect_time > std::chrono::seconds(3)) {
             RCLCPP_ERROR(node->get_logger(), "No data received, trying reconnect");
             tryReconnect();
         }

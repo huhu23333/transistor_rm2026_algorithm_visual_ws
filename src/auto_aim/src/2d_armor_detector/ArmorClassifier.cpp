@@ -6,10 +6,8 @@
 #include <string>
 // DEBUG */
 
-namespace fs = std::filesystem;
-
-ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) 
-    : node(node) {
+ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, fs::path ws_dir_path) 
+    : node(node), ws_dir_path(ws_dir_path) {
     
     MAX_ROI_SAVE_COUNT = (*config_file_ptr)["MAX_ROI_SAVE_COUNT"].as<int>();
 
@@ -53,15 +51,14 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     // 保存处理后的图像（用于神经网络输入的标准化图像）
     if (roi_save_count < MAX_ROI_SAVE_COUNT) {
         // 创建保存目录
-        fs::create_directories("network_input_images");
+        fs::create_directories(ws_dir_path / "network_input_images");
         
         // 生成文件名（00001.jpg 格式）
         std::ostringstream filename;
-        filename << "network_input_images/"
-                << std::setw(5) << std::setfill('0') << (roi_save_count.fetch_add(1) + 1)
-                << ".jpg";
+        filename << std::setw(5) << std::setfill('0') << (roi_save_count.fetch_add(1) + 1) << ".jpg";
         
-        cv::imwrite(filename.str(), resized);
+        fs::path full_file_path = ws_dir_path / "network_input_images/" / filename.str();
+        cv::imwrite(full_file_path, resized);
         
         if (roi_save_count == MAX_ROI_SAVE_COUNT) {
             std::cout << "Reached maximum number of saved images (2000)" << std::endl;
@@ -76,7 +73,7 @@ struct alignas(64) RoiImageThreadInfo { // 64字节对齐
     size_t armor_index;
 };
 
-std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
+std::vector<ArmorResult> ArmorClassifier::classify(
     const cv::Mat& img, const std::vector<Armor>& armors, const cv::Point2f& ground_stable_point) {
     
     int process_armors_count = armors.size();
@@ -163,7 +160,7 @@ std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
         }
     }
 
-    std::vector<std::vector<ArmorResult>> results = armor_tracker -> afterProcess();
+    std::vector<ArmorResult> results = armor_tracker -> afterProcess();
 
     return results;
 }
