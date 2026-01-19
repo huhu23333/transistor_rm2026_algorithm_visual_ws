@@ -267,6 +267,7 @@ private:
     }
 
     void serialDataCallback(const SerialData& msg) {
+        auto_aim_switch = msg.auto_aim_switch;
         bullet_velocity_ = msg.bullet_velocity;
         current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180 * 1.18 + 0.25; // 测定pitch轴传入数据1.8大约对应30°
         current_yaw_ = - ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
@@ -535,7 +536,7 @@ private:
                 }
             }
 
-            bool auto_aim_switch = true;
+            auto_aim_switch = true;
             PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch, auto_aim_switch); // Todo
             cv::putText(frame, 
                 "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
@@ -647,6 +648,8 @@ private:
 
     std::shared_ptr<WatchdogClient> watchdog_client;
     std::chrono::steady_clock::time_point last_feed_dog_time;
+    
+    bool auto_aim_switch;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
