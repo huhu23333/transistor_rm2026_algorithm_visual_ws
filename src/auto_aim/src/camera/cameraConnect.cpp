@@ -109,15 +109,15 @@ void Camera::reconnectLoop() {
         }
             
         if (!first_try) { // 第一次连接不需要等待
-            // 检查是否需要等待5秒
+            // 检查是否需要等待3秒
             auto now = steady_clock::now();
             auto lastReconnect = lastReconnectTime.load();
             auto timeSinceLastReconnect = duration_cast<seconds>(now - lastReconnect);
             
-            if (timeSinceLastReconnect.count() < 5 && !needReconnect.load()) {
-                // 等待到5秒间隔
+            if (timeSinceLastReconnect.count() < 3 && !needReconnect.load()) {
+                // 等待到3秒间隔
                 std::unique_lock<std::mutex> lock(reconnectMutex);
-                auto waitTime = seconds(5) - timeSinceLastReconnect;
+                auto waitTime = seconds(3) - timeSinceLastReconnect;
                 reconnectCV.wait_for(lock, waitTime);
                 continue;
             }
@@ -142,14 +142,14 @@ void Camera::reconnectLoop() {
             grabbing.store(true);
         } else {
             status.store(DISCONNECTED);
-            std::cout << "Failed to connect camera. Will retry in 5 seconds." << std::endl;
+            std::cout << "Failed to connect camera. Will retry in 3 seconds." << std::endl;
             
             // 更新重连时间
             updateReconnectTime();
             
-            // 等待5秒
+            // 等待3秒
             std::unique_lock<std::mutex> lock(reconnectMutex);
-            reconnectCV.wait_for(lock, std::chrono::seconds(5));
+            reconnectCV.wait_for(lock, std::chrono::seconds(3));
         }
     }
     
@@ -239,8 +239,8 @@ void Camera::grabLoop() {
                 auto now = steady_clock::now();
                 auto timeSinceLastSuccess = duration_cast<seconds>(now - lastSuccessTime);
                 
-                if (timeSinceLastSuccess.count() >= 5) {
-                    std::cout << "No valid image for 5 seconds, triggering reconnect." << std::endl;
+                if (timeSinceLastSuccess.count() >= 3) {
+                    std::cout << "No valid image for 3 seconds, triggering reconnect." << std::endl;
                     needReconnect.store(true);
                     grabbing.store(false);
                     break;
