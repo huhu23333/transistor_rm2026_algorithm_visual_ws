@@ -60,6 +60,7 @@ private:
     float mean_color_diff_THRESHOLD_BLUE;
     float color_rect_expand_FACTOR;
     uint8_t binary_img_THRESHOLD;
+    uint8_t subtract_value;
     // 颜色通道差值的阈值常量
     int THRES_MAX_COLOR_RED;   // 红色通道差值阈值
     int THRES_MAX_COLOR_BLUE;  // 蓝色通道差值阈值
@@ -119,7 +120,7 @@ private:
      */
     bool isOverlap(const Light& light1, const Light& light2);
 
-    float calculateAccurateAngleByPCA(const cv::Mat& binaryImg, const cv::RotatedRect& rotatedRect);
+    float calculateAccurateAngleByOLS(const cv::Mat& gray_img, const cv::RotatedRect& rotatedRect);
 };
 
 #endif // LIGHTBARDETECTOR_H

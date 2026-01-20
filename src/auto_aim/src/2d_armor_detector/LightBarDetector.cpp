@@ -105,14 +105,18 @@ float Light::computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& g
 
 void Light::correctLengthAndWidth(const cv::Mat& gray_img) {
     // 原始面积
-    float original_sum = computeRotatedRectSum(el, gray_img);
+    cv::RotatedRect temp_el = el;
+    temp_el.size.height *= 1.2;
+    temp_el.size.width *= 2.0;
+
+    float original_sum = computeRotatedRectSum(temp_el, gray_img);
     float sum_value_target = original_sum * 0.95;
     
     // 保存原始参数
-    float length_original = length;
-    float width_original = width;
-    cv::Point2f center_original = el.center;
-    float angle_normal = el.angle + 90.0;
+    float length_original = temp_el.size.height;
+    float width_original = temp_el.size.width;
+    cv::Point2f center_original = temp_el.center;
+    float angle_normal = temp_el.angle + 90.0;
     
     // 二分查找参数
     int binarySearchFrequency = 10;
@@ -122,13 +126,13 @@ void Light::correctLengthAndWidth(const cv::Mat& gray_img) {
     float back_ratio = 1.0f;   // 后端收缩比例
     
     // 优化前端（沿着长度方向的正面）
-    float upper_front = 1.1f;
+    float upper_front = 1.0f;
     float lower_front = 0.5f;
     for (int i = 0; i < binarySearchFrequency; i++) {
         front_ratio = (upper_front + lower_front) * 0.5f;
         
         // 只收缩前端，保持后端不变
-        cv::RotatedRect test_rect = el;
+        cv::RotatedRect test_rect = temp_el;
         float new_length = length_original * front_ratio;
         
         // 计算新的中心点（前端收缩，中心点向后移动）
@@ -150,12 +154,12 @@ void Light::correctLengthAndWidth(const cv::Mat& gray_img) {
     front_ratio = (upper_front + lower_front) * 0.5f;
     
     // 优化后端（沿着长度方向的背面）
-    float upper_back = 1.1f;
+    float upper_back = 1.0f;
     float lower_back = 0.5f;
     for (int i = 0; i < binarySearchFrequency; i++) {
         back_ratio = (upper_back + lower_back) * 0.5f;
         
-        cv::RotatedRect test_rect = el;
+        cv::RotatedRect test_rect = temp_el;
         float new_length = length_original * back_ratio;
         
         // 计算新的中心点（后端收缩，中心点向前移动）
@@ -181,12 +185,12 @@ void Light::correctLengthAndWidth(const cv::Mat& gray_img) {
     float right_ratio = 1.0f;  // 右侧收缩比例
     
     // 优化左侧（垂直于长度方向的左侧）
-    float upper_left = 1.1f;
-    float lower_left = 0.5f;
+    float upper_left = 1.0f;
+    float lower_left = 0.0f;
     for (int i = 0; i < binarySearchFrequency; i++) {
         left_ratio = (upper_left + lower_left) * 0.5f;
         
-        cv::RotatedRect test_rect = el;
+        cv::RotatedRect test_rect = temp_el;
         float new_width = width_original * left_ratio;
         
         // 计算新的中心点（左侧收缩，中心点向右移动）
@@ -208,12 +212,12 @@ void Light::correctLengthAndWidth(const cv::Mat& gray_img) {
     left_ratio = (upper_left + lower_left) * 0.5f;
     
     // 优化右侧（垂直于长度方向的右侧）
-    float upper_right = 1.1f;
-    float lower_right = 0.5f;
+    float upper_right = 1.0f;
+    float lower_right = 0.0f;
     for (int i = 0; i < binarySearchFrequency; i++) {
         right_ratio = (upper_right + lower_right) * 0.5f;
         
-        cv::RotatedRect test_rect = el;
+        cv::RotatedRect test_rect = temp_el;
         float new_width = width_original * right_ratio;
         
         // 计算新的中心点（右侧收缩，中心点向左移动）
@@ -263,6 +267,7 @@ LightBarDetector::LightBarDetector(const Params& params, std::shared_ptr<YAML::N
         mean_color_diff_THRESHOLD_RED = (*config_file_ptr)["mean_color_diff_THRESHOLD_RED"].as<float>();
         color_rect_expand_FACTOR = (*config_file_ptr)["color_rect_expand_FACTOR"].as<float>(); 
         binary_img_THRESHOLD = (*config_file_ptr)["binary_img_THRESHOLD"].as<uint8_t>(); 
+        subtract_value = (*config_file_ptr)["subtract_value"].as<uint8_t>(); 
         THRES_MAX_COLOR_RED = (*config_file_ptr)["THRES_MAX_COLOR_RED"].as<int>(); 
         THRES_MAX_COLOR_BLUE = (*config_file_ptr)["THRES_MAX_COLOR_BLUE"].as<int>(); 
     }
@@ -278,66 +283,86 @@ struct alignas(64) LightDetectThreadInfo { // 64字节对齐
     Light light;
 };
 
-float LightBarDetector::calculateAccurateAngleByPCA(const cv::Mat& binaryImg, const cv::RotatedRect& rotatedRect) {
+float LightBarDetector::calculateAccurateAngleByOLS(const cv::Mat& gray_img, const cv::RotatedRect& rotatedRect) {
     // 1. 获取旋转矩形的边界框
     cv::Rect boundingRect = rotatedRect.boundingRect();
-    
-    // 确保边界框在图像范围内
-    boundingRect = boundingRect & cv::Rect(0, 0, binaryImg.cols, binaryImg.rows);
+    boundingRect = boundingRect & cv::Rect(0, 0, gray_img.cols, gray_img.rows);
     if (boundingRect.area() == 0) return rotatedRect.angle;
     
     // 2. 截取ROI区域
-    cv::Mat roi = binaryImg(boundingRect);
+    cv::Mat roi = gray_img(boundingRect);
     
     // 3. 创建旋转矩形的掩码
     cv::Mat mask = cv::Mat::zeros(roi.size(), CV_8UC1);
-    
-    // 将旋转矩形转换到ROI坐标系下
     cv::Point2f centerInRoi(rotatedRect.center.x - boundingRect.x, 
                            rotatedRect.center.y - boundingRect.y);
     cv::RotatedRect rectInRoi(centerInRoi, rotatedRect.size, rotatedRect.angle);
     
-    // 绘制旋转矩形作为掩码
-    cv::ellipse(mask, rectInRoi, cv::Scalar(255), -1);
+    cv::Point2f vertices[4];
+    rectInRoi.points(vertices);
+    std::vector<cv::Point> poly;
+    for (int i = 0; i < 4; ++i) poly.push_back(vertices[i]);
+    cv::fillConvexPoly(mask, poly, cv::Scalar(255));
     
-    // 4. 应用掩码，只保留旋转矩形内的像素
-    cv::Mat maskedRoi;
-    roi.copyTo(maskedRoi, mask);
-    
-    //cv::imshow("Light Bar Debug", maskedRoi);
-    
-    // 5. 提取非零像素点的坐标（相对于ROI）
-    std::vector<cv::Point2f> points;
-    for (int y = 0; y < maskedRoi.rows; ++y) {
-        for (int x = 0; x < maskedRoi.cols; ++x) {
-            if (maskedRoi.at<uchar>(y, x) > 0) {
-                points.push_back(cv::Point2f(x, y));
+    // 4. 收集加权像素点
+    std::vector<double> xs, ys, ws;
+    for (int y = 0; y < roi.rows; ++y) {
+        const uchar* imgRow = roi.ptr<uchar>(y);
+        const uchar* maskRow = mask.ptr<uchar>(y);
+        for (int x = 0; x < roi.cols; ++x) {
+            if (maskRow[x] > 0 && imgRow[x] > 0) {
+                xs.push_back(x);
+                ys.push_back(y);
+                ws.push_back(imgRow[x]); // 亮度作为权重
             }
         }
     }
-
-    int points_size = static_cast<int>(points.size());
-    if (points_size < 2) {
-        return rotatedRect.angle; // 像素点太少，返回原始角度
+    
+    if (xs.size() < 2) return rotatedRect.angle;
+    
+    // 5. 加权最小二乘法
+    double sumW = 0, sumX = 0, sumY = 0, sumXX = 0, sumXY = 0, sumYY = 0;
+    
+    for (size_t i = 0; i < xs.size(); ++i) {
+        double w = ws[i];
+        double x = xs[i];
+        double y = ys[i];
+        
+        sumW += w;
+        sumX += w * x;
+        sumY += w * y;
+        sumXX += w * x * x;
+        sumXY += w * x * y;
+        sumYY += w * y * y;
     }
-
-    cv::Mat data_pts = cv::Mat(points_size, 2, CV_64F);
-    for (int i = 0; i < data_pts.rows; i++)
-    {
-        data_pts.at<double>(i, 0) = points[i].x;
-        data_pts.at<double>(i, 1) = points[i].y;
+    
+    double meanX = sumX / sumW;
+    double meanY = sumY / sumW;
+    
+    double Sxx = sumXX / sumW - meanX * meanX;
+    double Sxy = sumXY / sumW - meanX * meanY;
+    double Syy = sumYY / sumW - meanY * meanY;
+    
+    // 6. 计算主方向角度（使用数值更稳定的方法）
+    double angle = 0.0;
+    
+    // 检查数值稳定性
+    if (std::abs(Sxx) > std::abs(Syy)) {
+        // 以x为自变量更稳定
+        if (std::abs(Sxx) > 1e-6) {
+            double slope = Sxy / Sxx;
+            angle = std::atan(slope) * 180.0 / CV_PI;
+        }
+    } else {
+        // 以y为自变量更稳定
+        if (std::abs(Syy) > 1e-6) {
+            double slope = Sxy / Syy;  // x关于y的斜率
+            angle = 90.0 - std::atan(slope) * 180.0 / CV_PI;  // 转换为y关于x的斜率
+        }
     }
     
-    // 6. 使用PCA分析像素点分布
-    cv::PCA pca(data_pts, cv::Mat(), cv::PCA::DATA_AS_ROW);
-    
-    // 7. 获取主方向（第一个特征向量）
-    cv::Point2d eigenvector = cv::Point2d(pca.eigenvectors.at<double>(0, 0),
-                                         pca.eigenvectors.at<double>(0, 1));
-    
-    // 8. 计算角度（弧度转角度）
-    double angle = std::atan2(eigenvector.y, eigenvector.x) * 180.0 / CV_PI + 90.0;
-
+    // 7. 调整角度范围（与PCA方法对齐，得到法线方向）
+    angle += 90.0;
     while (angle > 90) angle -= 180;
     while (angle < -90) angle += 180;
     
@@ -349,7 +374,16 @@ void LightBarDetector::detectLights(cv::Mat& img) {
 
     // 1. 提取二值化图片
     cv::Mat binary_img = binaryImg(img);
-    // cv::imshow("Light Bar Debug", binary_img);
+
+    cv::Mat color_diff;
+    color_diff = extractColorChannelDiff(img);
+
+    cv::Mat gray_img;
+    cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
+
+    cv::Mat subtract_gray_img;
+    cv::subtract(gray_img, subtract_value, subtract_gray_img);
+    cv::max(subtract_gray_img, 0, subtract_gray_img);  // 截断到0
 
     // 2. 检测可能的灯条
     std::vector<cv::RotatedRect> detectedRects = detectLightRects(binary_img);
@@ -363,12 +397,6 @@ void LightBarDetector::detectLights(cv::Mat& img) {
         lightDetectThreadInfos[i].lightRect = &detectedRects[i];
     }
 
-    cv::Mat color_diff;
-    if (enemy_color != Params::BOTH) {
-        // 1. 提取颜色通道差值图像
-        color_diff = extractColorChannelDiff(img);
-        // cv::imshow("Light Bar Debug", color_diff);
-    }
 
     std::for_each(std::execution::par, lightDetectThreadInfos.begin(), lightDetectThreadInfos.end(), 
     [&](LightDetectThreadInfo& lightDetectThreadInfo) {
@@ -388,8 +416,13 @@ void LightBarDetector::detectLights(cv::Mat& img) {
         rect.size.height = length;
         rect.size.width = width;
 
-        // 3. 使用PCA修正角度
-        rect.angle = calculateAccurateAngleByPCA(binary_img, rect);
+        // 3. 使用加权最小二乘法修正角度
+        rect.angle = calculateAccurateAngleByOLS(subtract_gray_img, cv::RotatedRect(
+            rect.center, 
+            cv::Size2f(rect.size.width * 2.0, 
+                    rect.size.height * 1.2),
+            rect.angle
+        ));
 
         // 4. 将检测到的旋转矩形转换为Light对象
         Light temp_light = Light(rect);
@@ -426,9 +459,7 @@ void LightBarDetector::detectLights(cv::Mat& img) {
 
 
         // 5. 修正在拟合旋转矩形时造成的长度误差
-        cv::Mat gray_img;
-        cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
-        temp_light.correctLengthAndWidth(gray_img);
+        temp_light.correctLengthAndWidth(subtract_gray_img);
 
         lightDetectThreadInfo.light = temp_light;
         lightDetectThreadInfo.is_true_light = true;
@@ -441,6 +472,13 @@ void LightBarDetector::detectLights(cv::Mat& img) {
         }
     }
     //cv::cvtColor(binary_img, img, cv::COLOR_GRAY2BGR);
+
+#ifdef SHOW_WINDOWS
+    cv::imshow("Light Bar Debug: binary_img", binary_img);
+    cv::imshow("Light Bar Debug: color_diff", color_diff);
+    cv::imshow("Light Bar Debug: gray_img", gray_img);
+    cv::imshow("Light Bar Debug: subtract_gray_img", subtract_gray_img);
+#endif
 }
 
 cv::Mat LightBarDetector::binaryImg(const cv::Mat& img) {

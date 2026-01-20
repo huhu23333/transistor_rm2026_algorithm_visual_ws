@@ -385,6 +385,13 @@ private:
                 }    
             }
 
+            // 绘制灯条顶点
+            for (size_t i = 0; i < res.armor.light_bar_corners.size() && i < 4; i++) {
+                cv::line(result, res.armor.light_bar_corners[i], 
+                        res.armor.light_bar_corners[(i+1)%4], 
+                        cv::Scalar(0, 255, 255), 2);
+            }
+
             // 绘制预测中心点
             for (auto& prediction : res.predictions) {
                 cv::circle(result, prediction, 3, cv::Scalar(255, 0, 255), -1);

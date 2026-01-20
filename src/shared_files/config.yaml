@@ -25,7 +25,7 @@ max_armor_position_height : 1500.0 # 最大装甲板高度，超过此值视为�
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 
-video_relative_path : "InputVideo/2026-01-19 21-40-56.mp4" # 使用视频输入时的视频路径
+video_relative_path : "InputVideo/infantry_blue.mp4" # 使用视频输入时的视频路径
 images_relative_path : "InputImages" # 使用图片输入时的图片文件夹路径
 
 frame_rate : 30.0
@@ -44,11 +44,12 @@ min_light_height : 8 # 8
 light_min_area : 3 # 10
 light_max_area : 4096
 max_light_wh_ratio : 100.0 # 10.0
-min_light_wh_ratio : 1.5 # 0.1
+min_light_wh_ratio : 3 # 0.1
 light_max_tilt_angle : 60.0
 
 # LightBarDetector 参数
 binary_img_THRESHOLD : 180 # 128 # 180 # 240
+subtract_value : 120
 color_rect_expand_FACTOR : 1.5
 mean_color_diff_THRESHOLD_BLUE : 20.0
 mean_color_diff_THRESHOLD_RED : 10.0
