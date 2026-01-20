@@ -44,7 +44,7 @@ min_light_height : 8 # 8
 light_min_area : 3 # 10
 light_max_area : 4096
 max_light_wh_ratio : 100.0 # 10.0
-min_light_wh_ratio : 3 # 0.1
+min_light_wh_ratio : 1 # 0.1
 light_max_tilt_angle : 60.0
 
 # LightBarDetector 参数

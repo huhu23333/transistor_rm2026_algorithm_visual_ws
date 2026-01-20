@@ -426,15 +426,6 @@ void LightBarDetector::detectLights(cv::Mat& img) {
 
         // 4. 将检测到的旋转矩形转换为Light对象
         Light temp_light = Light(rect);
-
-        // 移除不满足条件的灯条
-        if (temp_light.length < params.min_light_height || 
-            temp_light.length / temp_light.width > params.max_light_wh_ratio ||
-            temp_light.length / temp_light.width < params.min_light_wh_ratio) {
-            
-                lightDetectThreadInfo.is_true_light = false;
-                return;
-        }
                 
         if (enemy_color != Params::BOTH) {
             // 2. 获取扩张后的旋转矩形
