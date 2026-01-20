@@ -274,7 +274,7 @@ void LightBarDetector::setEnemyColor(int color) {
 
 struct alignas(64) LightDetectThreadInfo { // 64字节对齐
     cv::RotatedRect* lightRect;
-    bool is_true_light = true;
+    bool is_true_light = false;
     Light light;
 };
 
@@ -374,6 +374,34 @@ void LightBarDetector::detectLights(cv::Mat& img) {
     [&](LightDetectThreadInfo& lightDetectThreadInfo) {
 
         cv::RotatedRect& rect = *lightDetectThreadInfo.lightRect;
+
+        // 1. 计算角度并标准化到[-90, 90]
+        if (rect.size.width > rect.size.height) {
+            rect.angle += 90;  // 确保角度始终表示长边的方向
+        }
+        while (rect.angle > 90) rect.angle -= 180;
+        while (rect.angle < -90) rect.angle += 180;
+
+        // 2. 计算长宽（确保length始终为较长边）
+        float length = std::max(rect.size.width, rect.size.height);
+        float width = std::min(rect.size.width, rect.size.height);
+        rect.size.height = length;
+        rect.size.width = width;
+
+        // 3. 使用PCA修正角度
+        rect.angle = calculateAccurateAngleByPCA(binary_img, rect);
+
+        // 4. 将检测到的旋转矩形转换为Light对象
+        Light temp_light = Light(rect);
+
+        // 移除不满足条件的灯条
+        if (temp_light.length < params.min_light_height || 
+            temp_light.length / temp_light.width > params.max_light_wh_ratio ||
+            temp_light.length / temp_light.width < params.min_light_wh_ratio) {
+            
+                lightDetectThreadInfo.is_true_light = false;
+                return;
+        }
                 
         if (enemy_color != Params::BOTH) {
             // 2. 获取扩张后的旋转矩形
@@ -396,29 +424,14 @@ void LightBarDetector::detectLights(cv::Mat& img) {
             }
         }
 
-        // 将Light::calculateDimensions的方向纠正迁移至此
-        // 1. 计算角度并标准化到[-90, 90]
-        if (rect.size.width > rect.size.height) {
-            rect.angle += 90;  // 确保角度始终表示长边的方向
-        }
-        while (rect.angle > 90) rect.angle -= 180;
-        while (rect.angle < -90) rect.angle += 180;
 
-        // 2. 计算长宽（确保length始终为较长边）
-        float length = std::max(rect.size.width, rect.size.height);
-        float width = std::min(rect.size.width, rect.size.height);
-        rect.size.height = length;
-        rect.size.width = width;
-
-        // 2.5. 使用PCA修正角度
-        rect.angle = calculateAccurateAngleByPCA(binary_img, rect);
-
-        // 4. 将检测到的旋转矩形转换为Light对象
-        lightDetectThreadInfo.light = Light(rect);
         // 5. 修正在拟合旋转矩形时造成的长度误差
         cv::Mat gray_img;
         cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
-        lightDetectThreadInfo.light.correctLengthAndWidth(gray_img);
+        temp_light.correctLengthAndWidth(gray_img);
+
+        lightDetectThreadInfo.light = temp_light;
+        lightDetectThreadInfo.is_true_light = true;
     });
     
     // 统计结果
@@ -551,6 +564,7 @@ std::vector<cv::RotatedRect> LightBarDetector::detectLightRects(const cv::Mat& i
         // 检查轮廓面积
         float area = cv::contourArea(contour);
         if (area < params.light_min_area) continue;
+        if (area > params.light_max_area) continue;
 
         // 3. 拟合旋转矩形
         cv::RotatedRect rect = cv::fitEllipse(contour);
@@ -591,14 +605,6 @@ void LightBarDetector::processLights() {
 }
 
 void LightBarDetector::filterLights() {
-    // 移除不满足条件的灯条
-    lights.erase(std::remove_if(lights.begin(), lights.end(),
-        [this](const Light& light) {
-            return light.length < params.min_light_height || 
-                   light.length / light.width > params.max_light_wh_ratio ||
-                   light.length / light.width < params.min_light_wh_ratio;
-        }), lights.end());
-
     // 移除重叠的灯条，只保留较大的灯条
     for (size_t i = 0; i < lights.size(); ++i) {
         for (size_t j = i + 1; j < lights.size(); ++j) {

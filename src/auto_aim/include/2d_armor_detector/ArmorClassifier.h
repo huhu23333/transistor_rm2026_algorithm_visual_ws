@@ -41,8 +41,6 @@ private:
 
     float IS_ARMOR_THRESHOLD;
     float IS_LARGE_THRESHOLD;
-    float NOT_SCREEN_THRESHOLD;
-    float NOT_SLANT_THRESHOLD;
     float CLASSIFY_THRESHOLD;
     int INPUT_HEIGHT;
     int INPUT_WIDTH;
