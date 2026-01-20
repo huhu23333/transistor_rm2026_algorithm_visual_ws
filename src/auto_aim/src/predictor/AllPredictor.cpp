@@ -225,7 +225,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                                 400 - (RMM_pred_now_data.center_y/10 + RMM_state.center_vy/5)),
                     cv::Scalar(255, 255, 0), 2);
 #ifdef SHOW_WINDOWS
-                cv::imshow("RMM visualize", RMM_visualize_frame);
+                cv::imshow("RMM visualize "+std::to_string(armor_class), RMM_visualize_frame);
 #endif
                 // ========================== RotationMotionModsel =========================== END
             }
@@ -429,7 +429,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                                     400 - (RMM_pred_now_data.center_y/10 + RMM_state.center_vy/5)),
                         cv::Scalar(255, 255, 0), 2);
 #ifdef SHOW_WINDOWS
-                    cv::imshow("RMM visualize", RMM_visualize_frame);
+                    cv::imshow("RMM visualize "+std::to_string(armor_class), RMM_visualize_frame);
 #endif
                 }
                 // ==========================RotationMotionModel=========================== END
