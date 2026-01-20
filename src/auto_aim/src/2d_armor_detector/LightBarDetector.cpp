@@ -46,51 +46,66 @@ void Light::calculateDimensions() {
 } */
 
 // 高效计算旋转矩形内白色像素面积的辅助函数
-float Light::computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& binary_img) {
+float Light::computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& gray_img) {
     // 获取旋转矩形的四个顶点
     cv::Point2f vertices[4];
     rect.points(vertices);
     
     // 计算最小外接矩形（ROI）
     cv::Rect boundRect = cv::boundingRect(std::vector<cv::Point2f>(vertices, vertices + 4));
-    boundRect &= cv::Rect(0, 0, binary_img.cols, binary_img.rows);  // 确保在图像范围内
+    boundRect &= cv::Rect(0, 0, gray_img.cols, gray_img.rows);  // 确保在图像范围内
     
-    // 如果ROI无效，返回0面积
+    // 如果ROI无效，返回0
     if (boundRect.width <= 0 || boundRect.height <= 0) {
         return 0;
     }
     
-    // 创建局部ROI的掩码
-    cv::Mat localMask = cv::Mat::zeros(boundRect.size(), CV_8UC1);
+    // 超采样比例，可以提高掩码的精度
+    const int scale_factor = 4;  // 4x超采样
     
-    // 将顶点坐标转换为ROI局部坐标
-    std::vector<cv::Point> polyPoints;
+    // 创建超采样掩码
+    cv::Mat high_res_mask = cv::Mat::zeros(boundRect.height * scale_factor, 
+                                           boundRect.width * scale_factor, 
+                                           CV_32FC1);
+    
+    // 将顶点坐标转换为超采样ROI局部坐标
+    std::vector<cv::Point2f> scaled_polyPoints;
     for (int i = 0; i < 4; i++) {
-        polyPoints.push_back(cv::Point(
-            static_cast<int>(vertices[i].x - boundRect.x),
-            static_cast<int>(vertices[i].y - boundRect.y)
+        scaled_polyPoints.push_back(cv::Point2f(
+            (vertices[i].x - boundRect.x) * scale_factor,
+            (vertices[i].y - boundRect.y) * scale_factor
         ));
     }
-
-    // 填充多边形创建掩码
-    cv::fillConvexPoly(localMask, polyPoints, cv::Scalar(255));
     
-    // 提取ROI区域并计算面积
-    cv::Mat roi = binary_img(boundRect);
+    // 在超采样掩码上填充旋转矩形，值为1
+    cv::fillConvexPoly(high_res_mask, 
+                      std::vector<cv::Point>(scaled_polyPoints.begin(), scaled_polyPoints.end()), 
+                      cv::Scalar(1.0));
     
-    // 将旋转矩形区域填充为白色（255）
-    cv::fillConvexPoly(localMask, polyPoints, cv::Scalar(255));
-    // 计算掩码区域的总值
-    cv::Mat masked;
-    roi.copyTo(masked, localMask);
-    float sum_value = cv::sum(masked)[0];
-
+    // 将超采样掩码下采样回原始分辨率，得到比例值
+    cv::Mat proportion_mask;
+    cv::resize(high_res_mask, proportion_mask, 
+               cv::Size(boundRect.width, boundRect.height), 
+               0, 0, cv::INTER_AREA);
+    
+    // 提取ROI区域并转换为浮点型以便乘法
+    cv::Mat roi = gray_img(boundRect);
+    cv::Mat roi_float;
+    roi.convertTo(roi_float, CV_32FC1, 1.0/255.0);  // 归一化到[0,1]
+    
+    // 计算加权和：掩码比例值 * 二值图像值
+    cv::Mat weighted_roi;
+    cv::multiply(roi_float, proportion_mask, weighted_roi);
+    
+    // 计算总和
+    float sum_value = cv::sum(weighted_roi)[0];
+    
     return sum_value;
 }
 
-void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
+void Light::correctLengthAndWidth(const cv::Mat& gray_img) {
     // 原始面积
-    float original_sum = computeRotatedRectSum(el, binary_img);
+    float original_sum = computeRotatedRectSum(el, gray_img);
     float sum_value_target = original_sum * 0.95;
     
     // 保存原始参数
@@ -107,7 +122,7 @@ void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
     float back_ratio = 1.0f;   // 后端收缩比例
     
     // 优化前端（沿着长度方向的正面）
-    float upper_front = 1.0f;
+    float upper_front = 1.1f;
     float lower_front = 0.5f;
     for (int i = 0; i < binarySearchFrequency; i++) {
         front_ratio = (upper_front + lower_front) * 0.5f;
@@ -124,7 +139,7 @@ void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
         test_rect.center = center_original - length_offset;
         test_rect.size.height = new_length;
         
-        float sum_value = computeRotatedRectSum(test_rect, binary_img);
+        float sum_value = computeRotatedRectSum(test_rect, gray_img);
         
         if (sum_value > sum_value_target) {
             upper_front = front_ratio;
@@ -135,7 +150,7 @@ void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
     front_ratio = (upper_front + lower_front) * 0.5f;
     
     // 优化后端（沿着长度方向的背面）
-    float upper_back = 1.0f;
+    float upper_back = 1.1f;
     float lower_back = 0.5f;
     for (int i = 0; i < binarySearchFrequency; i++) {
         back_ratio = (upper_back + lower_back) * 0.5f;
@@ -151,7 +166,7 @@ void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
         test_rect.center = center_original + length_offset;
         test_rect.size.height = new_length;
         
-        float sum_value = computeRotatedRectSum(test_rect, binary_img);
+        float sum_value = computeRotatedRectSum(test_rect, gray_img);
         
         if (sum_value > sum_value_target) {
             upper_back = back_ratio;
@@ -166,7 +181,7 @@ void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
     float right_ratio = 1.0f;  // 右侧收缩比例
     
     // 优化左侧（垂直于长度方向的左侧）
-    float upper_left = 1.0f;
+    float upper_left = 1.1f;
     float lower_left = 0.5f;
     for (int i = 0; i < binarySearchFrequency; i++) {
         left_ratio = (upper_left + lower_left) * 0.5f;
@@ -182,7 +197,7 @@ void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
         test_rect.center = center_original - width_offset;
         test_rect.size.width = new_width;
         
-        float sum_value = computeRotatedRectSum(test_rect, binary_img);
+        float sum_value = computeRotatedRectSum(test_rect, gray_img);
         
         if (sum_value > sum_value_target) {
             upper_left = left_ratio;
@@ -193,7 +208,7 @@ void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
     left_ratio = (upper_left + lower_left) * 0.5f;
     
     // 优化右侧（垂直于长度方向的右侧）
-    float upper_right = 1.0f;
+    float upper_right = 1.1f;
     float lower_right = 0.5f;
     for (int i = 0; i < binarySearchFrequency; i++) {
         right_ratio = (upper_right + lower_right) * 0.5f;
@@ -209,7 +224,7 @@ void Light::correctLengthAndWidth(const cv::Mat& binary_img) {
         test_rect.center = center_original + width_offset;
         test_rect.size.width = new_width;
         
-        float sum_value = computeRotatedRectSum(test_rect, binary_img);
+        float sum_value = computeRotatedRectSum(test_rect, gray_img);
         
         if (sum_value > sum_value_target) {
             upper_right = right_ratio;
@@ -401,7 +416,9 @@ void LightBarDetector::detectLights(cv::Mat& img) {
         // 4. 将检测到的旋转矩形转换为Light对象
         lightDetectThreadInfo.light = Light(rect);
         // 5. 修正在拟合旋转矩形时造成的长度误差
-        lightDetectThreadInfo.light.correctLengthAndWidth(binary_img);
+        cv::Mat gray_img;
+        cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
+        lightDetectThreadInfo.light.correctLengthAndWidth(gray_img);
     });
     
     // 统计结果
