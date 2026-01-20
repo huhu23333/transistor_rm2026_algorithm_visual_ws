@@ -124,9 +124,7 @@ public:
           RCLCPP_ERROR(logger, "CRITICAL: Determinant is close to zero! Matrix inversion will fail.");
       }
       // RCLCPP_DEBUG(logger, "----------------------------------------------------");
-      // ======================= 新增的ROS2日志调试代码 END =======================
 
-      
       // 计算卡尔曼增益
       K = P_pri * H.transpose() * (H * P_pri * H.transpose() + R).inverse();
       x_post = x_post + K * (z - z_pri);

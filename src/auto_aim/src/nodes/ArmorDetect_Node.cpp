@@ -1,4 +1,7 @@
 // ArmorDetect_Node.cpp
+
+#define _USE_MATH_DEFINES // 启用数学常量
+
 #include <rclcpp/rclcpp.hpp>
 #include <opencv2/opencv.hpp>
 #include "camera/Camera.h"
@@ -6,10 +9,10 @@
 #include "2d_armor_detector/ArmorDetector.h"
 #include "2d_armor_detector/ArmorClassifier.h"
 #include "3d_processing/ArmorSolver.h"
-//#include "armor_detector/ArmorAngleKalman.h"
+// #include "armor_detector/ArmorAngleKalman.h"
 
-//#include "auto_aim/msg/serial_data.hpp"
-//#include "auto_aim/msg/gimbal_command.hpp"
+// #include "auto_aim/msg/serial_data.hpp"
+// #include "auto_aim/msg/gimbal_command.hpp"
 #include <chrono>
 #include <string>
 #include <thread>
@@ -28,7 +31,6 @@
 #include "communication/Com.h"
 #include <csignal>
 #include "3d_processing/RestFrame.h"
-#define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
 #include "predictor/PredictorMain.h"
 #include "2d_armor_detector/YOLOPoseArmorDetector.h"

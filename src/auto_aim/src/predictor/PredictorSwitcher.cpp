@@ -9,8 +9,8 @@ namespace PredictorType {
 }
 
 void PredictorSwitcher::clearHistory() {
-}
 
+}
 
 PredictorType::PredictorType PredictorSwitcher::step() {
     return PredictorType::RotationMotionModel; 

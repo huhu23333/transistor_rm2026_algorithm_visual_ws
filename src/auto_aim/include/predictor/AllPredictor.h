@@ -40,9 +40,9 @@ public:
         std::shared_ptr<BallisticSolver> ballistic_solver_,
         std::shared_ptr<RestFrame> rest_frame_, std::shared_ptr<FrameRateCounter> fps_counter,
         ArmorType::ArmorType armor_class
-    ) : config_file_ptr(config_file_ptr), node(node), node_start_time(node_start_time), 
-    armor_solver_(armor_solver_), ballistic_solver_(ballistic_solver_),
-    rest_frame_(rest_frame_), fps_counter(fps_counter), armor_class(armor_class) {
+        ) : config_file_ptr(config_file_ptr), node(node), node_start_time(node_start_time), 
+            armor_solver_(armor_solver_), ballistic_solver_(ballistic_solver_),
+            rest_frame_(rest_frame_), fps_counter(fps_counter), armor_class(armor_class) {
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
         
