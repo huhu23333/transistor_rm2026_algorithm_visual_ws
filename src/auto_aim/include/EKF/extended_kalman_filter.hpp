@@ -16,7 +16,7 @@
 
 template <int N_x,            // 状态向量维度
           int N_z,            // 测量向量维度
-          class PredicFunc,   // 过程模型函数类型
+          class PredictFunc,   // 过程模型函数类型
           class MeasureFunc>  // 测量模型函数类型
 class ExtendedKalmanFilter{
 public:
@@ -33,7 +33,7 @@ public:
   using UpdateRFunc = std::function<MatrixZZ(const MatrixZ1 &z)>;
 
   // 构造函数
-  explicit ExtendedKalmanFilter(const PredicFunc &f,          // 过程模型函数
+  explicit ExtendedKalmanFilter(const PredictFunc &f,          // 过程模型函数
                                 const MeasureFunc &h,         // 测量模型
                                 const UpdateQFunc &updateQ,   // 过程噪声协方差更新函数
                                 const UpdateRFunc &updateR,   // 测量噪声协方差更新函数
@@ -49,7 +49,7 @@ public:
   void setP(const MatrixXX &P0) noexcept { P_post = P0; }
 
   // 设置过程模型的函数
-  void setPredictFunc(const PredicFunc  &f) noexcept { this->f = f; }
+  void setPredictFunc(const PredictFunc &f) noexcept { this->f = f; }
 
   // 设置测量模型的函数
   void setMeasureFunc(const MeasureFunc &h) noexcept { this->h = h; }
@@ -156,7 +156,7 @@ public:
 
 private:
   // 过程非线性向量函数
-  PredicFunc f;
+  PredictFunc f;
   MatrixXX F;
   // 观测非线性向量函数
   MeasureFunc h;

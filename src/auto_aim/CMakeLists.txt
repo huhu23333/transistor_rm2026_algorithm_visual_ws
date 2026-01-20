@@ -24,15 +24,15 @@ find_package(g2o REQUIRED)
 find_package(Sophus REQUIRED)
 find_package(fmt REQUIRED)
 
-#rosidl_generate_interfaces(${PROJECT_NAME}
+# rosidl_generate_interfaces(${PROJECT_NAME}
 #  "msg/SerialData.msg"
 #  "msg/GimbalCommand.msg"
-#)
+# )
 
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-#rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
+# rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
 
 # 查找 MvCameraControl 库
 find_library(MVCAMERA_LIB MvCameraControl PATHS /opt/MVS/lib/64)
@@ -88,12 +88,14 @@ add_library(armor_detector SHARED
     src/ba_solver/graph_optimizer.cpp
     src/ba_solver/utils.cpp
 )
-#add_library(crc_lib SHARED
+
+# add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp
-#)
+# )
+
 # 添加可执行文件
 add_executable(armor_detect_node src/nodes/ArmorDetect_Node.cpp)
-#add_executable(com_node src/nodes/Com_Node_New.cpp)
+# add_executable(com_node src/nodes/Com_Node_New.cpp)
 
 # 为装甲板检测器添加依赖
 target_link_libraries(armor_detector
