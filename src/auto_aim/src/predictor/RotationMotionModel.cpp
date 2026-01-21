@@ -250,10 +250,11 @@ void RotationMotionModel::update(ObservedData& observedData) {
         const auto& data = observedDataHistory[i];
         double time_offset = data.t - current_time;  // 相对于当前时间的时间偏移
         // 计算权重：时间越近权重越大
-        double time_weight = std::exp(-std::abs(time_offset) * 0.1);
+        double time_weight = 1.0;//std::exp(-std::abs(time_offset) * 0.1);
         this_yaw_jump = data.yaw_jump ? (!this_yaw_jump) : this_yaw_jump;
         if (!is_outpost) {
-            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, 
+            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, 
+                this_yaw_jump ? time_weight*0.1 : time_weight, 
                 this_yaw_jump ? r_now-r_another : 0.0, 
                 this_yaw_jump ? center_z-z_another : 0.0);
         } else {

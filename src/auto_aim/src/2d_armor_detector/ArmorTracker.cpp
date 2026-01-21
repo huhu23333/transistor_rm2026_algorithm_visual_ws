@@ -10,8 +10,8 @@ ArmorTracker::ArmorTracker(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::
     MAX_TRACKING_AGE_MS = (*config_file_ptr)["MAX_TRACKING_AGE_MS"].as<int>();
     MIN_TRACKING_COUNT = (*config_file_ptr)["MIN_TRACKING_COUNT"].as<int>();
     IS_NEAR_MAX_DIST_RATIO = (*config_file_ptr)["IS_NEAR_MAX_DIST_RATIO"].as<float>();
-    fit_step = (*config_file_ptr)["fit_step"].as<int>();
-    predict_step = (*config_file_ptr)["predict_step"].as<int>();
+    armor_tracker_fit_step = (*config_file_ptr)["armor_tracker_fit_step"].as<int>();
+    armor_tracker_predict_step = (*config_file_ptr)["armor_tracker_predict_step"].as<int>();
     
 }
 
@@ -64,7 +64,7 @@ void ArmorTracker::addArmor(Armor& armor, int number, bool is_large, bool not_sl
 
     // 检测是否正在跟踪当前装甲板
     bool is_tracked = false;
-    for (size_t j = 0; j < tracked_armors.size(); ++j) {
+    for (int j = tracked_armors.size() - 1; j >= 0; j -= 1) {
         if (number == tracked_armors[j].number && 
             is_large == tracked_armors[j].is_large &&
             isNearPreviousCenter(armor, now_ground_stable_point, tracked_armors[j])) {
@@ -83,7 +83,7 @@ void ArmorTracker::addArmor(Armor& armor, int number, bool is_large, bool not_sl
     // 若未在跟踪则添加至跟踪列表
     if(!is_tracked) {
         tracked_armors.emplace_back(number, current_time, armor.center, 
-            armor, confidence, is_large, not_slant, fit_step, now_ground_stable_point);
+            armor, confidence, is_large, not_slant, armor_tracker_fit_step, now_ground_stable_point);
     }
 }
 
@@ -112,10 +112,10 @@ std::vector<ArmorResult> ArmorTracker::afterProcess() {
             }
             tracked_armors[i].last_ground_stable_point = now_ground_stable_point;
             tracked_armors[i].predictor.addPoint(tracked_armors[i].center_last_seen - now_ground_stable_point);
-            tracked_armors[i].predictor.fitLinear(fit_step);
-            tracked_armors[i].predictions = tracked_armors[i].predictor.predictLinear(predict_step, now_ground_stable_point);
+            tracked_armors[i].predictor.fitLinear(armor_tracker_fit_step);
+            tracked_armors[i].predictions = tracked_armors[i].predictor.predictLinear(armor_tracker_predict_step, now_ground_stable_point);
             tracked_armors[i].prediction_index = 0;
-        } else if (tracked_armors[i].prediction_index < predict_step-1) {
+        } else if (tracked_armors[i].prediction_index < armor_tracker_predict_step-1) {
             tracked_armors[i].prediction_index += 1;
         }
         if (tracked_armors[i].is_steady_tracked) {

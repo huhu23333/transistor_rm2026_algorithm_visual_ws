@@ -103,30 +103,11 @@ public:
         max_armor_position_height = (*config_file_ptr)["max_armor_position_height"].as<float>(); 
         
         params_.min_light_height = (*config_file_ptr)["min_light_height"].as<int>();
-        params_.light_slope_offset = (*config_file_ptr)["light_slope_offset"].as<int>();
         params_.light_min_area = (*config_file_ptr)["light_min_area"].as<int>();
+        params_.light_max_area = (*config_file_ptr)["light_max_area"].as<int>();
         params_.max_light_wh_ratio = (*config_file_ptr)["max_light_wh_ratio"].as<float>();
         params_.min_light_wh_ratio = (*config_file_ptr)["min_light_wh_ratio"].as<float>();
         params_.light_max_tilt_angle = (*config_file_ptr)["light_max_tilt_angle"].as<float>();
-        params_.min_light_delta_x = (*config_file_ptr)["min_light_delta_x"].as<int>();
-        params_.min_light_dx_ratio = (*config_file_ptr)["min_light_dx_ratio"].as<float>();
-        params_.max_light_dy_ratio = (*config_file_ptr)["max_light_dy_ratio"].as<float>();
-        params_.max_light_delta_angle = (*config_file_ptr)["max_light_delta_angle"].as<float>();
-        params_.near_face_v = (*config_file_ptr)["near_face_v"].as<int>();
-        params_.max_lr_rate = (*config_file_ptr)["max_lr_rate"].as<float>();
-        params_.max_wh_ratio = (*config_file_ptr)["max_wh_ratio"].as<float>();
-        params_.min_wh_ratio = (*config_file_ptr)["min_wh_ratio"].as<float>();
-        params_.small_armor_wh_threshold = (*config_file_ptr)["small_armor_wh_threshold"].as<float>();
-        params_.bin_cls_thres = (*config_file_ptr)["bin_cls_thres"].as<int>();
-        params_.target_max_angle = (*config_file_ptr)["target_max_angle"].as<int>();
-        params_.goodToTotalRatio = (*config_file_ptr)["goodToTotalRatio"].as<float>();
-        params_.matchDistThre = (*config_file_ptr)["matchDistThre"].as<int>();
-        params_.wh_ratio_threshold = (*config_file_ptr)["wh_ratio_threshold"].as<float>();
-        params_.wh_ratio_max = (*config_file_ptr)["wh_ratio_max"].as<float>();
-        params_.M_YAW_THRES = (*config_file_ptr)["M_YAW_THRES"].as<int>();
-        params_.K_YAW_THRES = (*config_file_ptr)["K_YAW_THRES"].as<float>();
-        params_.MAX_DETECT_CNT = (*config_file_ptr)["MAX_DETECT_CNT"].as<int>();
-        params_.MAX_LOST_CNT = (*config_file_ptr)["MAX_LOST_CNT"].as<int>();
         
         frame_rate_ = (*config_file_ptr)["frame_rate"].as<float>();
 
@@ -397,6 +378,13 @@ private:
                             res.corners[(i+1)%4], 
                             cv::Scalar(255, 0, 255), 2);
                 }    
+            }
+
+            // 绘制灯条顶点
+            for (size_t i = 0; i < res.armor.light_bar_corners.size() && i < 4; i++) {
+                cv::line(result, res.armor.light_bar_corners[i], 
+                        res.armor.light_bar_corners[(i+1)%4], 
+                        cv::Scalar(0, 255, 255), 2);
             }
 
             // 绘制预测中心点
