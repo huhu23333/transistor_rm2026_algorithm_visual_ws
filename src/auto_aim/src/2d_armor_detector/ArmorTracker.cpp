@@ -64,7 +64,7 @@ void ArmorTracker::addArmor(Armor& armor, int number, bool is_large, bool not_sl
 
     // 检测是否正在跟踪当前装甲板
     bool is_tracked = false;
-    for (size_t j = 0; j < tracked_armors.size(); ++j) {
+    for (int j = tracked_armors.size() - 1; j >= 0; j -= 1) {
         if (number == tracked_armors[j].number && 
             is_large == tracked_armors[j].is_large &&
             isNearPreviousCenter(armor, now_ground_stable_point, tracked_armors[j])) {
