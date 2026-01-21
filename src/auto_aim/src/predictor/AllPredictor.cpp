@@ -198,6 +198,16 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point2f(300,110), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
                         cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
+                        "center_z:"+std::to_string(RMM_pred_aim_data.center_z), 
+                        cv::Point2f(20,140), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
+                        "z_another:"+std::to_string(RMM_pred_aim_data.z_another), 
+                        cv::Point2f(300,140), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
                 }
                 cv::line(RMM_visualize_frame, 
                     cv::Point2f(400, 400), 
@@ -206,7 +216,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Scalar(255, 255, 0), 2);
                 cv::putText(RMM_visualize_frame, 
                     "total_yaw:"+std::to_string(total_yaw_rad_delayed_), 
-                    cv::Point2f(20,140), 
+                    cv::Point2f(20,170), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
                 cv::putText(RMM_visualize_frame, 
@@ -225,7 +235,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                                 400 - (RMM_pred_now_data.center_y/10 + RMM_state.center_vy/5)),
                     cv::Scalar(255, 255, 0), 2);
 #ifdef SHOW_WINDOWS
-                cv::imshow("RMM visualize", RMM_visualize_frame);
+                cv::imshow("RMM visualize "+std::to_string(armor_class), RMM_visualize_frame);
 #endif
                 // ========================== RotationMotionModsel =========================== END
             }
@@ -408,6 +418,16 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             cv::Point2f(300,110), 
                             cv::FONT_HERSHEY_COMPLEX, 0.7, 
                             cv::Scalar(0, 255, 0), 1, 8, false);
+                        cv::putText(RMM_visualize_frame, 
+                            "center_z:"+std::to_string(RMM_pred_aim_data.center_z), 
+                            cv::Point2f(20,140), 
+                            cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                            cv::Scalar(0, 255, 0), 1, 8, false);
+                        cv::putText(RMM_visualize_frame, 
+                            "z_another:"+std::to_string(RMM_pred_aim_data.z_another), 
+                            cv::Point2f(300,140), 
+                            cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                            cv::Scalar(0, 255, 0), 1, 8, false);
                     }
                     cv::line(RMM_visualize_frame, 
                         cv::Point2f(400, 400), 
@@ -416,7 +436,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Scalar(255, 255, 0), 2);
                     cv::putText(RMM_visualize_frame, 
                         "total_yaw:"+std::to_string(total_yaw_rad_delayed_), 
-                        cv::Point2f(20,140), 
+                        cv::Point2f(20,170), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
                         cv::Scalar(0, 255, 0), 1, 8, false);
                     cv::putText(RMM_visualize_frame, 
@@ -435,7 +455,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                                     400 - (RMM_pred_now_data.center_y/10 + RMM_state.center_vy/5)),
                         cv::Scalar(255, 255, 0), 2);
 #ifdef SHOW_WINDOWS
-                    cv::imshow("RMM visualize", RMM_visualize_frame);
+                    cv::imshow("RMM visualize "+std::to_string(armor_class), RMM_visualize_frame);
 #endif
                 }
                 // ==========================RotationMotionModel=========================== END

@@ -56,8 +56,8 @@ private:
     int MAX_TRACKING_AGE_MS;
     int MIN_TRACKING_COUNT;
     float IS_NEAR_MAX_DIST_RATIO;
-    int fit_step;
-    int predict_step;
+    int armor_tracker_fit_step;
+    int armor_tracker_predict_step;
 
     cv::Point2f now_ground_stable_point;
 
