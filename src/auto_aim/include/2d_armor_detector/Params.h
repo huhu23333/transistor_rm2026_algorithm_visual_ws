@@ -16,30 +16,11 @@ struct Params {
 
     // 灯条检测参数
     int min_light_height;
-    int light_slope_offset;
     int light_min_area;
+    int light_max_area;
     float max_light_wh_ratio;
     float min_light_wh_ratio;
     float light_max_tilt_angle;
-    int min_light_delta_x;
-    float min_light_dx_ratio;
-    float max_light_dy_ratio;
-    float max_light_delta_angle;
-    int near_face_v;
-    float max_lr_rate;
-    float max_wh_ratio;
-    float min_wh_ratio;
-    float small_armor_wh_threshold;
-    int bin_cls_thres;
-    int target_max_angle;
-    float goodToTotalRatio;
-    int matchDistThre;
-    float wh_ratio_threshold;
-    float wh_ratio_max;
-    int M_YAW_THRES;
-    float K_YAW_THRES;
-    int MAX_DETECT_CNT;
-    int MAX_LOST_CNT;
 };
 
 #endif // PARAMS_H

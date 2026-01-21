@@ -13,8 +13,6 @@ ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rc
 
     IS_ARMOR_THRESHOLD = (*config_file_ptr)["IS_ARMOR_THRESHOLD"].as<float>();
     IS_LARGE_THRESHOLD = (*config_file_ptr)["IS_LARGE_THRESHOLD"].as<float>();
-    NOT_SCREEN_THRESHOLD = (*config_file_ptr)["NOT_SCREEN_THRESHOLD"].as<float>();
-    NOT_SLANT_THRESHOLD = (*config_file_ptr)["NOT_SLANT_THRESHOLD"].as<float>();
     CLASSIFY_THRESHOLD = (*config_file_ptr)["CLASSIFY_THRESHOLD"].as<float>();
     INPUT_HEIGHT = (*config_file_ptr)["INPUT_HEIGHT"].as<int>();
     INPUT_WIDTH = (*config_file_ptr)["INPUT_WIDTH"].as<int>();
