@@ -11,7 +11,8 @@ namespace ArmorType {
         "Sentry",
         "Outpost",
         "Base",
-        "AutoSwitch(should not be used)"
+        "Middle(should not be used)",
+        "Nearest(should not be used)"
     };
 }
 
