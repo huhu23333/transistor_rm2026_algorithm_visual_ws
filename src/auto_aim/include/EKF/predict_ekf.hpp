@@ -146,7 +146,14 @@ private:
 
     bool ekf_init = false;
 
-    bool is_outpost = false; //是否为前哨站
+    bool is_outpost = false; // 是否为前哨站
 
-    bool is_base = false; //是否为基地
+    bool is_base = false; // 是否为基地
+
+    int n_armors_ = 4;
+    double r_now_ = 0.0;
+    double r_another_ = 0.0;
+    double z_another_ = 0.0;
+
+    double jump_rad_ = M_PI * 2.0 / 4.0;
 };

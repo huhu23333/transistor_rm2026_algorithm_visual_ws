@@ -53,4 +53,5 @@ private:
     int lost_thres_ = 10;         // 判断为完全丢失的帧数阈值
     int detect_count_ = 0;        // 稳定追踪计数
     int lost_count_ = 0;          // 丢失计数
+    double r_init_;               // 初始估计半径
 };

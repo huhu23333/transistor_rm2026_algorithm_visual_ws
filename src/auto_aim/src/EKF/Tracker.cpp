@@ -65,7 +65,7 @@ void Tracker::reset(const Measurement& z) {
     
     double xa = z(0), ya = z(1), za = z(2), yaw = z(3);
     // 使用一个合理的初始半径来估计中心位置，例如200mm
-    double r_init = 200.0; 
+    r_init_ = 200.0; 
     
     // 根据Measure函数的反函数来计算中心初始位置
     double xc = xa + r_init * sin(yaw);

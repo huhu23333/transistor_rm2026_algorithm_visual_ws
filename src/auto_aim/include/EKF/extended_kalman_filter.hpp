@@ -5,14 +5,8 @@
 // ceres
 #include <ceres/jet.h>
 
-// --- 新增头文件 ---
 #include "rclcpp/rclcpp.hpp"
 #include <sstream>
-// --- 新增头文件结束 ---
-
-/*
-扩展卡尔曼滤波器 (EKF)
-*/
 
 template <int N_x,            // 状态向量维度
           int N_z,            // 测量向量维度
