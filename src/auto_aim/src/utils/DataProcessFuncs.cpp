@@ -1,26 +1,26 @@
 #include "utils/DataProcessFuncs.h"
 
 
-LinearRegressionResult linearRegression(const std::vector<double>& x, const std::vector<double>& y) {
-    LinearRegressionResult result;
-    int n = x.size();
+LinearRegressionResult linearRegression(const std::vector<double>& xn, const std::vector<double>& yn) {
+    double x_mean = 0.0, y_mean = 0.0;
+    int n = xn.size();
     
-    double sum_x = 0.0, sum_y = 0.0, sum_xy = 0.0, sum_xx = 0.0;
     for (int i = 0; i < n; i++) {
-        sum_x += x[i];
-        sum_y += y[i];
-        sum_xy += x[i] * y[i];
-        sum_xx += x[i] * x[i];
+        x_mean += xn[i];
+        y_mean += yn[i];
+    }
+    x_mean /= n;
+    y_mean /= n;
+    
+    double numerator = 0.0, denominator = 0.0;
+    for (int i = 0; i < n; i++) {
+        numerator += (xn[i] - x_mean) * (yn[i] - y_mean);
+        denominator += (xn[i] - x_mean) * (xn[i] - x_mean);
     }
     
-    double denominator = n * sum_xx - sum_x * sum_x;
-    if (std::abs(denominator) < 1e-10) {
-        result.a = 0.0;
-        result.b = 0.0;
-    } else {
-        result.b = (n * sum_xy - sum_x * sum_y) / denominator;
-        result.a = (sum_y - result.b * sum_x) / n;
-    }
+    LinearRegressionResult result;
+    result.b = numerator / denominator;
+    result.a = y_mean - result.b * x_mean;
     
     return result;
 }

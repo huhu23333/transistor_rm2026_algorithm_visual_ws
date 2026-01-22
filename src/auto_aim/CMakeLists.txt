@@ -64,26 +64,25 @@ add_library(armor_detector SHARED
     src/other_input/VideoInput.cpp
     src/other_input/ImagesInput.cpp
     src/predictor/PositionPredictor2D.cpp
-    # src/predictor/PredictionTrans.cpp
-    # src/predictor/PositionPredictor3D.cpp
+    src/predictor/PredictionTrans.cpp
+    src/predictor/PositionPredictor3D.cpp
     src/predictor/PeriodicDataPredictor.cpp
     src/predictor/RotationMotionModel.cpp
     src/predictor/AllPredictor.cpp
     src/predictor/PredictorSwitcher.cpp
     src/predictor/PredictorMain.cpp
-    # src/predictor/RotationJudge.cpp
+    src/predictor/RotationJudge.cpp
     src/visualizer/DataVisualizer.cpp
     src/communication/SharedMemoryClassifier.cpp
     src/communication/SharedMemoryYOLOPose.cpp
     src/communication/Com.cpp
     src/communication/CRC.cpp
-    src/communication/WatchdogClient.cpp
     src/utils/FrameRateCounter.cpp
     src/utils/SimpleDataFilter.cpp
     src/utils/DataProcessFuncs.cpp
     src/utils/PeriodFunctions.cpp
     # EKF
-    # src/EKF/Tracker.cpp
+    src/EKF/Tracker.cpp
     # ba solver
     src/ba_solver/ba_solver.cpp
     src/ba_solver/graph_optimizer.cpp

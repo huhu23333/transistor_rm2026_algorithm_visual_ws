@@ -18,7 +18,6 @@ public:
         shm_python_yolo_pose = std::make_shared<SharedMemoryYOLOPose>(config_file_ptr, node);
     }
     std::vector<Armor> detectArmors(const cv::Mat& frame, bool block, int now_history_frame_identifier);
-    void setEnemyColor(Params::EnemyColor enemy_color);
 private:
     std::shared_ptr<YAML::Node> config_file_ptr;
     rclcpp::Node* node;

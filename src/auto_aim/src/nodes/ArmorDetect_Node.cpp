@@ -34,7 +34,6 @@
 #include "2d_armor_detector/YOLOPoseArmorDetector.h"
 #include "predictor/PredictorSwitcher.h"
 #include "2d_armor_detector/Armor.h"
-#include "communication/WatchdogClient.h"
 
 namespace fs = std::filesystem;
 
@@ -88,17 +87,8 @@ public:
 
         enemy_color_ = (*config_file_ptr)["enemy_color"].as<std::string>();
 
-        use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
-
-        // 根据相机内参自动提取，不再需要手动输入
-        // yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
-        // pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
-        const YAML::Node& camera_matrix_Node = (*config_file_ptr)["camera_matrix"];
-        yaw_rad_to_x_pixel_ratio = camera_matrix_Node[0][0].as<float>(); 
-        pitch_rad_to_y_pixel_ratio = camera_matrix_Node[1][1].as<float>(); 
-
-
-        max_armor_position_height = (*config_file_ptr)["max_armor_position_height"].as<float>(); 
+        yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
+        pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 
         
         params_.min_light_height = (*config_file_ptr)["min_light_height"].as<int>();
         params_.light_slope_offset = (*config_file_ptr)["light_slope_offset"].as<int>();
@@ -140,7 +130,6 @@ public:
         //camera_ = std::make_shared<Camera>(0);
         camera_->setExposureTime((*config_file_ptr)["camera_ExposureTime"].as<float>());
         camera_->setGain((*config_file_ptr)["camera_Gain"].as<float>());
-        camera_ -> start();
 #endif
 #endif
         serial_delay_time = (*config_file_ptr)["serial_delay_time"].as<float>();
@@ -161,7 +150,7 @@ public:
 
         light_detector_ = std::make_shared<LightBarDetector>(params_, config_file_ptr, this);
         armor_detector_ = std::make_shared<ArmorDetector>(config_file_ptr, this);
-        classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, this, ws_dir_path);
+        classifier_ = std::make_shared<ArmorClassifier>(config_file_ptr, this);
         armor_solver_ = std::make_shared<ArmorSolver>(config_file_ptr, this);
         ballistic_solver_ = std::make_shared<BallisticSolver>(config_file_ptr, this);
 
@@ -177,10 +166,6 @@ public:
 
         yolo_pose_armor_detector = std::make_shared<YOLOPoseArmorDetector>(config_file_ptr, this);
 
-        if (yolo_pose_armor_detector) {
-            yolo_pose_armor_detector->setEnemyColor(enemy_color_ == "RED" ? Params::RED : Params::BLUE);
-        }
-
 
         // 初始化串口通信器
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
@@ -190,11 +175,6 @@ public:
 
         // 串口通信下位机初始化
         serial_communication_->sendData(0, 0, false);
-
-        watchdog_client = std::make_shared<WatchdogClient>();
-        watchdog_client -> init();
-        watchdog_client -> feed();
-        last_feed_dog_time = std::chrono::steady_clock::now();
 
 #ifdef DEBUG_CODE
         debug_code();
@@ -284,9 +264,6 @@ private:
         if (light_detector_) {
             light_detector_->setEnemyColor(msg.color == 0 ? Params::RED : Params::BLUE);
         }
-        if (yolo_pose_armor_detector) {
-            yolo_pose_armor_detector->setEnemyColor(msg.color == 0 ? Params::RED : Params::BLUE);
-        }
 
         if (current_yaw_ < -M_PI/2 && last_yaw_rad_ > M_PI/2) {
             yaw_circle_ += 1;
@@ -333,7 +310,8 @@ private:
     void drawResults(cv::Mat& image, 
                      const std::vector<Light>& lights,
                      const std::vector<Armor>& armors,
-                     const std::vector<ArmorResult>& classifyResults) {
+                     const std::vector<ArmorResult>& classifyResults,
+                     const std::vector<ArmorResult>& classifyResults_forFourierPredict) {
         cv::Mat result = image.clone();
 
         // 0. 绘制平面地面系不动点（DEBUG）
@@ -351,42 +329,49 @@ private:
         cv::Point2f test_point_pos_pixel = armor_solver_ -> project3DToPixel(test_point_pos);
         cv::circle(result, test_point_pos_pixel, 8, cv::Scalar(255, 0, 255), 2);
 
-        // // 1. 绘制灯条（绿色）
-        // for (const auto& light : lights) {
-        //     cv::Point2f vertices[4];
-        //     light.el.points(vertices);
-        //     for (int i = 0; i < 4; i++) {
-        //         cv::line(result, vertices[i], vertices[(i + 1) % 4], 
-        //                 cv::Scalar(0, 255, 0), 2);
-        //     }
-        // }
+        // 1. 绘制灯条（绿色）
+        for (const auto& light : lights) {
+            cv::Point2f vertices[4];
+            light.el.points(vertices);
+            for (int i = 0; i < 4; i++) {
+                cv::line(result, vertices[i], vertices[(i + 1) % 4], 
+                        cv::Scalar(0, 255, 0), 2);
+            }
+        }
 
-        // // 2. 绘制装甲板候选区域（黄色）
-        // for (const auto& armor : armors) {
-        //     for (size_t i = 0; i < armor.corners.size() && i < 4; i++) {
-        //         cv::line(result, armor.corners[i], 
-        //                 armor.corners[(i+1)%4], 
-        //                 cv::Scalar(0, 255, 255), 2);
-        //     }
+        // 2. 绘制装甲板候选区域（黄色）
+        for (const auto& armor : armors) {
+            for (size_t i = 0; i < armor.corners.size() && i < 4; i++) {
+                cv::line(result, armor.corners[i], 
+                        armor.corners[(i+1)%4], 
+                        cv::Scalar(0, 255, 255), 2);
+            }
 
-        //     // 显示装甲板置信度
-        //     if (!armor.corners.empty()) {
-        //         std::string conf_str = cv::format("conf: %.2f", armor.confidence);
-        //         cv::Point text_pos(armor.corners[0].x, armor.corners[0].y - 10);
-        //         cv::putText(result, conf_str, text_pos,
-        //                 cv::FONT_HERSHEY_SIMPLEX, 0.5, 
-        //                 cv::Scalar(0, 255, 255), 1);
-        //     }
+            // 显示装甲板置信度
+            if (!armor.corners.empty()) {
+                std::string conf_str = cv::format("conf: %.2f", armor.confidence);
+                cv::Point text_pos(armor.corners[0].x, armor.corners[0].y - 10);
+                cv::putText(result, conf_str, text_pos,
+                        cv::FONT_HERSHEY_SIMPLEX, 0.5, 
+                        cv::Scalar(0, 255, 255), 1);
+            }
 
-        //     // 绘制灯条顶点
-        //     for (size_t i = 0; i < armor.light_bar_corners.size() && i < 4; i++) {
-        //         cv::line(result, armor.light_bar_corners[i], 
-        //                 armor.light_bar_corners[(i+1)%4], 
-        //                 cv::Scalar(255, 0, 0), 2);
-        //     }
-        // }
+            // 绘制灯条顶点
+            for (size_t i = 0; i < armor.light_bar_corners.size() && i < 4; i++) {
+                cv::line(result, armor.light_bar_corners[i], 
+                        armor.light_bar_corners[(i+1)%4], 
+                        cv::Scalar(255, 0, 0), 2);
+            }
+        }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
+        /* for (const auto& res : classifyResults_forFourierPredict) {
+            if (res.is_steady_tracked) {
+                for (auto& prediction : res.predictions) {
+                    cv::circle(result, prediction, 3, cv::Scalar(0, 255, 0), -1);
+                }
+            }
+        } */
         for (const auto& res : classifyResults) {
             // 绘制装甲板轮廓
             if (res.is_tracked_now) {
@@ -444,7 +429,13 @@ private:
     void processImage() {
         
         cv::Mat frame;
-#if defined(USE_VIDEO) || defined(USE_IMAGES) || defined(SYNC_CAMERA_FPS)
+#ifdef USE_VIDEO
+        while (image_used)
+        {
+            usleep(1000);
+        }
+#endif
+#ifdef USE_IMAGES
         while (image_used)
         {
             usleep(1000);
@@ -478,6 +469,9 @@ private:
             std::vector<Light> lights;
             std::vector<Armor> armors;
             std::vector<ArmorResult> classifyResults;
+            std::vector<ArmorResult> classifyResults_forFourierPredict;
+            std::vector<std::vector<ArmorResult>> classifyResults_expanded;
+            std::vector<Armor> yolo_armors;
 
             // 检测灯条
             light_detector_->detectLights(frame);
@@ -488,7 +482,6 @@ private:
             armors = armor_detector_->detectArmors(lights);
 
             if (use_yolo_pose) {
-                std::vector<Armor> yolo_armors;
                 now_history_frame_identifier += 1;
                 if (now_history_frame_identifier == history_frame_identifier_loop) {
                     now_history_frame_identifier = 0;
@@ -509,33 +502,18 @@ private:
                         }
                     }
                 }
-                std::vector<Armor> true_yolo_armors;
-                for (Armor& yolo_armor : yolo_armors) {
-                    if (yolo_armor.is_true_yolo_armor(history_frames[history_frame_index].frame))
-                    {
-                        true_yolo_armors.push_back(yolo_armor);
-                    }
-                }
                 RCLCPP_INFO(this->get_logger(), "yolo_delay_frame: %d", yolo_delay_frame);
                 extra_info_delay_time_ms = fps_counter -> avg_frame_time() * yolo_delay_frame * 1000.0;
-                classifyResults = classifier_->classify(history_frames[history_frame_index].frame, true_yolo_armors, ground_stable_point);
+                classifyResults_expanded = classifier_->classify(history_frames[history_frame_index].frame, yolo_armors, ground_stable_point);
             } else {
                 extra_info_delay_time_ms = 0.0;
-                classifyResults = classifier_->classify(frame, armors, ground_stable_point);
+                classifyResults_expanded = classifier_->classify(frame, armors, ground_stable_point);
             }
 
-            std::vector<ArmorResult> classifyResults_withSolveArmorResult;
-            for (ArmorResult &classify_result : classifyResults) {
-                AimResult solve_armor_result = armor_solver_->solveArmor(classify_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
-                cv::Point3f rest_frame_pos = rest_frame_ -> pnpToWorldP3f(solve_armor_result.position);
-                if (rest_frame_pos.z < max_armor_position_height && solve_armor_result.valid) { // 高度高于一定值视为无效
-                    classifyResults_withSolveArmorResult.emplace_back(classify_result);
-                    classifyResults_withSolveArmorResult.back().solve_armor_result = solve_armor_result;
-                }
-            }
+            classifyResults = classifyResults_expanded[0];
+            classifyResults_forFourierPredict = classifyResults_expanded[1];
 
-            bool auto_aim_switch = true;
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch, auto_aim_switch); // Todo
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch); // Todo
             cv::putText(frame, 
                 "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
                 cv::Point2f(0, 100), 
@@ -549,6 +527,9 @@ private:
                 serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             }
             
+            //计算帧率
+            fps_counter->tick();
+            
             // 显示当前参数状态
             cv::putText(frame, 
                 cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
@@ -557,15 +538,7 @@ private:
                 cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(0, 255, 0), 1);
 
-            drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
-
-            //计算帧率
-            fps_counter->tick();
-
-            if (std::chrono::steady_clock::now() - last_feed_dog_time >= std::chrono::seconds(3)) {
-                watchdog_client -> feed();
-                last_feed_dog_time = std::chrono::steady_clock::now();
-            } // 正常运行时，每3秒喂一次狗
+            drawResults(frame, lights, armors, classifyResults, classifyResults_forFourierPredict);
         }        
 
         // 获取处理帧率
@@ -628,7 +601,7 @@ private:
     std::shared_ptr<PredictorMain> predictor_main_;
 
     std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
-    bool use_yolo_pose;
+    bool use_yolo_pose = false;
     int max_history_frame = 10;
     int history_frame_identifier_loop = 30;
     int now_history_frame_identifier = 0;
@@ -639,11 +612,6 @@ private:
     std::deque<HistoryFrame> history_frames;
     int yolo_delay_frame = 0;
     float extra_info_delay_time_ms = 0.0;
-
-    float max_armor_position_height;
-
-    std::shared_ptr<WatchdogClient> watchdog_client;
-    std::chrono::steady_clock::time_point last_feed_dog_time;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

@@ -67,15 +67,12 @@ struct Armor {
     cv::Point2f center;                 // 角点对角线连线焦点确定中心
     std::vector<cv::Point2f> corners_large;  // 大装甲板角点坐标（识别装甲板类型后使用）
     std::vector<cv::Point2f> corners_expanded;  // 扩大后的四个角点坐标，用于展平后识别
-    std::vector<cv::Point2f> corners_narrowed;  // 缩小后的四个角点坐标，用于yolo灯条点亮识别
     float corners_expand_ratio;  // 角点坐标扩大比例
-    float corners_narrow_ratio;  // 角点坐标缩小比例
     float height_correct_ratio_small;     // 角点坐标修正比例系数
     float width_correct_ratio_small;
     float height_correct_ratio_large;
     float width_correct_ratio_large;
     rclcpp::Node* node;
-    float is_ture_yolo_armor_brightness_ratio;
 
     struct {
         bool is_delayed_result = false;
@@ -100,8 +97,6 @@ struct Armor {
     cv::Point2f computeIntersection(const std::vector<cv::Point2f>& corners);
 
     std::vector<cv::Point2f> light_bar_corners;
-
-    bool is_true_yolo_armor(cv::Mat& frame);
 };
 
 struct ArmorResult {
@@ -116,8 +111,6 @@ struct ArmorResult {
     std::vector<cv::Point2f> predictions;
     cv::Point2f center_predicted;
     bool is_steady_tracked;
-
-    AimResult solve_armor_result;
 
     ArmorResult(const Armor& a, int n, float conf, 
         bool is_tracked_now, bool is_large, bool not_slant,

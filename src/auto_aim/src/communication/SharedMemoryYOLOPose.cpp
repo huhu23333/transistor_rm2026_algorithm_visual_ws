@@ -16,7 +16,7 @@ SharedMemoryYOLOPose::SharedMemoryYOLOPose(std::shared_ptr<YAML::Node> config_fi
     // 初始化共享内存
     shared_data_->is_processed = true;  // 初始状态为已处理
     shared_data_->show_windows = false;
-    shared_data_->enemyColor = 0;
+    shared_data_->reserved2 = false;
     shared_data_->reserved3 = false;
     shared_data_->reserved4 = 0;
     shared_data_->return_data.num_detections = 0;
@@ -24,10 +24,6 @@ SharedMemoryYOLOPose::SharedMemoryYOLOPose(std::shared_ptr<YAML::Node> config_fi
 
 SharedMemoryYOLOPose::~SharedMemoryYOLOPose() {
     detachSharedMemory();
-}
-
-void SharedMemoryYOLOPose::setEnemyColor(Params::EnemyColor enemy_color) {
-    enemyColor = enemy_color;
 }
 
 void SharedMemoryYOLOPose::attachSharedMemory() {
@@ -94,11 +90,6 @@ std::vector<DetectionResult> SharedMemoryYOLOPose::processImage(const cv::Mat& i
 #else
     shared_data_ -> show_windows = false;
 #endif
-    if (enemyColor == Params::EnemyColor::BLUE) {
-        shared_data_->enemyColor = 0;
-    } else {
-        shared_data_->enemyColor = 1;
-    }
 
     // 3. 重置处理状态和检测数量
     shared_data_->is_processed = false;

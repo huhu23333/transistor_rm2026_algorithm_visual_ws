@@ -138,10 +138,10 @@ std::vector<double> getNormalYawPitchRollFromRvec(const cv::Mat& rvec) {
 
 void ArmorSolver::initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) {
     const YAML::Node& camera_matrix_Node = (*config_file_ptr)["camera_matrix"];
-    RCLCPP_INFO(node->get_logger(), "camera_matrix_config: \n[%f, %f, %f,\n %f, %f, %f,\n %f, %f, %f]\n", 
+    /* RCLCPP_DEBUG(node->get_logger(), "camera_matrix_config: \n[%f, %f, %f,\n %f, %f, %f,\n %f, %f, %f]\n", 
         camera_matrix_Node[0][0].as<double>(), camera_matrix_Node[0][1].as<double>(), camera_matrix_Node[0][2].as<double>(), 
         camera_matrix_Node[1][0].as<double>(), camera_matrix_Node[1][1].as<double>(), camera_matrix_Node[1][2].as<double>(), 
-        camera_matrix_Node[2][0].as<double>(), camera_matrix_Node[2][1].as<double>(), camera_matrix_Node[2][2].as<double>());
+        camera_matrix_Node[2][0].as<double>(), camera_matrix_Node[2][1].as<double>(), camera_matrix_Node[2][2].as<double>()); */
     // 相机内参矩阵
     camera_matrix = (cv::Mat_<double>(3, 3) << 
         camera_matrix_Node[0][0].as<double>(), camera_matrix_Node[0][1].as<double>(), camera_matrix_Node[0][2].as<double>(), 
@@ -149,9 +149,9 @@ void ArmorSolver::initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, 
         camera_matrix_Node[2][0].as<double>(), camera_matrix_Node[2][1].as<double>(), camera_matrix_Node[2][2].as<double>());
     
     const YAML::Node& dist_coeffs_Node = (*config_file_ptr)["dist_coeffs"];
-    RCLCPP_INFO(node->get_logger(), "dist_coeffs_config: %f, %f, %f, %f, %f\n", 
+    /* RCLCPP_DEBUG(node->get_logger(), "dist_coeffs_config: %f, %f, %f, %f, %f\n", 
         dist_coeffs_Node[0].as<double>(), dist_coeffs_Node[1].as<double>(), dist_coeffs_Node[2].as<double>(), 
-        dist_coeffs_Node[3].as<double>(), dist_coeffs_Node[4].as<double>());
+        dist_coeffs_Node[3].as<double>(), dist_coeffs_Node[4].as<double>()); */
     // 畸变系数
     dist_coeffs = (cv::Mat_<double>(1, 5) << 
         dist_coeffs_Node[0].as<double>(), dist_coeffs_Node[1].as<double>(), dist_coeffs_Node[2].as<double>(), 

@@ -6,8 +6,10 @@
 #include <string>
 // DEBUG */
 
-ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, fs::path ws_dir_path) 
-    : node(node), ws_dir_path(ws_dir_path) {
+namespace fs = std::filesystem;
+
+ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) 
+    : node(node) {
     
     MAX_ROI_SAVE_COUNT = (*config_file_ptr)["MAX_ROI_SAVE_COUNT"].as<int>();
 
@@ -51,14 +53,15 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     // 保存处理后的图像（用于神经网络输入的标准化图像）
     if (roi_save_count < MAX_ROI_SAVE_COUNT) {
         // 创建保存目录
-        fs::create_directories(ws_dir_path / "network_input_images");
+        fs::create_directories("network_input_images");
         
         // 生成文件名（00001.jpg 格式）
         std::ostringstream filename;
-        filename << std::setw(5) << std::setfill('0') << (roi_save_count.fetch_add(1) + 1) << ".jpg";
+        filename << "network_input_images/"
+                << std::setw(5) << std::setfill('0') << (roi_save_count.fetch_add(1) + 1)
+                << ".jpg";
         
-        fs::path full_file_path = ws_dir_path / "network_input_images/" / filename.str();
-        cv::imwrite(full_file_path, resized);
+        cv::imwrite(filename.str(), resized);
         
         if (roi_save_count == MAX_ROI_SAVE_COUNT) {
             std::cout << "Reached maximum number of saved images (2000)" << std::endl;
@@ -73,7 +76,7 @@ struct alignas(64) RoiImageThreadInfo { // 64字节对齐
     size_t armor_index;
 };
 
-std::vector<ArmorResult> ArmorClassifier::classify(
+std::vector<std::vector<ArmorResult>> ArmorClassifier::classify(
     const cv::Mat& img, const std::vector<Armor>& armors, const cv::Point2f& ground_stable_point) {
     
     int process_armors_count = armors.size();
@@ -108,16 +111,16 @@ std::vector<ArmorResult> ArmorClassifier::classify(
         // 获取多输出头结果
         float is_armor_probability;
         float is_large_probability;
-        float reserved_3_probability;
-        float reserved_4_probability;
+        float not_screen_probability;
+        float not_slant_probability;
         std::vector<float> classify_probabilities(8);
         int current_number;
         float classify_confidence;
         
         is_armor_probability = pytorch_results[i][0];
         is_large_probability = pytorch_results[i][1];
-        reserved_3_probability = pytorch_results[i][2];
-        reserved_4_probability = pytorch_results[i][3];
+        not_screen_probability = pytorch_results[i][2];
+        not_slant_probability = pytorch_results[i][3];
         std::copy(pytorch_results[i].begin() + 4, pytorch_results[i].begin() + 12, classify_probabilities.begin());
         
         auto classify_max_it = std::max_element(classify_probabilities.begin(), classify_probabilities.end());
@@ -127,7 +130,7 @@ std::vector<ArmorResult> ArmorClassifier::classify(
         }
 
         RCLCPP_DEBUG(node->get_logger(), "ArmorClassifier Debug:\n %.2f | %.2f | %.2f | %.2f | %.2f | %d", 
-            is_armor_probability, is_large_probability, reserved_3_probability, reserved_4_probability, classify_confidence, current_number
+            is_armor_probability, is_large_probability, not_screen_probability, not_slant_probability, classify_confidence, current_number
         );
 
         //is_armor_probability = 1.0; // DEBUG
@@ -137,10 +140,13 @@ std::vector<ArmorResult> ArmorClassifier::classify(
         //current_number = 1;
         //classify_confidence = 1.0;
 
-        bool is_ture_armor = (is_armor_probability >= IS_ARMOR_THRESHOLD) &&
-                             (classify_confidence >= CLASSIFY_THRESHOLD);
+        not_screen_probability = 1.0;
 
-        bool not_slant = true;
+        bool is_ture_armor = (is_armor_probability >= IS_ARMOR_THRESHOLD) &&
+                                (not_screen_probability >= NOT_SCREEN_THRESHOLD) &&
+                                (classify_confidence >= CLASSIFY_THRESHOLD);
+        
+        bool not_slant = not_slant_probability > NOT_SLANT_THRESHOLD; // TODO：倾斜目标纠正网络
 
         if (is_ture_armor) {
             bool is_large = is_large_probability > IS_LARGE_THRESHOLD;
@@ -151,8 +157,8 @@ std::vector<ArmorResult> ArmorClassifier::classify(
                 armor.corners = armor.corners_large;
             }
             float confidence = std::pow(
-                std::abs(is_armor_probability * armor_type_confidence * classify_confidence) + 1e-6, 
-                1.0 / 3.0
+                std::abs(is_armor_probability * armor_type_confidence * not_screen_probability * classify_confidence * not_slant) + 1e-6, 
+                1.0 / 5.0
             );
 
             armor_tracker -> addArmor(armor, current_number, is_large, not_slant, confidence);
@@ -160,7 +166,7 @@ std::vector<ArmorResult> ArmorClassifier::classify(
         }
     }
 
-    std::vector<ArmorResult> results = armor_tracker -> afterProcess();
+    std::vector<std::vector<ArmorResult>> results = armor_tracker -> afterProcess();
 
     return results;
 }

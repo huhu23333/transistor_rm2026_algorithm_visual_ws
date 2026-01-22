@@ -1,9 +1,6 @@
 #include "predictor/PredictorMain.h"
 
 void PredictorMain::update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed) {
-    last_pitch_rad_delayed_ = last_pitch_rad_delayed;
-    last_yaw_rad_delayed_ = last_yaw_rad_delayed;
-    total_yaw_rad_delayed_ = total_yaw_rad_delayed;
     for (std::shared_ptr<AllPredictor>& all_predictor : all_predictors_) {
         if (all_predictor) {
             all_predictor -> update_serial_info(bullet_velocity, last_pitch_rad_delayed, last_yaw_rad_delayed, total_yaw_rad_delayed);
@@ -11,10 +8,7 @@ void PredictorMain::update_serial_info(float bullet_velocity, float last_pitch_r
     }
 }
 
-PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor, bool auto_aim_switch) {
-
-    PredictorResult chosen_result;
-
+PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor) {
     std::vector<std::vector<ArmorResult>> classified_classifyResults(classify_classes);
     for (ArmorResult& classify_result : classifyResults) {
         classified_classifyResults[classify_result.number].push_back(classify_result);
@@ -36,10 +30,12 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
     if (priority_armor != ArmorType::AutoSwitch) {
         for (PredictorResult predictor_result : classified_predictor_results) {
             if (predictor_result.armor_type == priority_armor && !predictor_result.reset) {
-                chosen_result = predictor_result;
+                return predictor_result;
             }
         }
-    } else if (!classified_predictor_results.empty()) {
+    }
+    
+    if (!classified_predictor_results.empty()) {
         auto it = std::min_element(
             classified_predictor_results.begin(), classified_predictor_results.end(),
             [](const PredictorResult& a, const PredictorResult& b) {
@@ -48,28 +44,8 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
         );
         if (it != classified_predictor_results.end()) {
             auto nearest_result = *it;
-            chosen_result = nearest_result;
+            return nearest_result;
         }
     }
-
-    if (auto_aim_switch) { // 仅在电控自瞄开关打开时进行积分
-        pitch_integration += chosen_result.command_delta_pitch * 0.02;
-        yaw_integration += chosen_result.command_delta_yaw * 0.02;
-        if (pitch_integration > 60.0 * M_PI / 180.0) {
-            pitch_integration = 60.0 * M_PI / 180.0;
-        }
-        if (pitch_integration < -60.0 * M_PI / 180.0) {
-            pitch_integration = -60.0 * M_PI / 180.0;
-        }
-
-        if (yaw_integration > 60.0 * M_PI / 180.0) {
-            yaw_integration = 60.0 * M_PI / 180.0;
-        }
-        if (yaw_integration < -60.0 * M_PI / 180.0) {
-            yaw_integration = -60.0 * M_PI / 180.0;
-        }
-    }
-    chosen_result.command_pitch = last_pitch_rad_delayed_ + chosen_result.command_delta_pitch * 1.0 + pitch_integration; // PI控制
-    chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * 1.0 + yaw_integration; // 缓解yaw轴输入数据掉线问题
-    return chosen_result;
+    return PredictorResult();
 }
