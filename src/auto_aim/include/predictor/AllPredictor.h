@@ -81,6 +81,7 @@ public:
         RMM_fire_control_data.aim_center_yaw_bias_expand = (*config_file_ptr)["aim_center_yaw_bias_expand"].as<float>();
 
         pre_predict_time = (*config_file_ptr)["pre_predict_time"].as<float>();
+        pre_predict_time_not_aim = (*config_file_ptr)["pre_predict_time_not_aim"].as<float>();
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
@@ -149,4 +150,5 @@ private:
     float latest_armor_distance = 1e10;
 
     float pre_predict_time;
+    float pre_predict_time_not_aim;
 };

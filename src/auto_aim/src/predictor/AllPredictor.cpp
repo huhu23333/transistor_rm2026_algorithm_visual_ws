@@ -565,6 +565,14 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     result.armor_type = armor_class;
     result.pixel_horizontal_center_distance = last_pixel_horizontal_center_distance;
     result.latest_armor_distance = latest_armor_distance;
+
+    if(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - latest_predicting_start_time).count()
+        < pre_predict_time_not_aim) {
+
+        result.fire_flag = false;
+        result.reset = true;
+    }
+
     return result;
 }
 
