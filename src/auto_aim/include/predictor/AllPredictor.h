@@ -32,6 +32,11 @@ struct PredictorResult {
     float pixel_horizontal_center_distance = 1e10;
 };
 
+struct RMM_fire_result_t {
+    bool aim_center;
+    bool fire;
+};
+
 class AllPredictor {
 public:
     AllPredictor(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, 
@@ -64,6 +69,10 @@ public:
         armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
 
         predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node);
+
+        RMM_fire_control_data.target_change_ceasefire_ms = (*config_file_ptr)["target_change_ceasefire_ms"].as<int>();
+        RMM_fire_control_data.aim_center_vyaw_threshold = (*config_file_ptr)["aim_center_vyaw_threshold"].as<float>();
+        RMM_fire_control_data.aim_center_yaw_bias_expand = (*config_file_ptr)["aim_center_yaw_bias_expand"].as<float>();
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
@@ -74,6 +83,7 @@ public:
 private:
     PredictorType::PredictorType using_predictor_type = PredictorType::None;
     ArmorType::ArmorType armor_class;
+    bool armor_is_large;
 
     std::shared_ptr<YAML::Node> config_file_ptr; 
     rclcpp::Node* node;
@@ -111,4 +121,16 @@ private:
     bool has_valid_ballistic = false;
     
     float init_r = 250.0;
+
+    struct RMM_fire_control_data_t {
+        int target_change_ceasefire_ms;
+        float aim_center_vyaw_threshold;
+        float aim_center_yaw_bias_expand;
+        bool new_target = true;
+
+        float last_target_yaw;
+        std::chrono::steady_clock::time_point last_target_yaw_jump_time;
+    } RMM_fire_control_data;
+
+    RMM_fire_result_t RMM_fire_control(SimpleArmor chosen_armor, RotationMotionState RMM_state, float yaw_bias, bool is_large_armor);
 };
