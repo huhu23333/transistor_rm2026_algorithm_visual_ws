@@ -11,48 +11,50 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include "EKF/Tracker.h"
+#include <chrono>
+#include "predictor/PredictorMain.h"
 
-struct SimpleArmor {
-    double x;
-    double y;
-    double z;
-    double r;
-    double yaw;
-};
+// struct SimpleArmor {
+//     double x;
+//     double y;
+//     double z;
+//     double r;
+//     double yaw;
+// };
 
-struct PredictResult {
-    double center_x;
-    double center_y;
-    double center_z;
-    double z_another;
-    double r_now;
-    double r_another;
-    double yaw;
-    int rotation_direction;
-    std::vector<SimpleArmor> armors;
-};
+// struct PredictResult {
+//     double center_x;
+//     double center_y;
+//     double center_z;
+//     double z_another;
+//     double r_now;
+//     double r_another;
+//     double yaw;
+//     int rotation_direction;
+//     std::vector<SimpleArmor> armors;
+// };
 
-namespace PredictorType {
-    enum PredictorType {
-        None = 0,   // 直接瞄准装甲板
-        RotationMotionModel,
-        AutoSwitch
-    };
+// namespace PredictorType {
+//     enum PredictorType {
+//         None = 0,   // 直接瞄准装甲板
+//         RotationMotionModel,
+//         AutoSwitch
+//     };
 
-    extern std::vector<std::string> PredictorTypeStrings;
-}  //TODO:预测器大一統，将其它类型去除，即不存在预测器类型
+//     extern std::vector<std::string> PredictorTypeStrings;
+// }  //TODO:预测器大一統，将其它类型去除，即不存在预测器类型
 
-struct PredictorResult {
-    bool reset = true;
-    float command_pitch = 0.0;
-    float command_yaw = 0.0;
-    float command_delta_pitch = 0.0;
-    float command_delta_yaw = 0.0;
-    bool fire_flag = false;
-    PredictorType::PredictorType predictor_type = PredictorType::None; //TODO:预测器大一統，将其它类型去除，即不存在预测器类型
-    ArmorType::ArmorType armor_type = ArmorType::Hero;
-    float pixel_horizontal_center_distance = 1e10;
-};
+// struct PredictorResult {
+//     bool reset = true;
+//     float command_pitch = 0.0;
+//     float command_yaw = 0.0;
+//     float command_delta_pitch = 0.0;
+//     float command_delta_yaw = 0.0;
+//     bool fire_flag = false;
+//     PredictorType::PredictorType predictor_type = PredictorType::None; //TODO:预测器大一統，将其它类型去除，即不存在预测器类型
+//     ArmorType::ArmorType armor_type = ArmorType::Hero;
+//     float pixel_horizontal_center_distance = 1e10;
+// };
 
 class PredictorEKF {
 public:
@@ -89,17 +91,25 @@ public:
         is_outpost = armor_class_ == ArmorType::Outpost;
 
         tracker_ = std::make_shared<Tracker>(0.02, EKFParams{
-            (*config_file_ptr)["ekf_process_noise_position"].as<float>(),
-            (*config_file_ptr)["ekf_process_noise_velocity"].as<float>(),
-            (*config_file_ptr)["ekf_process_noise_acceleration"].as<float>(),
-            (*config_file_ptr)["ekf_measurement_noise_position"].as<float>(),
-            (*config_file_ptr)["ekf_measurement_noise_yaw"].as<float>()
+            (*config_file_ptr)["ekf_process_noise_x"].as<float>(),
+            (*config_file_ptr)["ekf_process_noise_y"].as<float>(),
+            (*config_file_ptr)["ekf_process_noise_z"].as<float>(),
+            (*config_file_ptr)["ekf_process_noise_yaw"].as<float>(),
+            (*config_file_ptr)["ekf_process_noise_radius"].as<float>(),
+            (*config_file_ptr)["ekf_measurement_noise_x"].as<float>(),
+            (*config_file_ptr)["ekf_measurement_noise_y"].as<float>(),
+            (*config_file_ptr)["ekf_measurement_noise_z"].as<float>(),
+            (*config_file_ptr)["ekf_measurement_noise_yaw"].as<float>(),
+            (*config_file_ptr)["ekf_initial_covariance"].as<float>()
         });
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
-    PredictResult PredictorEKF::state_convert_to_PredictResult(Tracker::State state);
+    PredictResult state_convert_to_PredictResult(Tracker::State state);
+    void visualize(PredictResult EKF_pred_now_data, cv::Mat& frame, ArmorResult best_result,
+                                 cv::Point3f rest_frame_pos, std::vector<float> rest_frame_euler_angles);
+    PredictResult predictTime(double delay_time);
 
     bool is_reset = false;
 
@@ -107,7 +117,7 @@ private:
     std::shared_ptr<YAML::Node> config_file_ptr_; 
     rclcpp::Node* node_;
     std::chrono::time_point<std::chrono::steady_clock> node_start_time_;
-    std::shared_ptr<ArmorSolver> armor_solver_;
+    std::shared_ptr<ArmorSolver> armor_solver_;;
     std::shared_ptr<BallisticSolver> ballistic_solver_;
     std::shared_ptr<RestFrame> rest_frame_;
     std::shared_ptr<FrameRateCounter> fps_counter_;

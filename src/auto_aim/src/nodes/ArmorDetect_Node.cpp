@@ -38,6 +38,7 @@
 #include "2d_armor_detector/Armor.h"
 #include "communication/WatchdogClient.h"
 #include "visualizer/RestFrameDraw.h"
+#include "EKF/predict_ekf.hpp"
 
 namespace fs = std::filesystem;
 
@@ -155,9 +156,27 @@ public:
 
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
-        predictor_main_ = std::make_shared<PredictorMain>(
+        // predictor_main_ = std::make_shared<PredictorMain>(
+        //     config_file_ptr, this, node_start_time, armor_solver_,
+        //     ballistic_solver_, rest_frame_, fps_counter);
+
+        predictor_ekf_ = std::make_shared<PredictorEKF>(
             config_file_ptr, this, node_start_time, armor_solver_,
-            ballistic_solver_, rest_frame_, fps_counter);
+            ballistic_solver_, rest_frame_, fps_counter,
+            ArmorType::AutoSwitch,
+            std::make_shared<Tracker>(0.02, EKFParams{
+                (*config_file_ptr)["ekf_process_noise_x"].as<float>(),
+                (*config_file_ptr)["ekf_process_noise_y"].as<float>(),
+                (*config_file_ptr)["ekf_process_noise_z"].as<float>(),
+                (*config_file_ptr)["ekf_process_noise_yaw"].as<float>(),
+                (*config_file_ptr)["ekf_process_noise_radius"].as<float>(),
+                (*config_file_ptr)["ekf_measurement_noise_x"].as<float>(),
+                (*config_file_ptr)["ekf_measurement_noise_y"].as<float>(),
+                (*config_file_ptr)["ekf_measurement_noise_z"].as<float>(),
+                (*config_file_ptr)["ekf_measurement_noise_yaw"].as<float>(),
+                (*config_file_ptr)["ekf_initial_covariance"].as<float>()
+            })
+        );
 
         yolo_pose_armor_detector = std::make_shared<YOLOPoseArmorDetector>(config_file_ptr, this);
 
@@ -308,7 +327,8 @@ private:
 
         rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
-        predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
+        // predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
+        predictor_ekf_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
         
         RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
 
@@ -526,7 +546,8 @@ private:
             }
 
             bool auto_aim_switch = true;
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch, auto_aim_switch); // Todo
+            // PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::AutoSwitch, auto_aim_switch); // Todo
+            PredictorResult predictor_result = predictor_ekf_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::None); // Todo
             cv::putText(frame, 
                 "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
                 cv::Point2f(0, 100), 
@@ -618,7 +639,8 @@ private:
     float yaw_rad_to_x_pixel_ratio;
     float pitch_rad_to_y_pixel_ratio;
 
-    std::shared_ptr<PredictorMain> predictor_main_;
+    // std::shared_ptr<PredictorMain> predictor_main_;
+    std::shared_ptr<PredictorEKF> predictor_ekf_;
 
     std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
     bool use_yolo_pose;

@@ -84,7 +84,8 @@ add_library(armor_detector SHARED
     src/utils/DataProcessFuncs.cpp
     src/utils/PeriodFunctions.cpp
     # EKF
-    # src/EKF/Tracker.cpp
+    src/EKF/Tracker.cpp
+    src/EKF/predictor_ekf.cpp
     # ba solver
     src/ba_solver/ba_solver.cpp
     src/ba_solver/graph_optimizer.cpp

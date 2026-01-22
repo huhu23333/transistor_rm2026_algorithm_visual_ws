@@ -68,15 +68,15 @@ void Tracker::reset(const Measurement& z) {
     r_init_ = 200.0; 
     
     // 根据Measure函数的反函数来计算中心初始位置
-    double xc = xa + r_init * sin(yaw);
-    double yc = ya - r_init * cos(yaw); // 简化模型，高度相同
+    double xc = xa + r_init_ * sin(yaw);
+    double yc = ya - r_init_ * cos(yaw); // 简化模型，高度相同
     double zc = za ;
     
     x0(0) = xc;
     x0(2) = yc;
     x0(4) = zc;
     x0(6) = yaw;
-    x0(8) = r_init; // 设置初始半径
+    x0(8) = r_init_; // 设置初始半径
 
     ekf_->setState(x0);
     RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with 9D model!");
