@@ -329,4 +329,6 @@ public:
     double getTheoreticYaw(double armor_x, double armor_y);
     double getTheoreticYawFacingArmor(double armor_x, double armor_y);
     double getCamToCenterYaw();
+
+    int debug_flip_flag = 1;
 };
