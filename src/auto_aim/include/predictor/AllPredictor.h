@@ -125,7 +125,7 @@ private:
 
     bool has_valid_ballistic = false;
     
-    float init_r = 250.0;
+    float init_r = 400.0;
 
     struct RMM_fire_control_data_t {
         int target_change_ceasefire_ms;

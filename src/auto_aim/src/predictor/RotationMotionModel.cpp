@@ -27,7 +27,7 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     
     r_now_prev_ = r_now;  // 初始化历史半径值
     r_another_prev_ = r_another;
-    regularization_weight_ = 10.0;  // 正则化权重，可调整
+    regularization_weight_ = 1.0;  // 正则化权重，可调整
     
     // 初始化中心位置
     center_x = initObservedData.x - r_now * sin(initObservedData.yaw);
@@ -35,12 +35,14 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     center_z = initObservedData.z;  // 使用观测数据的z值初始化
     z_another = center_z;
     
-    max_history = 90;
+    max_history = 300;
     rotation_direction = 1;
     jump_rad = M_PI * 2.0 / n_armors;
 
     // 遗忘因子，值越小遗忘越快
-    lambda_ = is_outpost ? 0.99 : 0.95;
+    //lambda_ = is_outpost ? 0.99 : 0.95;
+    lambda_fast_ = 0.95;
+    lambda_slow_ = 0.999;
 
     last_yaw = initObservedData.yaw;
     
@@ -50,10 +52,10 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
 
 void RotationMotionModel::resetExponentialLS() {
     // 初始化7x7协方差矩阵
-    P_center_ = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM) * 1000.0;
+    Eigen::MatrixXd P_center_ = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM) * 1000.0;
     
     // 初始状态估计 [center_x, center_y, center_z, center_vx, center_vy, center_vz, r]
-    x_center_ = Eigen::VectorXd::Zero(STATE_DIM);
+    Eigen::VectorXd x_center_ = Eigen::VectorXd::Zero(STATE_DIM);
     x_center_(0) = center_x;  // center_x
     x_center_(1) = center_y;  // center_y
     x_center_(2) = center_z;  // center_z (新增)
@@ -61,6 +63,11 @@ void RotationMotionModel::resetExponentialLS() {
     x_center_(4) = 0.0;       // center_vy
     x_center_(5) = 0.0;       // center_vz (新增)
     x_center_(6) = r_now;         // r
+
+    P_center_fast_ = P_center_;
+    P_center_slow_ = P_center_;
+    x_center_fast_ = x_center_;
+    x_center_slow_ = x_center_;
 }
 
 void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight, double delta_r, double delta_z) {
@@ -98,6 +105,10 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         Eigen::RowVectorXd H3(STATE_DIM);
         H3 << 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
         
+        Eigen::MatrixXd& P_center_ = P_center_slow_;
+        Eigen::VectorXd& x_center_ = x_center_slow_;
+        double& lambda_ = lambda_slow_;
+
         // 更新测量1
         double weight1 = weight;
         double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight1;
@@ -161,55 +172,113 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         double z4 = r_now_prev_;  // 使用上一步的r值作为正则化目标
         Eigen::RowVectorXd H4 = Eigen::RowVectorXd::Zero(STATE_DIM);
         H4(6) = 1.0;  // 只对r进行正则化
-        
-        // 更新测量1
-        double weight1 = weight;
-        double S1 = H1 * P_center_ * H1.transpose() + 1.0 / weight1;
-        Eigen::VectorXd K1 = P_center_ * H1.transpose() / S1;
-        double innovation1 = z1 - H1 * x_center_;
-        x_center_ = x_center_ + K1 * innovation1;
-        Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
-        P_center_ = (I - K1 * H1) * P_center_ / lambda_;
-        
-        // 更新测量2
-        double weight2 = weight;
-        double S2 = H2 * P_center_ * H2.transpose() + 1.0 / weight2;
-        Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
-        double innovation2 = z2 - H2 * x_center_ - delta_r; // 根据两r差异设置目标 算出的x_center_(6)将趋向于原结果+delta_r
-        x_center_ = x_center_ + K2 * innovation2;
-        P_center_ = (I - K2 * H2) * P_center_ / lambda_;
-        
-        // 更新测量3（z轴测量）
-        double weight3 = weight;  // z轴测量权重
-        double S3 = H3 * P_center_ * H3.transpose() + 1.0 / weight3;
-        Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
-        double innovation3 = z3 - H3 * x_center_ - delta_z;
-        x_center_ = x_center_ + K3 * innovation3;
-        P_center_ = (I - K3 * H3) * P_center_ / lambda_;
-        
-        // 更新正则化测量
-        double weight4 = regularization_weight_;  // 正则化权重
-        double S4 = H4 * P_center_ * H4.transpose() + 1.0 / weight4;
-        Eigen::VectorXd K4 = P_center_ * H4.transpose() / S4;
-        double innovation4 = z4 - H4 * x_center_;
-        x_center_ = x_center_ + K4 * innovation4;
-        P_center_ = (I - K4 * H4) * P_center_ / lambda_;
-        
-        // 限制半径在合理范围内
-        if (!(x_center_(6) >= 100.0)) x_center_(6) = 100.0; // 限位，同时防止正则化导致nan传播
-        if (!(x_center_(6) <= 600.0)) x_center_(6) = 600.0;
+
+        {
+            Eigen::MatrixXd& P_center_1_ = P_center_slow_;
+            Eigen::VectorXd& x_center_1_ = x_center_slow_;
+            double& lambda_1_ = lambda_slow_;
+
+            // 更新测量1
+            double weight1 = weight;
+            double S1 = H1 * P_center_1_ * H1.transpose() + 1.0 / weight1;
+            Eigen::VectorXd K1 = P_center_1_ * H1.transpose() / S1;
+            double innovation1 = z1 - H1 * x_center_1_;
+            x_center_1_ = x_center_1_ + K1 * innovation1;
+            Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
+            P_center_1_ = (I - K1 * H1) * P_center_1_ / lambda_1_;
+            
+            // 更新测量2
+            double weight2 = weight;
+            double S2 = H2 * P_center_1_ * H2.transpose() + 1.0 / weight2;
+            Eigen::VectorXd K2 = P_center_1_ * H2.transpose() / S2;
+            double innovation2 = z2 - H2 * x_center_1_ - delta_r; // 根据两r差异设置目标 算出的x_center_1_(6)将趋向于原结果+delta_r
+            x_center_1_ = x_center_1_ + K2 * innovation2;
+            P_center_1_ = (I - K2 * H2) * P_center_1_ / lambda_1_;
+            
+            // 更新测量3（z轴测量）
+            double weight3 = weight;  // z轴测量权重
+            double S3 = H3 * P_center_1_ * H3.transpose() + 1.0 / weight3;
+            Eigen::VectorXd K3 = P_center_1_ * H3.transpose() / S3;
+            double innovation3 = z3 - H3 * x_center_1_ - delta_z;
+            x_center_1_ = x_center_1_ + K3 * innovation3;
+            P_center_1_ = (I - K3 * H3) * P_center_1_ / lambda_1_;
+            
+            // 更新正则化测量
+            double weight4 = regularization_weight_;  // 正则化权重
+            double S4 = H4 * P_center_1_ * H4.transpose() + 1.0 / weight4;
+            Eigen::VectorXd K4 = P_center_1_ * H4.transpose() / S4;
+            double innovation4 = z4 - H4 * x_center_1_;
+            x_center_1_ = x_center_1_ + K4 * innovation4;
+            P_center_1_ = (I - K4 * H4) * P_center_1_ / lambda_1_;
+            
+            // 限制半径在合理范围内
+            if (!(x_center_1_(6) >= 100.0)) x_center_1_(6) = 100.0; // 限位，同时防止正则化导致nan传播
+            if (!(x_center_1_(6) <= 600.0)) x_center_1_(6) = 600.0;
+        }
+        {
+            Eigen::MatrixXd& P_center_2_ = P_center_fast_;
+            Eigen::VectorXd& x_center_2_ = x_center_fast_;
+            double& lambda_2_ = lambda_fast_;
+
+            // 更新测量1
+            double weight1 = weight;
+            double S1 = H1 * P_center_2_ * H1.transpose() + 1.0 / weight1;
+            Eigen::VectorXd K1 = P_center_2_ * H1.transpose() / S1;
+            double innovation1 = z1 - H1 * x_center_2_;
+            x_center_2_ = x_center_2_ + K1 * innovation1;
+            Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
+            P_center_2_ = (I - K1 * H1) * P_center_2_ / lambda_2_;
+            
+            // 更新测量2
+            double weight2 = weight;
+            double S2 = H2 * P_center_2_ * H2.transpose() + 1.0 / weight2;
+            Eigen::VectorXd K2 = P_center_2_ * H2.transpose() / S2;
+            double innovation2 = z2 - H2 * x_center_2_ - delta_r; // 根据两r差异设置目标 算出的x_center_2_(6)将趋向于原结果+delta_r
+            x_center_2_ = x_center_2_ + K2 * innovation2;
+            P_center_2_ = (I - K2 * H2) * P_center_2_ / lambda_2_;
+            
+            // 更新测量3（z轴测量）
+            double weight3 = weight;  // z轴测量权重
+            double S3 = H3 * P_center_2_ * H3.transpose() + 1.0 / weight3;
+            Eigen::VectorXd K3 = P_center_2_ * H3.transpose() / S3;
+            double innovation3 = z3 - H3 * x_center_2_ - delta_z;
+            x_center_2_ = x_center_2_ + K3 * innovation3;
+            P_center_2_ = (I - K3 * H3) * P_center_2_ / lambda_2_;
+            
+            // 更新正则化测量
+            double weight4 = regularization_weight_;  // 正则化权重
+            double S4 = H4 * P_center_2_ * H4.transpose() + 1.0 / weight4;
+            Eigen::VectorXd K4 = P_center_2_ * H4.transpose() / S4;
+            double innovation4 = z4 - H4 * x_center_2_;
+            x_center_2_ = x_center_2_ + K4 * innovation4;
+            P_center_2_ = (I - K4 * H4) * P_center_2_ / lambda_2_;
+            
+            // 限制半径在合理范围内
+            if (!(x_center_2_(6) >= 100.0)) x_center_2_(6) = 100.0; // 限位，同时防止正则化导致nan传播
+            if (!(x_center_2_(6) <= 600.0)) x_center_2_(6) = 600.0;
+        }
     }
 }
 
 void RotationMotionModel::updateCenterResult(double current_time) {
-    center_x = x_center_(0) + x_center_(3) * current_time;
-    center_y = x_center_(1) + x_center_(4) * current_time;
-    center_z = x_center_(2) + x_center_(5) * current_time;
-    center_vx = x_center_(3);
-    center_vy = x_center_(4);
-    center_vz = x_center_(5);
+    if (is_outpost) {
+        center_x = x_center_slow_(0) + x_center_slow_(3) * current_time;
+        center_y = x_center_slow_(1) + x_center_slow_(4) * current_time;
+        center_z = x_center_slow_(2) + x_center_slow_(5) * current_time;
+        center_vx = x_center_slow_(3);
+        center_vy = x_center_slow_(4);
+        center_vz = x_center_slow_(5);
+    } else {
+        center_x = x_center_fast_(0) + x_center_fast_(3) * current_time;
+        center_y = x_center_fast_(1) + x_center_fast_(4) * current_time;
+        center_z = x_center_fast_(2) + x_center_fast_(5) * current_time;
+        center_vx = x_center_fast_(3);
+        center_vy = x_center_fast_(4);
+        center_vz = x_center_fast_(5);
+    }
+
     // 更新半径值
-    r_now = x_center_(6);
+    r_now = x_center_slow_(6);
     r_now_prev_ = r_now;  // 保存当前r值用于下一次正则化
 }
 
@@ -217,7 +286,8 @@ void RotationMotionModel::update(ObservedData& observedData) {
     update_frames_count += 1;
     double theoretic_yaw = getTheoreticYaw(observedData.x, observedData.y);
 
-    if (isYawJump(theoretic_yaw)) {
+    //if (isYawJump(theoretic_yaw)) {
+    if (isYawJump(observedData.yaw)) {
         observedData.yaw_jump = true;
         if (!is_outpost) {
             std::swap(r_now, r_another);
@@ -254,7 +324,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
         this_yaw_jump = data.yaw_jump ? (!this_yaw_jump) : this_yaw_jump;
         if (!is_outpost) {
             updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, 
-                this_yaw_jump ? time_weight*0.1 : time_weight, 
+                this_yaw_jump ? 0.0 : time_weight, 
                 this_yaw_jump ? r_now-r_another : 0.0, 
                 this_yaw_jump ? center_z-z_another : 0.0);
         } else {
@@ -268,7 +338,9 @@ void RotationMotionModel::update(ObservedData& observedData) {
     // 使用EKF更新角度和角速度，传入xc, yc, r
     double dt = observedData.t - last_update_time_;
     if (dt > 0) {
-        angle_ekf_->update(theoretic_yaw, observedData.x, observedData.y, 
+        // angle_ekf_->update(theoretic_yaw, observedData.x, observedData.y, 
+        //                   center_x, center_y, r_now, dt);
+        angle_ekf_->update(observedData.yaw, observedData.x, observedData.y, 
                           center_x, center_y, r_now, dt);
         last_update_time_ = observedData.t;
         rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;

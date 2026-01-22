@@ -279,9 +279,13 @@ class RotationMotionModel {
 private:
     // 扩展的状态向量： [center_x, center_y, center_z, center_vx, center_vy, center_vz, r]
     static constexpr int STATE_DIM = 7;  // 从5增加到7
-    Eigen::MatrixXd P_center_;      // 7x7 协方差矩阵
-    Eigen::VectorXd x_center_;      // 7维状态向量
-    double lambda_;                 // 遗忘因子
+
+    Eigen::MatrixXd P_center_fast_;      // 7x7 协方差矩阵
+    Eigen::VectorXd x_center_fast_;      // 7维状态向量
+    double lambda_fast_;                 // 遗忘因子
+    Eigen::MatrixXd P_center_slow_;      // 7x7 协方差矩阵
+    Eigen::VectorXd x_center_slow_;      // 7维状态向量
+    double lambda_slow_;                 // 遗忘因子
     
     double r_now_prev_;             // 上一步的半径值，用于正则化
     double r_another_prev_;
