@@ -40,7 +40,7 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     jump_rad = M_PI * 2.0 / n_armors;
 
     // 遗忘因子，值越小遗忘越快
-    lambda_ = is_outpost ? 0.99 : 0.95;
+    lambda_ = is_outpost ? 0.99 : 0.98;
 
     last_yaw = initObservedData.yaw;
     
