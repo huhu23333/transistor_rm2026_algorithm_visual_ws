@@ -39,6 +39,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             last_com_time = std::chrono::steady_clock::now();
 
             last_pixel_horizontal_center_distance = std::abs(best_result.center.x - static_cast<float>(frame.cols)/2.0);
+            latest_armor_distance = std::sqrt(aim.distance);
             
             // 查看并滤波z轴距离轴数据
             armor_distance_filter_ -> addPoint(aim.position.z);
@@ -320,6 +321,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             last_pixel_horizontal_center_distance = 1e10;
             has_valid_ballistic = false;
             RMM_fire_control_data.new_target = true;
+            latest_armor_distance = 1e10;
         } else {
             
             result.reset = false;
@@ -542,6 +544,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     result.predictor_type = using_predictor_type;
     result.armor_type = armor_class;
     result.pixel_horizontal_center_distance = last_pixel_horizontal_center_distance;
+    result.latest_armor_distance = latest_armor_distance;
     return result;
 }
 

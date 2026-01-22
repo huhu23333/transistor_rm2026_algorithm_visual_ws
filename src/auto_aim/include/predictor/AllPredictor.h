@@ -30,6 +30,7 @@ struct PredictorResult {
     PredictorType::PredictorType predictor_type = PredictorType::None;
     ArmorType::ArmorType armor_type = ArmorType::Hero;
     float pixel_horizontal_center_distance = 1e10;
+    float latest_armor_distance = 1e10;
 };
 
 struct RMM_fire_result_t {
@@ -133,4 +134,6 @@ private:
     } RMM_fire_control_data;
 
     RMM_fire_result_t RMM_fire_control(SimpleArmor chosen_armor, RotationMotionState RMM_state, float yaw_bias, bool is_large_armor);
+
+    float latest_armor_distance = 1e10;
 };

@@ -33,22 +33,37 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
         }
     }
 
-    if (priority_armor != ArmorType::AutoSwitch) {
+    if (priority_armor == ArmorType::Middle) {
+        if (!classified_predictor_results.empty()) {
+            auto it = std::min_element(
+                classified_predictor_results.begin(), classified_predictor_results.end(),
+                [](const PredictorResult& a, const PredictorResult& b) {
+                    return a.pixel_horizontal_center_distance < b.pixel_horizontal_center_distance;
+                }
+            );
+            if (it != classified_predictor_results.end()) {
+                auto middle_result = *it;
+                chosen_result = middle_result;
+            }
+        }
+    } else if (priority_armor == ArmorType::Nearest) {
+        if (!classified_predictor_results.empty()) {
+            auto it = std::min_element(
+                classified_predictor_results.begin(), classified_predictor_results.end(),
+                [](const PredictorResult& a, const PredictorResult& b) {
+                    return a.latest_armor_distance < b.latest_armor_distance;
+                }
+            );
+            if (it != classified_predictor_results.end()) {
+                auto nearest_result = *it;
+                chosen_result = nearest_result;
+            }
+        }
+    } else {
         for (PredictorResult predictor_result : classified_predictor_results) {
             if (predictor_result.armor_type == priority_armor && !predictor_result.reset) {
                 chosen_result = predictor_result;
             }
-        }
-    } else if (!classified_predictor_results.empty()) {
-        auto it = std::min_element(
-            classified_predictor_results.begin(), classified_predictor_results.end(),
-            [](const PredictorResult& a, const PredictorResult& b) {
-                return a.pixel_horizontal_center_distance < b.pixel_horizontal_center_distance;
-            }
-        );
-        if (it != classified_predictor_results.end()) {
-            auto nearest_result = *it;
-            chosen_result = nearest_result;
         }
     }
 
