@@ -23,7 +23,10 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
     std::vector<PredictorResult> classified_predictor_results;
     for (size_t all_predictors_index = 0; all_predictors_index < classify_classes; all_predictors_index++) {
         if (classified_classifyResults[all_predictors_index].size() != 0) {
-            all_predictors_[all_predictors_index] -> is_reset = false;
+            if (all_predictors_[all_predictors_index] -> is_reset == true) {
+                all_predictors_[all_predictors_index] -> latest_predicting_start_time = std::chrono::steady_clock::now();
+                all_predictors_[all_predictors_index] -> is_reset = false;
+            }
         }
         if (all_predictors_[all_predictors_index] -> is_reset == false) {
             classified_predictor_results.push_back(
@@ -33,22 +36,37 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
         }
     }
 
-    if (priority_armor != ArmorType::AutoSwitch) {
+    if (priority_armor == ArmorType::Middle) {
+        if (!classified_predictor_results.empty()) {
+            auto it = std::min_element(
+                classified_predictor_results.begin(), classified_predictor_results.end(),
+                [](const PredictorResult& a, const PredictorResult& b) {
+                    return a.pixel_horizontal_center_distance < b.pixel_horizontal_center_distance;
+                }
+            );
+            if (it != classified_predictor_results.end()) {
+                auto middle_result = *it;
+                chosen_result = middle_result;
+            }
+        }
+    } else if (priority_armor == ArmorType::Nearest) {
+        if (!classified_predictor_results.empty()) {
+            auto it = std::min_element(
+                classified_predictor_results.begin(), classified_predictor_results.end(),
+                [](const PredictorResult& a, const PredictorResult& b) {
+                    return a.latest_armor_distance < b.latest_armor_distance;
+                }
+            );
+            if (it != classified_predictor_results.end()) {
+                auto nearest_result = *it;
+                chosen_result = nearest_result;
+            }
+        }
+    } else {
         for (PredictorResult predictor_result : classified_predictor_results) {
             if (predictor_result.armor_type == priority_armor && !predictor_result.reset) {
                 chosen_result = predictor_result;
             }
-        }
-    } else if (!classified_predictor_results.empty()) {
-        auto it = std::min_element(
-            classified_predictor_results.begin(), classified_predictor_results.end(),
-            [](const PredictorResult& a, const PredictorResult& b) {
-                return a.pixel_horizontal_center_distance < b.pixel_horizontal_center_distance;
-            }
-        );
-        if (it != classified_predictor_results.end()) {
-            auto nearest_result = *it;
-            chosen_result = nearest_result;
         }
     }
 

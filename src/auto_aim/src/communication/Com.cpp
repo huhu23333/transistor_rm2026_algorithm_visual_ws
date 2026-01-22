@@ -174,8 +174,8 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     offset += sizeof(uint16_t);
     memcpy(&frame.color, &data[offset], sizeof(uint8_t));
     offset += sizeof(uint8_t);
-    memcpy(&frame.z_rotation_velocity, &data[offset], sizeof(float));
-    offset += sizeof(float);
+    memcpy(&frame.z_rotation_velocity, &data[offset], sizeof(int16_t));
+    offset += sizeof(int16_t);
     memcpy(&frame.auto_aim_switch, &data[offset], sizeof(uint8_t));
 
     // 格式化输出

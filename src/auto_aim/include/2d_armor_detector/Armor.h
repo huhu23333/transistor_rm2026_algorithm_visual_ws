@@ -18,7 +18,8 @@ namespace ArmorType {
         Sentry,
         Outpost,
         Base,
-        AutoSwitch
+        Middle,
+        Nearest
     };
     extern std::vector<std::string> ArmorTypeStrings;
 }

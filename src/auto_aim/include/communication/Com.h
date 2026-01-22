@@ -51,7 +51,7 @@ private:
         int16_t gimbal_yaw;
         uint16_t mark;
         uint8_t color;
-        float z_rotation_velocity;
+        int16_t z_rotation_velocity;
         uint8_t auto_aim_switch;
     };
     static constexpr size_t BUFFER_SIZE = 1024;

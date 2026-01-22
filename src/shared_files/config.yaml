@@ -35,7 +35,9 @@ serial_delay_time : 30.0 # ms
 # yaw_rad_to_x_pixel_ratio : 1300.0
 # pitch_rad_to_y_pixel_ratio : 1350.0
 
-reset_predictor_time : 1500.0 # ms
+reset_predictor_time : 1000.0 # ms
+
+pre_predict_time : 2000.0
 
 # RMM火控设置
 target_change_ceasefire_ms : 300
