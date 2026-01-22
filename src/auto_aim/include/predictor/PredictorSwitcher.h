@@ -18,6 +18,7 @@ namespace PredictorType {
     enum PredictorType {
         None = 0,   // 直接瞄准装甲板
         RotationMotionModel,
+        EKF,
         AutoSwitch
     };
 

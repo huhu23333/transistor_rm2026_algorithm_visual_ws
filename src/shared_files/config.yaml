@@ -1,3 +1,28 @@
+ekf_params:
+  s2qx:   2.0e3
+  s2qy:   2.0e3
+  s2qz:   2.0e3
+  s2qyaw: 1.0e3
+  s2qr:   1.0e-2
+  s2qdz:  1.0e-1
+  
+  r_x:    1.0e-2
+  r_y:    1.0e-2
+  r_z:    1.0e0
+  r_yaw:  0.1
+  
+  p0:     1500.0
+
+ekf_extra_delay: 0.0
+RESET_DISTANCE_THRESHOLD: 4.9e2 # 单位：mm
+
+
+tracker:
+  max_match_distance_mm: 300.0  # 跳变后几何一致性阈值（mm）
+  max_match_yaw_diff_rad: 0.4  # yaw 跳变判据（rad）
+
+
+
 # SharedMemoryClassifier参数
 CLASSIFIER_SHM_KEY : 0x0250
 classifier_model_relative_path : "src/shared_files/models/model_rm2026_openvino/model.xml"
