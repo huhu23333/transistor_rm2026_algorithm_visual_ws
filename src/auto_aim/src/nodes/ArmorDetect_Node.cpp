@@ -560,7 +560,7 @@ private:
         }        
 
         // 获取处理帧率
-        RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
+        RCLCPP_DEBUG(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
     }
 
     // 参数文件

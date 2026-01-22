@@ -803,6 +803,8 @@ void Tracker::handleArmorJump(double measured_yaw,
 
     // 3) 几何一致性检查：如果强烈不一致，就直接用观测位置 + 当前几何重置中心
     if (is_switching || (infer_pos - measured_pos).norm() > max_match_distance_) {
+        std::cout << "reset EKF" << std::endl;
+
         const double xa  = measured_pos.x();
         const double ya  = measured_pos.y();
         const double za  = measured_pos.z();
@@ -817,9 +819,9 @@ void Tracker::handleArmorJump(double measured_yaw,
         const double yc = ya + OFFSET_SIGN * r * c;
         const double zc = za - dz;
 
-        x_pos_(0) = xc; x_pos_(1) = 0.0;
-        x_pos_(2) = yc; x_pos_(3) = 0.0;
-        x_pos_(4) = zc; x_pos_(5) = 0.0;
+        x_pos_(0) = xc;// x_pos_(1) = 0.0;
+        x_pos_(2) = yc;// x_pos_(3) = 0.0;
+        x_pos_(4) = zc;// x_pos_(5) = 0.0;
 
         pos_ekf_->setState(x_pos_);
         syncFullFromSub();

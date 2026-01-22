@@ -206,7 +206,7 @@ private:
 
     // 当前这个 AllPredictor 对应目标类型的几何信息
     int armor_num_         = 4;        // 一圈有几块装甲：普通车 4，前哨站 3
-    double ekf_init_r_mm_  = 265.0;  // 中心到装甲板水平半径
+    double ekf_init_r_mm_  = 400.0;  // 中心到装甲板水平半径
     double ekf_init_dz_mm_ = 20.0;    // 中心到装甲板高度偏置
     bool is_outpost_       = false;
 

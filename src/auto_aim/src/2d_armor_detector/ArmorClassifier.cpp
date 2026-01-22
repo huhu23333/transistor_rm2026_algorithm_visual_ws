@@ -140,6 +140,8 @@ std::vector<ArmorResult> ArmorClassifier::classify(
 
         bool not_slant = true;
 
+        if (current_number == 0) {is_ture_armor = false;}
+
         if (is_ture_armor) {
             bool is_large = is_large_probability > IS_LARGE_THRESHOLD;
             float armor_type_confidence = 1.0 - is_large_probability;
