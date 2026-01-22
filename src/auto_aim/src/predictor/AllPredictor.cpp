@@ -15,7 +15,14 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     result.enemy_position_y = last_enemy_position_y;
     
     if (armor_class != ArmorType::Base) {
-        using_predictor_type = predictor_switcher_ -> step();
+        // using_predictor_type = predictor_switcher_ -> step();
+        if(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - latest_predicting_start_time).count()
+            < pre_predict_time) {
+
+            using_predictor_type = PredictorType::None;
+        } else {
+            using_predictor_type = predictor_switcher_ -> step();
+        }
     }
 
     bool ballistic_valid_flag = false;
@@ -45,6 +52,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             last_com_time = std::chrono::steady_clock::now();
 
             last_pixel_horizontal_center_distance = std::abs(best_result.center.x - static_cast<float>(frame.cols)/2.0);
+            latest_armor_distance = std::sqrt(aim.distance);
             
             // 查看并滤波z轴距离轴数据
             armor_distance_filter_ -> addPoint(aim.position.z);
@@ -330,6 +338,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             last_pixel_horizontal_center_distance = 1e10;
             has_valid_ballistic = false;
             RMM_fire_control_data.new_target = true;
+            latest_armor_distance = 1e10;
         } else {
             
             result.reset = false;
@@ -555,6 +564,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     result.predictor_type = using_predictor_type;
     result.armor_type = armor_class;
     result.pixel_horizontal_center_distance = last_pixel_horizontal_center_distance;
+    result.latest_armor_distance = latest_armor_distance;
     return result;
 }
 
