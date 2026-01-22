@@ -219,6 +219,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
                         cv::Scalar(0, 255, 0), 1, 8, false);
                     cv::putText(RMM_visualize_frame, 
+                        "flip:"+std::to_string(rotation_motion_model_ -> debug_flip_flag), 
+                        cv::Point2f(580,110), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
                         "center_z:"+std::to_string(RMM_pred_aim_data.center_z), 
                         cv::Point2f(20,140), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
@@ -443,6 +448,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::putText(RMM_visualize_frame, 
                             "r_another:"+std::to_string(RMM_pred_aim_data.r_another), 
                             cv::Point2f(300,110), 
+                            cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                            cv::Scalar(0, 255, 0), 1, 8, false);
+                        cv::putText(RMM_visualize_frame, 
+                            "flip:"+std::to_string(rotation_motion_model_ -> debug_flip_flag), 
+                            cv::Point2f(580,110), 
                             cv::FONT_HERSHEY_COMPLEX, 0.7, 
                             cv::Scalar(0, 255, 0), 1, 8, false);
                         cv::putText(RMM_visualize_frame, 
