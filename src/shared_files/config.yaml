@@ -1,17 +1,17 @@
 ekf_params:
-  s2qx:   2.0e3
-  s2qy:   2.0e3
-  s2qz:   2.0e3
-  s2qyaw: 1.0e3
-  s2qr:   1.0e-2
-  s2qdz:  1.0e-1
+  s2qx:   1.0e3
+  s2qy:   1.0e3
+  s2qz:   1.0e3
+  s2qyaw: 1.0e1
+  s2qr:   1.0e2
+  s2qdz:  1.0e2
   
-  r_x:    1.0e-2
-  r_y:    1.0e-2
-  r_z:    1.0e0
-  r_yaw:  0.1
+  r_x:    1.5e-0
+  r_y:    1.5e-0
+  r_z:    1.0e-0
+  r_yaw:  0.05
   
-  p0:     1500.0
+  p0:     100.0
 
 ekf_extra_delay: 0.0
 RESET_DISTANCE_THRESHOLD: 4.9e2 # 单位：mm
