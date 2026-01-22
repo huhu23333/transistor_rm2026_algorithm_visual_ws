@@ -27,7 +27,7 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     
     r_now_prev_ = r_now;  // 初始化历史半径值
     r_another_prev_ = r_another;
-    regularization_weight_ = 10.0;  // 正则化权重，可调整
+    regularization_weight_ = 1.0;  // 正则化权重，可调整
     
     // 初始化中心位置
     center_x = initObservedData.x - r_now * sin(initObservedData.yaw);
@@ -215,14 +215,19 @@ void RotationMotionModel::updateCenterResult(double current_time) {
 
 void RotationMotionModel::update(ObservedData& observedData) {
     update_frames_count += 1;
-    double theoretic_yaw = getTheoreticYaw(observedData.x, observedData.y);
 
-    if (isYawJump(theoretic_yaw)) {
+    if (isYawJump(observedData.yaw)) {
         observedData.yaw_jump = true;
         if (!is_outpost) {
             std::swap(r_now, r_another);
             std::swap(r_now_prev_, r_another_prev_);
             std::swap(center_z, z_another);
+
+            if (debug_flip_flag == 1) {
+                debug_flip_flag = 2;
+            } else {
+                debug_flip_flag = 1;
+            }
         }
         std::cout << "RMM Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump! Yaw jump!" << std::endl;
     }
@@ -254,7 +259,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
         this_yaw_jump = data.yaw_jump ? (!this_yaw_jump) : this_yaw_jump;
         if (!is_outpost) {
             updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, 
-                this_yaw_jump ? time_weight*0.1 : time_weight, 
+                this_yaw_jump ? time_weight*0.2 : time_weight, 
                 this_yaw_jump ? r_now-r_another : 0.0, 
                 this_yaw_jump ? center_z-z_another : 0.0);
         } else {
@@ -268,7 +273,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
     // 使用EKF更新角度和角速度，传入xc, yc, r
     double dt = observedData.t - last_update_time_;
     if (dt > 0) {
-        angle_ekf_->update(theoretic_yaw, observedData.x, observedData.y, 
+        angle_ekf_->update(observedData.yaw, observedData.x, observedData.y, 
                           center_x, center_y, r_now, dt);
         last_update_time_ = observedData.t;
         rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;

@@ -219,6 +219,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
                         cv::Scalar(0, 255, 0), 1, 8, false);
                     cv::putText(RMM_visualize_frame, 
+                        "flip:"+std::to_string(rotation_motion_model_ -> debug_flip_flag), 
+                        cv::Point2f(580,110), 
+                        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                        cv::Scalar(0, 255, 0), 1, 8, false);
+                    cv::putText(RMM_visualize_frame, 
                         "center_z:"+std::to_string(RMM_pred_aim_data.center_z), 
                         cv::Point2f(20,140), 
                         cv::FONT_HERSHEY_COMPLEX, 0.7, 
@@ -446,6 +451,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             cv::FONT_HERSHEY_COMPLEX, 0.7, 
                             cv::Scalar(0, 255, 0), 1, 8, false);
                         cv::putText(RMM_visualize_frame, 
+                            "flip:"+std::to_string(rotation_motion_model_ -> debug_flip_flag), 
+                            cv::Point2f(580,110), 
+                            cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                            cv::Scalar(0, 255, 0), 1, 8, false);
+                        cv::putText(RMM_visualize_frame, 
                             "center_z:"+std::to_string(RMM_pred_aim_data.center_z), 
                             cv::Point2f(20,140), 
                             cv::FONT_HERSHEY_COMPLEX, 0.7, 
@@ -552,6 +562,14 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     result.armor_type = armor_class;
     result.pixel_horizontal_center_distance = last_pixel_horizontal_center_distance;
     result.latest_armor_distance = latest_armor_distance;
+
+    if(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - latest_predicting_start_time).count()
+        < pre_predict_time_not_aim) {
+
+        result.fire_flag = false;
+        result.reset = true;
+    }
+
     return result;
 }
 
