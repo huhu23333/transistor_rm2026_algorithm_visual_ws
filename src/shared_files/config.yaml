@@ -37,6 +37,11 @@ serial_delay_time : 30.0 # ms
 
 reset_predictor_time : 1500.0 # ms
 
+# RMM火控设置
+target_change_ceasefire_ms : 300
+aim_center_vyaw_threshold : 1.5
+aim_center_yaw_bias_expand : 0.174
+
 armor_distance_smooth_factor : 1.0 # 0.05
 
 # Params.h 参数设置
