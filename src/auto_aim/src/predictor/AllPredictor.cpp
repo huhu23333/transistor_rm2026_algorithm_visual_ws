@@ -377,6 +377,12 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
 
 
+    if(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - latest_predicting_start_time).count()
+        < pre_predict_time_not_aim) {
+
+        result.fire_flag = false;
+        result.reset = true;
+    }
 
     return result;
 }

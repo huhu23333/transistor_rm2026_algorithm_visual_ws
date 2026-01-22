@@ -62,6 +62,7 @@ serial_delay_time : 30.0 # ms
 
 reset_predictor_time : 1000.0 # ms
 
+pre_predict_time_not_aim : 500.0
 pre_predict_time : 2000.0
 
 # RMM火控设置

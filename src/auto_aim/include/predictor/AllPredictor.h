@@ -131,6 +131,7 @@ public:
         RMM_fire_control_data.aim_center_yaw_bias_expand = (*config_file_ptr)["aim_center_yaw_bias_expand"].as<float>();
 
         pre_predict_time = (*config_file_ptr)["pre_predict_time"].as<float>();
+        pre_predict_time_not_aim = (*config_file_ptr)["pre_predict_time_not_aim"].as<float>();
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
@@ -215,4 +216,5 @@ private:
     
     int current_target_id_ = -1;      // 当前跟踪目标ID - EKF
 
+    float pre_predict_time_not_aim;
 };
