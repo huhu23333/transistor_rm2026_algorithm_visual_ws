@@ -23,7 +23,10 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
     std::vector<PredictorResult> classified_predictor_results;
     for (size_t all_predictors_index = 0; all_predictors_index < classify_classes; all_predictors_index++) {
         if (classified_classifyResults[all_predictors_index].size() != 0) {
-            all_predictors_[all_predictors_index] -> is_reset = false;
+            if (all_predictors_[all_predictors_index] -> is_reset == true) {
+                all_predictors_[all_predictors_index] -> latest_predicting_start_time = std::chrono::steady_clock::now();
+                all_predictors_[all_predictors_index] -> is_reset = false;
+            }
         }
         if (all_predictors_[all_predictors_index] -> is_reset == false) {
             classified_predictor_results.push_back(

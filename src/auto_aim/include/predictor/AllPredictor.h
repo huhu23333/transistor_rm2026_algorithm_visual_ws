@@ -74,6 +74,8 @@ public:
         RMM_fire_control_data.target_change_ceasefire_ms = (*config_file_ptr)["target_change_ceasefire_ms"].as<int>();
         RMM_fire_control_data.aim_center_vyaw_threshold = (*config_file_ptr)["aim_center_vyaw_threshold"].as<float>();
         RMM_fire_control_data.aim_center_yaw_bias_expand = (*config_file_ptr)["aim_center_yaw_bias_expand"].as<float>();
+
+        pre_predict_time = (*config_file_ptr)["pre_predict_time"].as<float>();
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
@@ -81,6 +83,7 @@ public:
 
     bool is_reset = false;
 
+    std::chrono::steady_clock::time_point latest_predicting_start_time;
 private:
     PredictorType::PredictorType using_predictor_type = PredictorType::None;
     ArmorType::ArmorType armor_class;
@@ -136,4 +139,6 @@ private:
     RMM_fire_result_t RMM_fire_control(SimpleArmor chosen_armor, RotationMotionState RMM_state, float yaw_bias, bool is_large_armor);
 
     float latest_armor_distance = 1e10;
+
+    float pre_predict_time;
 };

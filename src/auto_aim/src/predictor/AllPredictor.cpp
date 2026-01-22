@@ -12,7 +12,14 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     PredictorResult result;
 
     if (armor_class != ArmorType::Base) {
-        using_predictor_type = predictor_switcher_ -> step();
+        // using_predictor_type = predictor_switcher_ -> step();
+        if(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - latest_predicting_start_time).count()
+            < pre_predict_time) {
+
+            using_predictor_type = PredictorType::None;
+        } else {
+            using_predictor_type = predictor_switcher_ -> step();
+        }
     }
 
     bool ballistic_valid_flag = false;
