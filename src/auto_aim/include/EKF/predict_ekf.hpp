@@ -12,6 +12,26 @@
 #include <rclcpp/rclcpp.hpp>
 #include "EKF/Tracker.h"
 
+struct SimpleArmor {
+    double x;
+    double y;
+    double z;
+    double r;
+    double yaw;
+};
+
+struct PredictResult {
+    double center_x;
+    double center_y;
+    double center_z;
+    double z_another;
+    double r_now;
+    double r_another;
+    double yaw;
+    int rotation_direction;
+    std::vector<SimpleArmor> armors;
+};
+
 namespace PredictorType {
     enum PredictorType {
         None = 0,   // 直接瞄准装甲板
@@ -64,10 +84,22 @@ public:
 
         armor_distance_filter_ = std::make_shared<SimpleDataFilter>(1);
         armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
+
+        is_base = armor_class_ == ArmorType::Base;
+        is_outpost = armor_class_ == ArmorType::Outpost;
+
+        tracker_ = std::make_shared<Tracker>(0.02, EKFParams{
+            (*config_file_ptr)["ekf_process_noise_position"].as<float>(),
+            (*config_file_ptr)["ekf_process_noise_velocity"].as<float>(),
+            (*config_file_ptr)["ekf_process_noise_acceleration"].as<float>(),
+            (*config_file_ptr)["ekf_measurement_noise_position"].as<float>(),
+            (*config_file_ptr)["ekf_measurement_noise_yaw"].as<float>()
+        });
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
+    PredictResult PredictorEKF::state_convert_to_PredictResult(Tracker::State state);
 
     bool is_reset = false;
 
@@ -84,6 +116,8 @@ private:
 
     float bullet_velocity_;
 
+    float last_total_delay_ = 0.0;
+
     float yaw_rad_to_x_pixel_ratio_;
     float pitch_rad_to_y_pixel_ratio_;
 
@@ -96,4 +130,23 @@ private:
     std::shared_ptr<Oscilloscope> oscilloscope_common_;
 
     std::shared_ptr<SimpleDataFilter> armor_distance_filter_;
+
+    cv::Point3f last_rest_frame_pos_ = {0.0, 0.0, 0.0};
+
+    float last_pixel_horizontal_center_distance_ = 1e10;
+
+    float last_pitch_rad_delayed_ = 0;
+    float last_yaw_rad_delayed_ = 0;
+    float total_yaw_rad_delayed_ = 0;
+
+    cv::Point2f last_aim_yaw_pitch_;
+    cv::Point2f last_aim_yaw_pitch_pixel_;
+
+    bool has_valid_ballistic_ = false;
+
+    bool ekf_init = false;
+
+    bool is_outpost = false; //是否为前哨站
+
+    bool is_base = false; //是否为基地
 };
