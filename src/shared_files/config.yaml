@@ -41,7 +41,9 @@ pre_predict_time_not_aim : 500.0
 pre_predict_time : 2000.0
 
 # RMM火控设置
-target_change_ceasefire_ms : 300
+after_target_change_ceasefire_ms : 300
+before_target_change_ceasefire_ms : 300
+after_before_target_change_ceasefire_ms : 300
 aim_center_vyaw_threshold : 3.0
 aim_center_yaw_bias_expand : 0.174
 
