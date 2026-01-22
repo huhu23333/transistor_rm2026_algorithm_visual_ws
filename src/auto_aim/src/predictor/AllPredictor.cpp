@@ -590,6 +590,8 @@ RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, Rotat
             yaw_diff += 2 *  M_PI;
         }
         if (yaw_diff > M_PI / 4.0) {
+            RMM_fire_control_data.last_target_change_duration_ms = 
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - RMM_fire_control_data.last_target_yaw_jump_time).count();
             RMM_fire_control_data.last_target_yaw_jump_time = now;
         }
     }
@@ -610,9 +612,16 @@ RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, Rotat
             result.fire = false;
         }
     } else {
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - RMM_fire_control_data.last_target_yaw_jump_time).count() 
-            < RMM_fire_control_data.target_change_ceasefire_ms) {
-
+        int ms_sence_last_target_change = 
+            std::chrono::duration_cast<std::chrono::milliseconds>(now - RMM_fire_control_data.last_target_yaw_jump_time).count();
+        if (ms_sence_last_target_change < RMM_fire_control_data.after_target_change_ceasefire_ms 
+            || 
+            (
+                ms_sence_last_target_change > RMM_fire_control_data.last_target_change_duration_ms - RMM_fire_control_data.before_target_change_ceasefire_ms
+                && 
+                ms_sence_last_target_change < RMM_fire_control_data.last_target_change_duration_ms + RMM_fire_control_data.after_before_target_change_ceasefire_ms
+            )
+        ) {
             result.fire = false;
         } else {
             result.fire = true;
