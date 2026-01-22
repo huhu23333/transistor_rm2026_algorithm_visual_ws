@@ -173,8 +173,8 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     offset += sizeof(uint16_t);
     memcpy(&frame.color, &data[offset], sizeof(uint8_t));
     offset += sizeof(uint8_t);
-    memcpy(&frame.z_rotation_velocity, &data[offset], sizeof(float));
-    offset += sizeof(float);
+    memcpy(&frame.z_rotation_velocity, &data[offset], sizeof(int16_t));
+    offset += sizeof(int16_t);
     memcpy(&frame.auto_aim_switch, &data[offset], sizeof(uint8_t));
 
     // 格式化输出
@@ -185,7 +185,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
         "\033[1;33mGimbal Yaw:\033[0m %d (%.2f°)\n"
         "\033[1;36mMark:\033[0m %d\n"
         "\033[1;31mColor:\033[0m %d\n"
-        "\033[1;35mZ Rotation Velocity:\033[0m %.2f rad/s",
+        "\033[1;35mZ Rotation Velocity:\033[0m %.2d\n",
         frame.bullet_velocity,
         frame.bullet_angle,
         frame.gimbal_yaw, frame.gimbal_yaw * 180.0 / 4096.0,
