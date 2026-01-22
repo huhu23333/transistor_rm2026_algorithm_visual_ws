@@ -63,6 +63,7 @@ mean_color_diff_THRESHOLD_BLUE : 20.0
 mean_color_diff_THRESHOLD_RED : 10.0
 THRES_MAX_COLOR_RED : 60
 THRES_MAX_COLOR_BLUE : 100
+light_bar_max_angle : 30.0
 
 # ArmorDetector 参数
 corners_expand_ratio : 1.5 # 装甲板角点坐标扩大比例

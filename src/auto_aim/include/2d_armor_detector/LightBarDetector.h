@@ -64,6 +64,7 @@ private:
     // 颜色通道差值的阈值常量
     int THRES_MAX_COLOR_RED;   // 红色通道差值阈值
     int THRES_MAX_COLOR_BLUE;  // 蓝色通道差值阈值
+    float light_bar_max_angle;
 
     /**
      * @brief 根据敌方颜色提取颜色通道差值图像
