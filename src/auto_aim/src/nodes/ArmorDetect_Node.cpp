@@ -309,7 +309,7 @@ private:
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
         predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
         
-        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(msg.z_rotation_velocity) * 20.0 / 800.0 * M_PI / 180.0);
+        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(msg.z_rotation_velocity) * 0.0 / 800.0 * M_PI / 180.0); // 20.0
 
         RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
 
