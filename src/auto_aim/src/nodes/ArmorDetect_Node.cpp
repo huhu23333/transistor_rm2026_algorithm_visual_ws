@@ -84,9 +84,6 @@ public:
 
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
-        current_pitch_ = (*config_file_ptr)["current_pitch_"].as<float>();
-        current_yaw_ = (*config_file_ptr)["current_yaw_"].as<float>();
-
         enemy_color_ = (*config_file_ptr)["init_enemy_color"].as<std::string>();
 
         use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
@@ -586,8 +583,8 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> node_start_time;
     
     float bullet_velocity_;
-    float current_pitch_;
-    float current_yaw_;
+    float current_pitch_ = 0.0;
+    float current_yaw_ = 0.0;
     int yaw_circle_ = 0;
     float last_pitch_rad_ = 0;
     float last_yaw_rad_ = 0;
