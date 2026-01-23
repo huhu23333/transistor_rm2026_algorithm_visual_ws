@@ -84,6 +84,9 @@ public:
 
         pre_predict_time = (*config_file_ptr)["pre_predict_time"].as<float>();
         pre_predict_time_not_aim = (*config_file_ptr)["pre_predict_time_not_aim"].as<float>();
+
+        extra_predict_time = (*config_file_ptr)["extra_predict_time"].as<float>();
+        choose_armor_yaw_bias = M_PI / 180.0 * (*config_file_ptr)["choose_armor_yaw_bias_degree"].as<float>();
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
@@ -157,5 +160,7 @@ private:
     float pre_predict_time;
     float pre_predict_time_not_aim;
 
-    float choose_armor_yaw_bias = M_PI / 180.0 * 0.0;
+    float choose_armor_yaw_bias;
+
+    float extra_predict_time;
 };
