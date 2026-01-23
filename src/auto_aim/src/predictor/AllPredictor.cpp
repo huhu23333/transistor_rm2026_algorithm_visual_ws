@@ -69,11 +69,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             last_rest_frame_pos = rest_frame_pos;
 
             // 提前预测与弹道解算
-            constexpr float image_latency = 0.013f;
-            constexpr float comm_latency  = 0.010f;
             float bullet_time = (bullet_velocity_ > 1.0f) ? (std::abs(aim.position.z) / 1000.0f / bullet_velocity_) : 0.0f;
-            float extra_time = 0.150f; // 0.300f
-            float total_delay = image_latency + comm_latency + bullet_time + extra_time;
+            float total_delay = bullet_time + extra_predict_time;
             last_total_delay_ = total_delay;
 
             // 默认使用 None （直接瞄准装甲板）

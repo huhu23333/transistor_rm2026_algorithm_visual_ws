@@ -26,7 +26,16 @@ public:
             all_predictors_.push_back(std::make_shared<AllPredictor>(
                 config_file_ptr, node, node_start_time, armor_solver_,
                 ballistic_solver_, rest_frame_, fps_counter, static_cast<ArmorType::ArmorType>(all_predictors_index)));
-        } 
+        }
+
+        pitch_integration_max_degree = (*config_file_ptr)["pitch_integration_max_degree"].as<float>();
+        pitch_integration_min_degree = (*config_file_ptr)["pitch_integration_min_degree"].as<float>();
+        yaw_integration_max_degree = (*config_file_ptr)["yaw_integration_max_degree"].as<float>();
+        yaw_integration_min_degree = (*config_file_ptr)["yaw_integration_min_degree"].as<float>();
+        command_picth_kp = (*config_file_ptr)["command_picth_kp"].as<float>();
+        command_picth_integration_speed = (*config_file_ptr)["command_picth_integration_speed"].as<float>();
+        command_yaw_kp = (*config_file_ptr)["command_yaw_kp"].as<float>();
+        command_yaw_integration_speed = (*config_file_ptr)["command_yaw_integration_speed"].as<float>();
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor,  bool auto_aim_switch);
@@ -53,5 +62,14 @@ private:
     float pitch_integration = 0.0;
     float yaw_integration = 0.0;
 
+    float pitch_integration_max_degree;
+    float pitch_integration_min_degree;
+    float yaw_integration_max_degree;
+    float yaw_integration_min_degree;
+    float command_picth_kp;
+    float command_picth_integration_speed;
+    float command_yaw_kp;
+    float command_yaw_integration_speed;
+    
     float extra_delta_yaw = 0.0;
 };
