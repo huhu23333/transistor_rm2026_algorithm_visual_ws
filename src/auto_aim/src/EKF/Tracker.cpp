@@ -68,8 +68,8 @@ void EKFTracker::reset(const Measurement& z) {
     r_init_ = 200.0; 
     
     // 根据Measure函数的反函数来计算中心初始位置
-    double xc = xa + r_init_ * sin(yaw);
-    double yc = ya - r_init_ * cos(yaw); // 简化模型，高度相同
+    double xc = xa - r_init_ * sin(yaw);
+    double yc = ya + r_init_ * cos(yaw); // 简化模型，高度相同
     double zc = za ;
     
     x0(0) = xc;
@@ -96,7 +96,8 @@ EKFTracker::State EKFTracker::predict() {
 }
 
 EKFTracker::State EKFTracker::update(const Measurement& z) {
-    auto state_vec = ekf_->update(z);
+    auto state_vec = ekf_->predict();
+    state_vec = ekf_->update(z);
     
     // 对半径增加约束，防止发散
     if (state_vec(8) < 120.0) state_vec(8) = 120.0; // 最小半径
@@ -120,7 +121,7 @@ Eigen::Vector3d EKFTracker::getArmorPosition() const {
     State x = getTargetState();
     double xc=x(0), yc=x(2), zc=x(4), yaw=x(6), r=x(8);
     // 根据Measure函数计算装甲板位置
-    return {xc - r * sin(yaw), yc + r * cos(yaw), zc};
+    return {xc + r * sin(yaw), yc - r * cos(yaw), zc};
 }
 
 EKFTracker::State EKFTracker::predictAhead(double t_ahead) const {

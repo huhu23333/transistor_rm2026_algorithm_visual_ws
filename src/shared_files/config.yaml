@@ -25,7 +25,8 @@ max_armor_position_height : 1500.0 # 最大装甲板高度，超过此值视为�
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 
-video_relative_path : "InputVideo/infantry_blue.mp4" # 使用视频输入时的视频路径
+# video_relative_path : "InputVideo/infantry_blue.mp4" # 使用视频输入时的视频路径
+video_relative_path : "InputVideo/outpost1_8m.mp4" # 使用视频输入时的视频路径
 images_relative_path : "InputImages" # 使用图片输入时的图片文件夹路径
 
 frame_rate : 30.0
@@ -98,13 +99,13 @@ armor_tracker_fit_step : 5
 armor_tracker_predict_step : 5
 
 # EKF 参数
-ekf_process_noise_x : 0.1
-ekf_process_noise_y : 0.1
+ekf_process_noise_x : 0.01
+ekf_process_noise_y : 0.01
 ekf_process_noise_z : 0.1
 ekf_process_noise_yaw : 0.1
 ekf_process_noise_radius : 0.1
-ekf_measurement_noise_x : 0.1
-ekf_measurement_noise_y : 0.1
+ekf_measurement_noise_x : 0.01
+ekf_measurement_noise_y : 0.01
 ekf_measurement_noise_z : 0.1
 ekf_measurement_noise_yaw : 0.1
 ekf_initial_covariance : 1.0

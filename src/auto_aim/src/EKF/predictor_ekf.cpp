@@ -28,6 +28,13 @@ PredictorResult PredictorEKF::step(std::vector<ArmorResult>& classifyResults, cv
         );
         if (it != classifyResults.end()) {
             auto best_result = *it;
+            armor_class_ = static_cast<ArmorType::ArmorType>(best_result.number);
+            if (armor_class_ == ArmorType::Outpost) {
+                is_outpost = true;
+            } else {
+                is_outpost = false;
+            }
+
             AimResult aim = best_result.solve_armor_result;// armor_solver_->solveArmor(best_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
             is_reset = false;
             last_com_time_ = std::chrono::steady_clock::now();
@@ -51,7 +58,13 @@ PredictorResult PredictorEKF::step(std::vector<ArmorResult>& classifyResults, cv
             RCLCPP_DEBUG(node_->get_logger(), "camera euler angles: yaw=%.2f, pitch=%.2f, roll=%.2f", aim.normal_euler_angles[0], aim.normal_euler_angles[1], aim.normal_euler_angles[2]);
             RCLCPP_DEBUG(node_->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0]);
 
-            last_rest_frame_pos_ = rest_frame_pos;
+            if (hypot(last_rest_frame_pos_.x - rest_frame_pos.x,
+                      last_rest_frame_pos_.y - rest_frame_pos.y) > 100.0f ) {
+                RCLCPP_INFO(node_->get_logger(), "armor change in rest frame position detected.");
+                tracker_ -> reset({rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0]});
+            }
+
+            last_rest_frame_pos_ = rest_frame_pos; 
 
             // 计算延迟并存至成员变量，用于弹道解算
             constexpr float image_latency = 0.013f;
@@ -84,10 +97,9 @@ PredictorResult PredictorEKF::step(std::vector<ArmorResult>& classifyResults, cv
                 ekf_init = true;
                 return result;
             }
+
+            tracker_ -> update(z);
             PredictResult EKF_pred_now_data = state_convert_to_PredictResult(tracker_ -> getTargetState());
-
-            tracker_ -> predict(); tracker_ -> update(z);
-
             visualize(EKF_pred_now_data, frame, best_result, rest_frame_pos, rest_frame_euler_angles); // 可视化
 
             PredictResult RMM_pred_aim_data = predictTime(total_delay);
@@ -247,7 +259,7 @@ PredictResult PredictorEKF::state_convert_to_PredictResult(EKFTracker::State sta
     double xc = state(0);
     double yc = state(2);
     double zc = state(4);
-    double r_now = state(8);
+    r_now_ = state(8);
     double yaw = state(6);
     double rotation_direction = (state(7) >= 0) ? 1.0 : -1.0;
     std::vector<SimpleArmor> armors;
@@ -267,7 +279,7 @@ PredictResult PredictorEKF::state_convert_to_PredictResult(EKFTracker::State sta
 
     PredictResult EKF_pred_now_data = {
         xc, yc, zc, z_another_,
-        r_now, r_another_,
+        r_now_, r_another_,
         yaw, rotation_direction, armors
     };
     return EKF_pred_now_data;
@@ -291,7 +303,7 @@ PredictResult PredictorEKF::predictTime(double delay_time) {
     // 生成装甲板预测
     for (int i = 0; i < n_armors_; i++) {
         double armor_yaw = result.yaw - i * result.rotation_direction * jump_rad_;
-        double r_using = is_outpost ? r_now_ : ((i%2==0) ? r_now_ : r_another_);
+        double r_using = is_outpost ? result.r_now : ((i%2==0) ? result.r_now : r_another_);
         double z_using = is_outpost ? result.center_z : ((i%2==0) ? result.center_z : result.z_another);
         result.armors.push_back(SimpleArmor({
             result.center_x + r_using * std::sin(armor_yaw),
@@ -322,9 +334,11 @@ void PredictorEKF::visualize(PredictResult EKF_pred_now_data, cv::Mat& frame, Ar
     }
     cv::Mat EKF_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
     if (best_result.is_tracked_now) {
-        cv::circle(EKF_visualize_frame, cv::Point2f(400+EKF_pred_now_data.center_x/10, 400-EKF_pred_now_data.center_y/10), 8, cv::Scalar(0, 255, 0), 2);
+        cv::circle(EKF_visualize_frame, cv::Point2f(400+EKF_pred_now_data.center_x/10, 400-EKF_pred_now_data.center_y/10),
+                   8, cv::Scalar(0, 255, 0), 2);
     } else {
-        cv::circle(EKF_visualize_frame, cv::Point2f(400+EKF_pred_now_data.center_x/10, 400-EKF_pred_now_data.center_y/10), 8, cv::Scalar(255, 0, 255), 2);
+        cv::circle(EKF_visualize_frame, cv::Point2f(400+EKF_pred_now_data.center_x/10, 400-EKF_pred_now_data.center_y/10),
+                   8, cv::Scalar(255, 0, 255), 2);
     }
     for (int EKF_pred_now_armor_i = 0; EKF_pred_now_armor_i < EKF_pred_now_data.armors.size(); EKF_pred_now_armor_i += 1) {
         SimpleArmor& EKF_pred_now_armor = EKF_pred_now_data.armors[EKF_pred_now_armor_i];
@@ -339,10 +353,10 @@ void PredictorEKF::visualize(PredictResult EKF_pred_now_data, cv::Mat& frame, Ar
         
         cv::circle(EKF_visualize_frame, cv::Point2f(400+EKF_pred_now_armor.x/10, 400-EKF_pred_now_armor.y/10), 8, 
             cv::Scalar(0, 255 - EKF_pred_now_armor_i * 80, EKF_pred_now_armor_i * 80), 2);
-        // cv::line(EKF_visualize_frame, 
-        //     cv::Point2f(400+EKF_pred_now_data.center_x/10, 400-EKF_pred_now_data.center_y/10), 
-        //     cv::Point2f(400+EKF_pred_now_armor.x/10, 400-EKF_pred_now_armor.y/10), 
-        //     cv::Scalar(0, 255 - EKF_pred_now_armor_i * 80, EKF_pred_now_armor_i * 80), 2);
+        cv::line(EKF_visualize_frame, 
+            cv::Point2f(400+EKF_pred_now_data.center_x/10, 400-EKF_pred_now_data.center_y/10), 
+            cv::Point2f(400+EKF_pred_now_armor.x/10, 400-EKF_pred_now_armor.y/10), 
+            cv::Scalar(0, 255 - EKF_pred_now_armor_i * 80, EKF_pred_now_armor_i * 80), 2);
     }
     cv::circle(EKF_visualize_frame, 
         cv::Point2f(400+rest_frame_pos.x/10, 400-rest_frame_pos.y/10), 8, cv::Scalar(255, 255, 0), 2);
@@ -357,20 +371,60 @@ void PredictorEKF::visualize(PredictResult EKF_pred_now_data, cv::Mat& frame, Ar
                     400 - std::cos(total_yaw_rad_delayed_)*150),
         cv::Scalar(255, 255, 0), 2);
     cv::putText(EKF_visualize_frame, 
-        "total_yaw:"+std::to_string(total_yaw_rad_delayed_), 
+        "armor_type:"+std::to_string(armor_class_), 
+        cv::Point2f(20,80), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(255, 255, 255), 1, 8, false);
+    cv::putText(EKF_visualize_frame, 
+        "is_track_now:"+std::to_string(best_result.is_tracked_now), 
+        cv::Point2f(20,110), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(255, 255, 255), 1, 8, false);
+    cv::putText(EKF_visualize_frame, 
+        "xc:"+std::to_string(tracker_ -> getTargetState()(0)), 
         cv::Point2f(20,140), 
         cv::FONT_HERSHEY_COMPLEX, 0.7, 
         cv::Scalar(0, 255, 0), 1, 8, false);
     cv::putText(EKF_visualize_frame, 
-        "vx:"+std::to_string(tracker_ -> getTargetState()(1)), 
+        "v_xc:"+std::to_string(tracker_ -> getTargetState()(1)), 
+        cv::Point2f(20,170), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
+    cv::putText(EKF_visualize_frame, 
+        "yc:"+std::to_string(tracker_ -> getTargetState()(2)), 
         cv::Point2f(20,200), 
         cv::FONT_HERSHEY_COMPLEX, 0.7, 
         cv::Scalar(0, 255, 0), 1, 8, false);
     cv::putText(EKF_visualize_frame, 
-        "vy:"+std::to_string(tracker_ -> getTargetState()(2)), 
+        "v_yc:"+std::to_string(tracker_ -> getTargetState()(3)), 
         cv::Point2f(20,230), 
         cv::FONT_HERSHEY_COMPLEX, 0.7, 
         cv::Scalar(0, 255, 0), 1, 8, false);
+    cv::putText(EKF_visualize_frame, 
+        "yaw:"+std::to_string(tracker_ -> getTargetState()(6)), 
+        cv::Point2f(20,260), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(255, 0, 0), 1, 8, false);
+    cv::putText(EKF_visualize_frame, 
+        "v_yaw:"+std::to_string(tracker_ -> getTargetState()(7)), 
+        cv::Point2f(20,290), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(255, 0, 0), 1, 8, false);
+    cv::putText(EKF_visualize_frame, 
+        "radius:"+std::to_string(tracker_ -> getTargetState()(8)), 
+        cv::Point2f(20,320), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(255, 0, 0), 1, 8, false);
+    cv::putText(EKF_visualize_frame, 
+        "z:"+std::to_string(tracker_ -> getTargetState()(4)), 
+        cv::Point2f(20,350), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 255), 1, 8, false);
+    cv::putText(EKF_visualize_frame, 
+        "vz:"+std::to_string(tracker_ -> getTargetState()(5)), 
+        cv::Point2f(20,380), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 255), 1, 8, false);
     cv::line(EKF_visualize_frame, 
         cv::Point2f(400 + EKF_pred_now_data.center_x/10, 400 - EKF_pred_now_data.center_y/10), 
         cv::Point2f(400 + (EKF_pred_now_data.center_x/10 + tracker_ -> getTargetState()(1)/5), 

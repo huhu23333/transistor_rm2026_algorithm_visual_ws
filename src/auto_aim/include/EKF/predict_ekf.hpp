@@ -14,48 +14,6 @@
 #include <chrono>
 #include "predictor/PredictorMain.h"
 
-// struct SimpleArmor {
-//     double x;
-//     double y;
-//     double z;
-//     double r;
-//     double yaw;
-// };
-
-// struct PredictResult {
-//     double center_x;
-//     double center_y;
-//     double center_z;
-//     double z_another;
-//     double r_now;
-//     double r_another;
-//     double yaw;
-//     int rotation_direction;
-//     std::vector<SimpleArmor> armors;
-// };
-
-// namespace PredictorType {
-//     enum PredictorType {
-//         None = 0,   // 直接瞄准装甲板
-//         RotationMotionModel,
-//         AutoSwitch
-//     };
-
-//     extern std::vector<std::string> PredictorTypeStrings;
-// }  //TODO:预测器大一統，将其它类型去除，即不存在预测器类型
-
-// struct PredictorResult {
-//     bool reset = true;
-//     float command_pitch = 0.0;
-//     float command_yaw = 0.0;
-//     float command_delta_pitch = 0.0;
-//     float command_delta_yaw = 0.0;
-//     bool fire_flag = false;
-//     PredictorType::PredictorType predictor_type = PredictorType::None; //TODO:预测器大一統，将其它类型去除，即不存在预测器类型
-//     ArmorType::ArmorType armor_type = ArmorType::Hero;
-//     float pixel_horizontal_center_distance = 1e10;
-// };
-
 class PredictorEKF {
 public:
     PredictorEKF(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node, 
