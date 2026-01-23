@@ -595,11 +595,12 @@ RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, Rotat
     }
     RMM_fire_control_data.last_target_yaw = chosen_armor.yaw;
 
-    if (fabs(RMM_state.vyaw) > RMM_fire_control_data.aim_center_vyaw_threshold) {
-        result.aim_center = true;
-    } else {
-        result.aim_center = false;
+    if (fabs(RMM_state.vyaw) > RMM_fire_control_data.aim_center_vyaw_upper_threshold) {
+        RMM_fire_control_data.aim_center_schmitt_trigger = true;
+    } else if (fabs(RMM_state.vyaw) < RMM_fire_control_data.aim_center_vyaw_lower_threshold) {
+        RMM_fire_control_data.aim_center_schmitt_trigger = false;
     }
+    result.aim_center = RMM_fire_control_data.aim_center_schmitt_trigger;
 
     if (result.aim_center) {
         float max_yaw_bias = std::atan2((is_large_armor ? ArmorConstants::LARGE_ARMOR_WIDTH : ArmorConstants::SMALL_ARMOR_WIDTH) / 2.0, 
