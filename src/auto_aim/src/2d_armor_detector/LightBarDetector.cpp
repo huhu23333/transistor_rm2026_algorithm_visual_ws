@@ -472,10 +472,10 @@ void LightBarDetector::detectLights(cv::Mat& img) {
     //cv::cvtColor(binary_img, img, cv::COLOR_GRAY2BGR);
 
 #ifdef SHOW_WINDOWS
-    cv::imshow("Light Bar Debug: binary_img", binary_img);
-    cv::imshow("Light Bar Debug: color_diff", color_diff);
-    cv::imshow("Light Bar Debug: gray_img", gray_img);
-    cv::imshow("Light Bar Debug: subtract_gray_img", subtract_gray_img);
+    // cv::imshow("Light Bar Debug: binary_img", binary_img);
+    // cv::imshow("Light Bar Debug: color_diff", color_diff);
+    // cv::imshow("Light Bar Debug: gray_img", gray_img);
+    // cv::imshow("Light Bar Debug: subtract_gray_img", subtract_gray_img);
 #endif
 }
 
