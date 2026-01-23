@@ -171,11 +171,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(total_delay);
                     cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                     std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
-                    float choose_armor_yaw_bias = M_PI / 180.0 * 0.0;
-                    choose_armor_yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
+                    float choose_armor_yaw_bias_with_direction = choose_armor_yaw_bias;
+                    choose_armor_yaw_bias_with_direction *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
                     for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
                         SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
-                        cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias), -std::cos(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias)};
+                        cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias_with_direction)};
                         center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
                     }
                     int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
@@ -193,7 +193,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         nearest_armor_yaw_bias -= 2*M_PI;
                     }
 
-                    RMM_fire_result_t RMM_fire_result = RMM_fire_control(nearest_armor, RMM_state, nearest_armor_yaw_bias, armor_is_large);
+                    RMM_fire_result_t RMM_fire_result = RMM_fire_control(nearest_armor, RMM_state, nearest_armor_yaw_bias, armor_is_large, cam_to_center_vector, choose_armor_yaw_bias_with_direction);
                     if (RMM_fire_result.aim_center) {
                         predicted_aim_pos = {
                             static_cast<float>(RMM_pred_aim_data.center_x),
@@ -403,11 +403,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                         cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
                         std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
-                        float choose_armor_yaw_bias = M_PI / 180.0 * 0.0;
-                        choose_armor_yaw_bias *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
+                        float choose_armor_yaw_bias_with_direction = choose_armor_yaw_bias;
+                        choose_armor_yaw_bias_with_direction *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
                         for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
                             SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
-                            cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias), -std::cos(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias)};
+                            cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias_with_direction)};
                             center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
                         }
                         int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
@@ -425,7 +425,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                             nearest_armor_yaw_bias -= 2*M_PI;
                         }
                         
-                        RMM_fire_result_t RMM_fire_result = RMM_fire_control(nearest_armor, RMM_state, nearest_armor_yaw_bias, armor_is_large);
+                        RMM_fire_result_t RMM_fire_result = RMM_fire_control(nearest_armor, RMM_state, nearest_armor_yaw_bias, armor_is_large, cam_to_center_vector, choose_armor_yaw_bias_with_direction);
                         if (RMM_fire_result.aim_center) {
                             predicted_aim_pos = {
                                 static_cast<float>(RMM_pred_aim_data.center_x),
@@ -574,7 +574,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 }
 
 
-RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, RotationMotionState RMM_state, float yaw_bias, bool is_large_armor) {
+RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, RotationMotionState RMM_state, float yaw_bias, bool is_large_armor, cv::Point2d cam_to_center_vector, float choose_armor_yaw_bias_with_direction) {
     RMM_fire_result_t result;
 
     std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
@@ -590,8 +590,6 @@ RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, Rotat
             yaw_diff += 2 *  M_PI;
         }
         if (yaw_diff > M_PI / 4.0) {
-            RMM_fire_control_data.last_target_change_duration_ms = 
-                std::chrono::duration_cast<std::chrono::milliseconds>(now - RMM_fire_control_data.last_target_yaw_jump_time).count();
             RMM_fire_control_data.last_target_yaw_jump_time = now;
         }
     }
@@ -614,13 +612,32 @@ RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, Rotat
     } else {
         int ms_sence_last_target_change = 
             std::chrono::duration_cast<std::chrono::milliseconds>(now - RMM_fire_control_data.last_target_yaw_jump_time).count();
+
+        float ceasefire_armor_yaw = chosen_armor.yaw + RMM_state.vyaw * RMM_fire_control_data.before_target_change_ceasefire_ms / 1000.0;
+        cv::Point2d ceasefire_armor_yaw_vector = {std::sin(ceasefire_armor_yaw + choose_armor_yaw_bias_with_direction), -std::cos(ceasefire_armor_yaw + choose_armor_yaw_bias_with_direction)};
+        float ceasefire_armor_yaw_dot = cam_to_center_vector.dot(ceasefire_armor_yaw_vector);
+
+        float jump_yaw_rad = M_PI / 2.0;
+        if (armor_class == ArmorType::Outpost) {
+            jump_yaw_rad = M_PI * 2.0 / 3.0;
+        }
+
+        float ceasefire_armor_yaw_1 = ceasefire_armor_yaw + jump_yaw_rad;
+        cv::Point2d ceasefire_armor_yaw_vector_1 = {std::sin(ceasefire_armor_yaw_1 + choose_armor_yaw_bias_with_direction), -std::cos(ceasefire_armor_yaw_1 + choose_armor_yaw_bias_with_direction)};
+        float ceasefire_armor_yaw_dot_1 = cam_to_center_vector.dot(ceasefire_armor_yaw_vector_1);
+
+        float ceasefire_armor_yaw_2 = ceasefire_armor_yaw - jump_yaw_rad;
+        cv::Point2d ceasefire_armor_yaw_vector_2 = {std::sin(ceasefire_armor_yaw_2 + choose_armor_yaw_bias_with_direction), -std::cos(ceasefire_armor_yaw_2 + choose_armor_yaw_bias_with_direction)};
+        float ceasefire_armor_yaw_dot_2 = cam_to_center_vector.dot(ceasefire_armor_yaw_vector_2);
+
+        bool before_target_change_ceasefire_flag = false;
+        if (ceasefire_armor_yaw_dot_1 < ceasefire_armor_yaw_dot || ceasefire_armor_yaw_dot_2 < ceasefire_armor_yaw_dot) {
+            before_target_change_ceasefire_flag = true;
+        }
+
         if (ms_sence_last_target_change < RMM_fire_control_data.after_target_change_ceasefire_ms 
             || 
-            (
-                ms_sence_last_target_change > RMM_fire_control_data.last_target_change_duration_ms - RMM_fire_control_data.before_target_change_ceasefire_ms
-                && 
-                ms_sence_last_target_change < RMM_fire_control_data.last_target_change_duration_ms + RMM_fire_control_data.after_before_target_change_ceasefire_ms
-            )
+            before_target_change_ceasefire_flag
         ) {
             result.fire = false;
         } else {
