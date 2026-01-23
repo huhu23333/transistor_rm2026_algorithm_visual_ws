@@ -40,7 +40,7 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     jump_rad = M_PI * 2.0 / n_armors;
 
     // 遗忘因子，值越小遗忘越快
-    lambda_ = is_outpost ? 0.99 : 0.95;
+    lambda_ = is_outpost ? 0.99 : 0.97;
 
     last_yaw = initObservedData.yaw;
     
@@ -196,8 +196,8 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         P_center_ = (I - K4 * H4) * P_center_ / lambda_;
         
         // 限制半径在合理范围内
-        if (!(x_center_(6) >= 100.0)) x_center_(6) = 100.0; // 限位，同时防止正则化导致nan传播
-        if (!(x_center_(6) <= 600.0)) x_center_(6) = 600.0;
+        if (!(x_center_(6) >= 200.0)) x_center_(6) = 200.0; // 限位，同时防止正则化导致nan传播
+        if (!(x_center_(6) <= 400.0)) x_center_(6) = 400.0;
     }
 }
 
