@@ -40,7 +40,7 @@ yaw_integration_max_degree : 60.0
 yaw_integration_min_degree : -60.0
 command_picth_kp: 1.0
 command_picth_integration_speed: 0.02
-command_yaw_kp: 1.0
+command_yaw_kp: 0.3
 command_yaw_integration_speed: 0.02
 
 # 火控设置
