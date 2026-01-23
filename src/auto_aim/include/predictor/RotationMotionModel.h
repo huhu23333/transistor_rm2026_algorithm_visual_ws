@@ -23,6 +23,8 @@ struct ObservedData {
     
     ObservedData(double x_val, double y_val, double z_val, double yaw_val, double t_val)
         : x(x_val), y(y_val), z(z_val), yaw(yaw_val), t(t_val) {}
+
+    double dt;
 };
 
 struct SimpleArmor {
@@ -289,7 +291,7 @@ private:
     
     // 修改指数衰减最小二乘方法
     void resetExponentialLS();
-    void updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight=1.0, double delta_r=0.0, double delta_z=0.0);
+    void updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double dt, double weight=1.0, double delta_r=0.0, double delta_z=0.0);
     void updateCenterResult(double current_time);
 
     std::vector<ObservedData> observedDataHistory;

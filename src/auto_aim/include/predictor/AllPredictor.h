@@ -73,7 +73,8 @@ public:
 
         RMM_fire_control_data.after_target_change_ceasefire_ms = (*config_file_ptr)["after_target_change_ceasefire_ms"].as<int>();
         RMM_fire_control_data.before_target_change_ceasefire_ms = (*config_file_ptr)["before_target_change_ceasefire_ms"].as<int>();
-        RMM_fire_control_data.aim_center_vyaw_threshold = (*config_file_ptr)["aim_center_vyaw_threshold"].as<float>();
+        RMM_fire_control_data.aim_center_vyaw_lower_threshold = (*config_file_ptr)["aim_center_vyaw_lower_threshold"].as<float>();
+        RMM_fire_control_data.aim_center_vyaw_upper_threshold = (*config_file_ptr)["aim_center_vyaw_upper_threshold"].as<float>();
         RMM_fire_control_data.aim_center_yaw_bias_expand = (*config_file_ptr)["aim_center_yaw_bias_expand"].as<float>();
 
         pre_predict_time = (*config_file_ptr)["pre_predict_time"].as<float>();
@@ -131,10 +132,12 @@ private:
     struct RMM_fire_control_data_t {
         int after_target_change_ceasefire_ms;
         int before_target_change_ceasefire_ms;
-        float aim_center_vyaw_threshold;
+        float aim_center_vyaw_lower_threshold;
+        float aim_center_vyaw_upper_threshold;
         float aim_center_yaw_bias_expand;
-        bool new_target = true;
 
+        bool aim_center_schmitt_trigger = false;
+        bool new_target = true;
         float last_target_yaw;
         std::chrono::steady_clock::time_point last_target_yaw_jump_time;
     } RMM_fire_control_data;
