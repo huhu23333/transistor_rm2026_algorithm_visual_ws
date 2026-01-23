@@ -4,6 +4,7 @@
 #include <memory>
 #include <Eigen/Dense>
 #include <rclcpp/rclcpp.hpp>
+#include <opencv2/core.hpp>
 
 // 新增：用于传递9D EKF参数的结构体
 struct EKFParams {
@@ -33,6 +34,7 @@ public:
 
     // 使用第一个装甲板测量值来初始化或重置滤波器
     void reset(const Measurement& z);
+    void reset_change(const State& last_state, const Measurement& z);
 
     State predict();
     State update(const Measurement& z);

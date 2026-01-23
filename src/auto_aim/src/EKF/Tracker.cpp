@@ -79,7 +79,31 @@ void EKFTracker::reset(const Measurement& z) {
     x0(8) = r_init_; // 设置初始半径
 
     ekf_->setState(x0);
-    RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with 9D model!");
+    RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with measurement!");
+}
+
+void EKFTracker::reset_change(const State& last_state, const Measurement& z) {
+    state = DETECTING;
+    detect_count_ = 0; lost_count_ = 0;
+    
+    State x0 = last_state;
+    
+    double xa = z(0), ya = z(1), za = z(2), yaw = z(3);
+    // 使用一个合理的初始半径来估计中心位置，例如200mm
+    r_init_ = 200.0; 
+    
+    // 根据Measure函数的反函数来计算中心初始位置
+    double xc = xa - x0(8) * sin(yaw);
+    double yc = ya + x0(8) * cos(yaw); // 简化模型，高度相同
+    double zc = za ;
+    
+    x0(0) = xc;
+    x0(2) = yc;
+    x0(4) = zc;
+    x0(6) = yaw;
+
+    ekf_->setState(x0);
+    RCLCPP_DEBUG(rclcpp::get_logger("armor_detect_node"), "Tracker RESET with measurement!");
 }
 
 EKFTracker::State EKFTracker::predict() {

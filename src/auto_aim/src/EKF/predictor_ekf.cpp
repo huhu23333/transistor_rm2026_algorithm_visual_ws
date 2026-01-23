@@ -61,7 +61,10 @@ PredictorResult PredictorEKF::step(std::vector<ArmorResult>& classifyResults, cv
             if (hypot(last_rest_frame_pos_.x - rest_frame_pos.x,
                       last_rest_frame_pos_.y - rest_frame_pos.y) > 100.0f ) {
                 RCLCPP_INFO(node_->get_logger(), "armor change in rest frame position detected.");
-                tracker_ -> reset({rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0]});
+                auto last_state = tracker_ -> getTargetState();
+                EKFTracker::Measurement z_now = {rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0]};
+                tracker_ -> reset_change(last_state, z_now);
+                if (!is_outpost) dz_ = abs(rest_frame_pos.z - last_rest_frame_pos_.z);
             }
 
             last_rest_frame_pos_ = rest_frame_pos; 
@@ -425,6 +428,11 @@ void PredictorEKF::visualize(PredictResult EKF_pred_now_data, cv::Mat& frame, Ar
         cv::Point2f(20,380), 
         cv::FONT_HERSHEY_COMPLEX, 0.7, 
         cv::Scalar(0, 255, 255), 1, 8, false);
+    cv::putText(EKF_visualize_frame, 
+        "dz:"+std::to_string(dz_), 
+        cv::Point2f(20,450), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(255, 255, 255), 1, 8, false);
     cv::line(EKF_visualize_frame, 
         cv::Point2f(400 + EKF_pred_now_data.center_x/10, 400 - EKF_pred_now_data.center_y/10), 
         cv::Point2f(400 + (EKF_pred_now_data.center_x/10 + tracker_ -> getTargetState()(1)/5), 

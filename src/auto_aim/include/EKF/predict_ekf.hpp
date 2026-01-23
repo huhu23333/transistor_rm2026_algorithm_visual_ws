@@ -111,4 +111,6 @@ private:
     double z_another_ = 0.0;
 
     double jump_rad_ = M_PI * 2.0 / 4.0;
+
+    double dz_ = 0.0;
 };
