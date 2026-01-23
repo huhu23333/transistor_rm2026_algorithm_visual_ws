@@ -71,26 +71,26 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
     }
 
     if (auto_aim_switch) { // 仅在电控自瞄开关打开时进行积分
-        pitch_integration += chosen_result.command_delta_pitch * 0.02;
-        yaw_integration += chosen_result.command_delta_yaw * 0.02;
-        if (pitch_integration > 60.0 * M_PI / 180.0) {
-            pitch_integration = 60.0 * M_PI / 180.0;
+        pitch_integration += chosen_result.command_delta_pitch * command_picth_integration_speed;
+        yaw_integration += chosen_result.command_delta_yaw * command_yaw_integration_speed;
+        if (pitch_integration > pitch_integration_max_degree * M_PI / 180.0) {
+            pitch_integration = pitch_integration_max_degree * M_PI / 180.0;
         }
-        if (pitch_integration < -60.0 * M_PI / 180.0) {
-            pitch_integration = -60.0 * M_PI / 180.0;
+        if (pitch_integration < pitch_integration_min_degree * M_PI / 180.0) {
+            pitch_integration = pitch_integration_min_degree * M_PI / 180.0;
         }
 
-        if (yaw_integration > 60.0 * M_PI / 180.0) {
-            yaw_integration = 60.0 * M_PI / 180.0;
+        if (yaw_integration > yaw_integration_max_degree * M_PI / 180.0) {
+            yaw_integration = yaw_integration_max_degree * M_PI / 180.0;
         }
-        if (yaw_integration < -60.0 * M_PI / 180.0) {
-            yaw_integration = -60.0 * M_PI / 180.0;
+        if (yaw_integration < yaw_integration_min_degree * M_PI / 180.0) {
+            yaw_integration = yaw_integration_min_degree * M_PI / 180.0;
         }
     } else {
         pitch_integration = 0.0;
         yaw_integration = 0.0;
     }
-    chosen_result.command_pitch = last_pitch_rad_delayed_ + chosen_result.command_delta_pitch * 1.0 + pitch_integration; // PI控制
-    chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * 1.0 + yaw_integration; // 缓解yaw轴输入数据掉线问题（并不能()）
+    chosen_result.command_pitch = last_pitch_rad_delayed_ + chosen_result.command_delta_pitch * command_picth_kp + pitch_integration; // PI控制
+    chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * command_yaw_kp + yaw_integration; // 缓解yaw轴输入数据掉线问题（并不能()）
     return chosen_result;
 }

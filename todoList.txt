@@ -37,3 +37,5 @@ adjust ballistic params
 规范分离h/cpp文件
 
 统一相机曝光亮度
+
+使用同时观测到的多块同种类装甲板
