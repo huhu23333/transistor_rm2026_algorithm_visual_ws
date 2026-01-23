@@ -39,8 +39,8 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     rotation_direction = 1;
     jump_rad = M_PI * 2.0 / n_armors;
 
-    // 遗忘因子，值越小遗忘越快
-    lambda_ = is_outpost ? 0.99 : 0.95;
+    // 遗忘因子，值越大遗忘越快
+    lambda_ = is_outpost ? -std::log(0.97) / 0.033 : -std::log(0.88) / 0.033;
 
     last_yaw = initObservedData.yaw;
     
@@ -63,7 +63,7 @@ void RotationMotionModel::resetExponentialLS() {
     x_center_(6) = r_now;         // r
 }
 
-void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double weight, double delta_r, double delta_z) {
+void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, double armor_z, double armor_yaw, double t, double dt, double weight, double delta_r, double delta_z) {
     // 构建测量方程
     
     double cosYaw = cos(armor_yaw);
@@ -105,7 +105,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         double innovation1 = z1 - H1 * x_center_;
         x_center_ = x_center_ + K1 * innovation1;
         Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
-        P_center_ = (I - K1 * H1) * P_center_ / lambda_;
+        P_center_ = (I - K1 * H1) * P_center_;
         
         // 更新测量2
         double weight2 = weight;
@@ -113,7 +113,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
         double innovation2 = z2 - H2 * x_center_ + 276.5;  // 固定半径
         x_center_ = x_center_ + K2 * innovation2;
-        P_center_ = (I - K2 * H2) * P_center_ / lambda_;
+        P_center_ = (I - K2 * H2) * P_center_;
         
         // 更新测量3（z轴测量）
         double weight3 = weight;  // z轴测量权重
@@ -121,14 +121,15 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
         double innovation3 = z3 - H3 * x_center_;
         x_center_ = x_center_ + K3 * innovation3;
-        P_center_ = (I - K3 * H3) * P_center_ / lambda_;
+        P_center_ = (I - K3 * H3) * P_center_;
         
+        P_center_ /= std::exp(-lambda_ * dt);
+
         // 强制固定前哨站模式的状态
         x_center_(3) = 0.0;  // vx = 0
         x_center_(4) = 0.0;  // vy = 0
         x_center_(5) = 0.0;  // vz = 0
         x_center_(6) = 276.5; // r = 276.5
-
     } else {
         // 测量1的值：装甲板在垂直方向上的投影应为0
         double z1 = offAxisX * armor_x + offAxisY * armor_y;
@@ -169,7 +170,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         double innovation1 = z1 - H1 * x_center_;
         x_center_ = x_center_ + K1 * innovation1;
         Eigen::MatrixXd I = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM);
-        P_center_ = (I - K1 * H1) * P_center_ / lambda_;
+        P_center_ = (I - K1 * H1) * P_center_;
         
         // 更新测量2
         double weight2 = weight;
@@ -177,7 +178,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         Eigen::VectorXd K2 = P_center_ * H2.transpose() / S2;
         double innovation2 = z2 - H2 * x_center_ - delta_r; // 根据两r差异设置目标 算出的x_center_(6)将趋向于原结果+delta_r
         x_center_ = x_center_ + K2 * innovation2;
-        P_center_ = (I - K2 * H2) * P_center_ / lambda_;
+        P_center_ = (I - K2 * H2) * P_center_;
         
         // 更新测量3（z轴测量）
         double weight3 = weight;  // z轴测量权重
@@ -185,7 +186,7 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         Eigen::VectorXd K3 = P_center_ * H3.transpose() / S3;
         double innovation3 = z3 - H3 * x_center_ - delta_z;
         x_center_ = x_center_ + K3 * innovation3;
-        P_center_ = (I - K3 * H3) * P_center_ / lambda_;
+        P_center_ = (I - K3 * H3) * P_center_;
         
         // 更新正则化测量
         double weight4 = regularization_weight_;  // 正则化权重
@@ -193,11 +194,13 @@ void RotationMotionModel::updateExponentialLS(double armor_x, double armor_y, do
         Eigen::VectorXd K4 = P_center_ * H4.transpose() / S4;
         double innovation4 = z4 - H4 * x_center_;
         x_center_ = x_center_ + K4 * innovation4;
-        P_center_ = (I - K4 * H4) * P_center_ / lambda_;
+        P_center_ = (I - K4 * H4) * P_center_;
         
+        P_center_ /= std::exp(-lambda_ * dt);
+
         // 限制半径在合理范围内
-        if (!(x_center_(6) >= 100.0)) x_center_(6) = 100.0; // 限位，同时防止正则化导致nan传播
-        if (!(x_center_(6) <= 600.0)) x_center_(6) = 600.0;
+        if (!(x_center_(6) >= 200.0)) x_center_(6) = 200.0; // 限位，同时防止正则化导致nan传播
+        if (!(x_center_(6) <= 400.0)) x_center_(6) = 400.0;
     }
 }
 
@@ -215,6 +218,8 @@ void RotationMotionModel::updateCenterResult(double current_time) {
 
 void RotationMotionModel::update(ObservedData& observedData) {
     update_frames_count += 1;
+
+    observedData.dt = observedData.t - last_observed_data.t;
 
     if (isYawJump(observedData.yaw)) {
         observedData.yaw_jump = true;
@@ -258,12 +263,12 @@ void RotationMotionModel::update(ObservedData& observedData) {
         double time_weight = 1.0;//std::exp(-std::abs(time_offset) * 0.1);
         this_yaw_jump = data.yaw_jump ? (!this_yaw_jump) : this_yaw_jump;
         if (!is_outpost) {
-            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, 
+            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, data.dt,
                 this_yaw_jump ? time_weight*0.2 : time_weight, 
                 this_yaw_jump ? r_now-r_another : 0.0, 
                 this_yaw_jump ? center_z-z_another : 0.0);
         } else {
-            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, time_weight, 0.0, 0.0);
+            updateExponentialLS(data.x, data.y, data.z, data.yaw, time_offset, data.dt, time_weight, 0.0, 0.0);
         }
     }
     

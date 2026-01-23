@@ -270,6 +270,7 @@ LightBarDetector::LightBarDetector(const Params& params, std::shared_ptr<YAML::N
         subtract_value = (*config_file_ptr)["subtract_value"].as<uint8_t>(); 
         THRES_MAX_COLOR_RED = (*config_file_ptr)["THRES_MAX_COLOR_RED"].as<int>(); 
         THRES_MAX_COLOR_BLUE = (*config_file_ptr)["THRES_MAX_COLOR_BLUE"].as<int>(); 
+        light_bar_max_angle = (*config_file_ptr)["light_bar_max_angle"].as<float>();
     }
 
 void LightBarDetector::setEnemyColor(int color) {
@@ -423,6 +424,12 @@ void LightBarDetector::detectLights(cv::Mat& img) {
                     rect.size.height * 1.2),
             rect.angle
         ));
+
+        // 3.5 移除倾向角度过大的旋转矩形
+        if (fabs(rect.angle) > light_bar_max_angle) {
+            lightDetectThreadInfo.is_true_light = false;
+            return;
+        }
 
         // 4. 将检测到的旋转矩形转换为Light对象
         Light temp_light = Light(rect);
@@ -629,8 +636,8 @@ std::vector<cv::RotatedRect> LightBarDetector::detectLightRects(const cv::Mat& i
 }
 
 void LightBarDetector::processLights() {
-    filterLights();    // 过滤不合格的灯条
-    updateLights();    // 更新灯条状态（用于追踪）
+    // filterLights();    // 过滤不合格的灯条
+    // updateLights();    // 更新灯条状态（用于追踪）
 }
 
 void LightBarDetector::filterLights() {

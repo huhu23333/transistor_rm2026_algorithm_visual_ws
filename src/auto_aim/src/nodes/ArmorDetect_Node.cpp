@@ -88,7 +88,7 @@ public:
         current_pitch_ = (*config_file_ptr)["current_pitch_"].as<float>();
         current_yaw_ = (*config_file_ptr)["current_yaw_"].as<float>();
 
-        enemy_color_ = (*config_file_ptr)["enemy_color"].as<std::string>();
+        enemy_color_ = (*config_file_ptr)["init_enemy_color"].as<std::string>();
 
         use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
 

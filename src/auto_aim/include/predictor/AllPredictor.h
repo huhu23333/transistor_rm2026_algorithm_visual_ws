@@ -76,8 +76,10 @@ public:
 
         predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node);
 
-        RMM_fire_control_data.target_change_ceasefire_ms = (*config_file_ptr)["target_change_ceasefire_ms"].as<int>();
-        RMM_fire_control_data.aim_center_vyaw_threshold = (*config_file_ptr)["aim_center_vyaw_threshold"].as<float>();
+        RMM_fire_control_data.after_target_change_ceasefire_ms = (*config_file_ptr)["after_target_change_ceasefire_ms"].as<int>();
+        RMM_fire_control_data.before_target_change_ceasefire_ms = (*config_file_ptr)["before_target_change_ceasefire_ms"].as<int>();
+        RMM_fire_control_data.aim_center_vyaw_lower_threshold = (*config_file_ptr)["aim_center_vyaw_lower_threshold"].as<float>();
+        RMM_fire_control_data.aim_center_vyaw_upper_threshold = (*config_file_ptr)["aim_center_vyaw_upper_threshold"].as<float>();
         RMM_fire_control_data.aim_center_yaw_bias_expand = (*config_file_ptr)["aim_center_yaw_bias_expand"].as<float>();
 
         pre_predict_time = (*config_file_ptr)["pre_predict_time"].as<float>();
@@ -136,19 +138,24 @@ private:
     float last_enemy_position_y = 0.0;
     
     struct RMM_fire_control_data_t {
-        int target_change_ceasefire_ms;
-        float aim_center_vyaw_threshold;
+        int after_target_change_ceasefire_ms;
+        int before_target_change_ceasefire_ms;
+        float aim_center_vyaw_lower_threshold;
+        float aim_center_vyaw_upper_threshold;
         float aim_center_yaw_bias_expand;
-        bool new_target = true;
 
+        bool aim_center_schmitt_trigger = false;
+        bool new_target = true;
         float last_target_yaw;
         std::chrono::steady_clock::time_point last_target_yaw_jump_time;
     } RMM_fire_control_data;
 
-    RMM_fire_result_t RMM_fire_control(SimpleArmor chosen_armor, RotationMotionState RMM_state, float yaw_bias, bool is_large_armor);
+    RMM_fire_result_t RMM_fire_control(SimpleArmor chosen_armor, RotationMotionState RMM_state, float yaw_bias, bool is_large_armor, cv::Point2d cam_to_center_vector, float choose_armor_yaw_bias_with_direction);
 
     float latest_armor_distance = 1e10;
 
     float pre_predict_time;
     float pre_predict_time_not_aim;
+
+    float choose_armor_yaw_bias = M_PI / 180.0 * 0.0;
 };
