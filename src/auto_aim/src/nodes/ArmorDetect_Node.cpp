@@ -83,8 +83,6 @@ public:
         // 加载配置文件
         config_file_ptr = std::make_shared<YAML::Node>(YAML::LoadFile(config_file_path));
 
-
-
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
         current_pitch_ = (*config_file_ptr)["current_pitch_"].as<float>();
@@ -110,7 +108,18 @@ public:
         params_.max_light_wh_ratio = (*config_file_ptr)["max_light_wh_ratio"].as<float>();
         params_.min_light_wh_ratio = (*config_file_ptr)["min_light_wh_ratio"].as<float>();
         params_.light_max_tilt_angle = (*config_file_ptr)["light_max_tilt_angle"].as<float>();
-        
+
+        ekf_params_.s2qx = (*config_file_ptr)["ekf_process_noise_x"].as<float>();
+        ekf_params_.s2qy = (*config_file_ptr)["ekf_process_noise_y"].as<float>();
+        ekf_params_.s2qz = (*config_file_ptr)["ekf_process_noise_z"].as<float>();
+        ekf_params_.s2qyaw = (*config_file_ptr)["ekf_process_noise_yaw"].as<float>();
+        ekf_params_.s2qr = (*config_file_ptr)["ekf_process_noise_radius"].as<float>();
+        ekf_params_.r_x = (*config_file_ptr)["ekf_measurement_noise_x"].as<float>();
+        ekf_params_.r_y = (*config_file_ptr)["ekf_measurement_noise_y"].as<float>();
+        ekf_params_.r_z = (*config_file_ptr)["ekf_measurement_noise_z"].as<float>();
+        ekf_params_.r_yaw = (*config_file_ptr)["ekf_measurement_noise_yaw"].as<float>();
+        ekf_params_.p0 = (*config_file_ptr)["ekf_initial_covariance"].as<float>();
+
         frame_rate_ = (*config_file_ptr)["frame_rate"].as<float>();
 
 
@@ -159,31 +168,20 @@ public:
         // predictor_main_ = std::make_shared<PredictorMain>(
         //     config_file_ptr, this, node_start_time, armor_solver_,
         //     ballistic_solver_, rest_frame_, fps_counter);
-
+        
         predictor_ekf_ = std::make_shared<PredictorEKF>(
             config_file_ptr, this, node_start_time, armor_solver_,
             ballistic_solver_, rest_frame_, fps_counter,
-            ArmorType::AutoSwitch,
-            std::make_shared<Tracker>(0.02, EKFParams{
-                (*config_file_ptr)["ekf_process_noise_x"].as<float>(),
-                (*config_file_ptr)["ekf_process_noise_y"].as<float>(),
-                (*config_file_ptr)["ekf_process_noise_z"].as<float>(),
-                (*config_file_ptr)["ekf_process_noise_yaw"].as<float>(),
-                (*config_file_ptr)["ekf_process_noise_radius"].as<float>(),
-                (*config_file_ptr)["ekf_measurement_noise_x"].as<float>(),
-                (*config_file_ptr)["ekf_measurement_noise_y"].as<float>(),
-                (*config_file_ptr)["ekf_measurement_noise_z"].as<float>(),
-                (*config_file_ptr)["ekf_measurement_noise_yaw"].as<float>(),
-                (*config_file_ptr)["ekf_initial_covariance"].as<float>()
-            })
+            ArmorType::AutoSwitch
         );
+
+        predictor_ekf_->tracker_->setParams(ekf_params_);
 
         yolo_pose_armor_detector = std::make_shared<YOLOPoseArmorDetector>(config_file_ptr, this);
 
         if (yolo_pose_armor_detector) {
             yolo_pose_armor_detector->setEnemyColor(enemy_color_ == "RED" ? Params::RED : Params::BLUE);
         }
-
 
         // 初始化串口通信器
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
@@ -628,6 +626,7 @@ private:
     float serial_delay_time;
     std::string enemy_color_;
     Params params_;
+    EKFParams ekf_params_;
 
     // 帧率计算器
     std::shared_ptr<FrameRateCounter> fps_counter;
@@ -641,6 +640,7 @@ private:
 
     // std::shared_ptr<PredictorMain> predictor_main_;
     std::shared_ptr<PredictorEKF> predictor_ekf_;
+    std::shared_ptr<EKFTracker> tracker_;
 
     std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
     bool use_yolo_pose;

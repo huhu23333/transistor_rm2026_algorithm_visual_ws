@@ -15,7 +15,7 @@ struct EKFParams {
     double p0;
 };
 
-class Tracker {
+class EKFTracker {
 public:
     using State = RobotEKF::MatrixX1;
     using Measurement = RobotEKF::MatrixZ1;
@@ -29,7 +29,7 @@ public:
     } state;
 
     // 构造函数，传入时间步长dt和EKF参数
-    explicit Tracker(double dt, const EKFParams& params);
+    explicit EKFTracker(double dt, const EKFParams& params);
 
     // 使用第一个装甲板测量值来初始化或重置滤波器
     void reset(const Measurement& z);
@@ -45,6 +45,8 @@ public:
 
     // 从机器人中心状态计算出当前装甲板的预测位置
     Eigen::Vector3d getArmorPosition() const;
+
+    void setParams(const EKFParams& params);
 
     double r_init_;               // 初始估计半径
 private:

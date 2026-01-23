@@ -68,7 +68,7 @@ PredictorResult PredictorEKF::step(std::vector<ArmorResult>& classifyResults, cv
 
             // EKF预测
             double EKF_update_time = (std::chrono::steady_clock::now() - node_start_time_).count() / 1e9;
-            Tracker::Measurement z = {rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0]};
+            EKFTracker::Measurement z = {rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0]};
 
             if (ekf_init == false) {
                 tracker_ -> reset(z);
@@ -242,7 +242,7 @@ PredictorResult PredictorEKF::step(std::vector<ArmorResult>& classifyResults, cv
     return result;
 }
 
-PredictResult PredictorEKF::state_convert_to_PredictResult(Tracker::State state) {
+PredictResult PredictorEKF::state_convert_to_PredictResult(EKFTracker::State state) {
     // 根据当前状态提取装甲板位置
     double xc = state(0);
     double yc = state(2);
@@ -276,7 +276,7 @@ PredictResult PredictorEKF::state_convert_to_PredictResult(Tracker::State state)
 PredictResult PredictorEKF::predictTime(double delay_time) {
     PredictResult result;
 
-    Tracker::State state = tracker_ -> getTargetState();
+    EKFTracker::State state = tracker_ -> getTargetState();
     result.center_x = state(0) + delay_time * state(1);
     result.center_y = state(2) + delay_time * state(3);
     result.center_z = state(4) + delay_time * state(5);

@@ -63,11 +63,10 @@ public:
         std::shared_ptr<ArmorSolver> armor_solver,
         std::shared_ptr<BallisticSolver> ballistic_solver,
         std::shared_ptr<RestFrame> rest_frame, std::shared_ptr<FrameRateCounter> fps_counter,
-        ArmorType::ArmorType armor_class,
-        std::shared_ptr<Tracker> tracker
+        ArmorType::ArmorType armor_class
         ) : config_file_ptr_(config_file_ptr), node_(node), node_start_time_(node_start_time), 
-            armor_solver_(armor_solver_), ballistic_solver_(ballistic_solver_),
-            rest_frame_(rest_frame_), fps_counter_(fps_counter), armor_class_(armor_class), tracker_(tracker)
+            armor_solver_(armor_solver), ballistic_solver_(ballistic_solver),
+            rest_frame_(rest_frame), fps_counter_(fps_counter), armor_class_(armor_class)
     {
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
@@ -89,29 +88,19 @@ public:
 
         is_base = armor_class_ == ArmorType::Base;
         is_outpost = armor_class_ == ArmorType::Outpost;
-
-        tracker_ = std::make_shared<Tracker>(0.02, EKFParams{
-            (*config_file_ptr)["ekf_process_noise_x"].as<float>(),
-            (*config_file_ptr)["ekf_process_noise_y"].as<float>(),
-            (*config_file_ptr)["ekf_process_noise_z"].as<float>(),
-            (*config_file_ptr)["ekf_process_noise_yaw"].as<float>(),
-            (*config_file_ptr)["ekf_process_noise_radius"].as<float>(),
-            (*config_file_ptr)["ekf_measurement_noise_x"].as<float>(),
-            (*config_file_ptr)["ekf_measurement_noise_y"].as<float>(),
-            (*config_file_ptr)["ekf_measurement_noise_z"].as<float>(),
-            (*config_file_ptr)["ekf_measurement_noise_yaw"].as<float>(),
-            (*config_file_ptr)["ekf_initial_covariance"].as<float>()
-        });
+        tracker_ = std::make_shared<EKFTracker>(0.02, EKFParams{});
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
-    PredictResult state_convert_to_PredictResult(Tracker::State state);
+    PredictResult state_convert_to_PredictResult(EKFTracker::State state);
     void visualize(PredictResult EKF_pred_now_data, cv::Mat& frame, ArmorResult best_result,
                                  cv::Point3f rest_frame_pos, std::vector<float> rest_frame_euler_angles);
     PredictResult predictTime(double delay_time);
 
     bool is_reset = false;
+
+    std::shared_ptr<EKFTracker> tracker_;
 
 private:
     std::shared_ptr<YAML::Node> config_file_ptr_; 
@@ -132,8 +121,6 @@ private:
     float pitch_rad_to_y_pixel_ratio_;
 
     float reset_predictor_time_;
-
-    std::shared_ptr<Tracker> tracker_;
 
     std::chrono::time_point<std::chrono::steady_clock> last_com_time_;
 
