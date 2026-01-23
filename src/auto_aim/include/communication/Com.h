@@ -34,6 +34,7 @@ struct SerialData {
     int16_t gimbal_yaw;       // 云台当前偏航角
     uint8_t color;            // 敌方颜色(0:红色, 1:蓝色)
     bool auto_aim_switch;
+    int16_t z_rotation_velocity;
 };
 
 class SerialCommunicationClass {

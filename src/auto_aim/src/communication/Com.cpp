@@ -200,6 +200,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     msg.gimbal_yaw = frame.gimbal_yaw;
     msg.color = frame.color;
     msg.auto_aim_switch = frame.auto_aim_switch == 1;
+    msg.z_rotation_velocity = frame.z_rotation_velocity;
     
     serialDataCallback(msg);
 

@@ -31,6 +31,7 @@ public:
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor,  bool auto_aim_switch);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
+    void set_extra_delta_yaw(float extra_delta_yaw_);
 
 private:
     std::shared_ptr<YAML::Node> config_file_ptr; 
@@ -51,4 +52,6 @@ private:
 
     float pitch_integration = 0.0;
     float yaw_integration = 0.0;
+
+    float extra_delta_yaw = 0.0;
 };
