@@ -62,7 +62,7 @@ public:
 
         last_com_time = std::chrono::steady_clock::now();
 
-        oscilloscope_common_ = std::make_shared<Oscilloscope>(640, 480, "Common Debug Oscilloscope", 2);
+        oscilloscope_common_ = std::make_shared<Oscilloscope>(640, 480, "Common Debug Oscilloscope "+std::to_string(armor_class), 2);
         oscilloscope_common_ -> setScale(2.0);
         oscilloscope_common_ -> setOffset(-1.0);
 
