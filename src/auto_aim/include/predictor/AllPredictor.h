@@ -76,6 +76,8 @@ public:
         RMM_fire_control_data.aim_center_vyaw_lower_threshold = (*config_file_ptr)["aim_center_vyaw_lower_threshold"].as<float>();
         RMM_fire_control_data.aim_center_vyaw_upper_threshold = (*config_file_ptr)["aim_center_vyaw_upper_threshold"].as<float>();
         RMM_fire_control_data.aim_center_yaw_bias_expand = (*config_file_ptr)["aim_center_yaw_bias_expand"].as<float>();
+        RMM_fire_control_data.low_vyaw_change_target_delta_yaw_threshold = M_PI / 180.0 * (*config_file_ptr)["low_vyaw_change_target_delta_yaw_threshold_degree"].as<float>();
+        RMM_fire_control_data.low_vyaw_threshold = (*config_file_ptr)["low_vyaw_threshold"].as<float>();
 
         pre_predict_time = (*config_file_ptr)["pre_predict_time"].as<float>();
         pre_predict_time_not_aim = (*config_file_ptr)["pre_predict_time_not_aim"].as<float>();
@@ -139,6 +141,8 @@ private:
         float aim_center_vyaw_lower_threshold;
         float aim_center_vyaw_upper_threshold;
         float aim_center_yaw_bias_expand;
+        float low_vyaw_change_target_delta_yaw_threshold;
+        float low_vyaw_threshold;
 
         bool aim_center_schmitt_trigger = false;
         bool new_target = true;

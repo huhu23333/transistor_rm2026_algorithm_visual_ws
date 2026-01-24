@@ -167,41 +167,59 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 if (using_predictor_type == PredictorType::RotationMotionModel) {
                     PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(total_delay);
                     cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
-                    std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
+                    double cam_to_center_vector_norm = cv::norm(cam_to_center_vector);
+                    cv::Point2d unit_cam_to_center_vector = cv::Point2d(0.0, 1.0);
+                    if (cam_to_center_vector_norm > 1e-3) {
+                        unit_cam_to_center_vector = cam_to_center_vector / cam_to_center_vector_norm;
+                    }
+                    std::vector<double> unit_center_v_dot_yaw(RMM_pred_aim_data.armors.size());
                     float choose_armor_yaw_bias_with_direction = choose_armor_yaw_bias;
                     choose_armor_yaw_bias_with_direction *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
                     for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
                         SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
                         cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias_with_direction)};
-                        center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
+                        unit_center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
                     }
-                    int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
-                    auto nearest_armor = RMM_pred_aim_data.armors[nearest_idx];
-                    predicted_armor_pos = {
-                        static_cast<float>(nearest_armor.x),
-                        static_cast<float>(nearest_armor.y),
-                        static_cast<float>(nearest_armor.z) 
-                    };
-                    float nearest_armor_yaw_bias = (nearest_armor.yaw - (rotation_motion_model_ -> getCamToCenterYaw())) * static_cast<float>(RMM_pred_aim_data.rotation_direction);
-                    while (nearest_armor_yaw_bias < -M_PI) {
-                        nearest_armor_yaw_bias += 2*M_PI;
-                    }
-                    while (nearest_armor_yaw_bias > M_PI) {
-                        nearest_armor_yaw_bias -= 2*M_PI;
+                    std::pair<int, int> nearest_two_idx = findTwoSmallestIndices(unit_center_v_dot_yaw);
+                    auto nearest_armor = RMM_pred_aim_data.armors[nearest_two_idx.first];
+                    auto second_nearest_armor = RMM_pred_aim_data.armors[nearest_two_idx.second];
+                    auto chosen_armor = nearest_armor;
+
+                    if (abs(RMM_state.vyaw) < RMM_fire_control_data.low_vyaw_threshold) {
+                        cv::Point2d yaw_vector_1 = {std::sin(nearest_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(nearest_armor.yaw + choose_armor_yaw_bias_with_direction)};
+                        double yaw_bias_1 = acos(-unit_cam_to_center_vector.dot(yaw_vector_1));
+                        cv::Point2d yaw_vector_2 = {std::sin(second_nearest_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(second_nearest_armor.yaw + choose_armor_yaw_bias_with_direction)};
+                        double yaw_bias_2 = acos(-unit_cam_to_center_vector.dot(yaw_vector_2));
+                        if (abs(yaw_bias_1 - yaw_bias_2) < RMM_fire_control_data.low_vyaw_change_target_delta_yaw_threshold) {
+                            float delta_yaw_1 = nearest_armor.yaw - RMM_fire_control_data.last_target_yaw;
+                            delta_yaw_1 = atan2(sin(delta_yaw_1), cos(delta_yaw_1));
+                            float delta_yaw_2 = second_nearest_armor.yaw - RMM_fire_control_data.last_target_yaw;
+                            delta_yaw_2 = atan2(sin(delta_yaw_2), cos(delta_yaw_2));
+                            if (abs(delta_yaw_1) < abs(delta_yaw_2)) {
+                                chosen_armor = nearest_armor;
+                            } else {
+                                chosen_armor = second_nearest_armor;
+                            }
+                        }
                     }
 
-                    RMM_fire_result_t RMM_fire_result = RMM_fire_control(nearest_armor, RMM_state, nearest_armor_yaw_bias, armor_is_large, cam_to_center_vector, choose_armor_yaw_bias_with_direction);
+                    predicted_armor_pos = {
+                        static_cast<float>(chosen_armor.x),
+                        static_cast<float>(chosen_armor.y),
+                        static_cast<float>(chosen_armor.z) 
+                    };
+
+                    float chosen_armor_yaw_bias = (chosen_armor.yaw - (rotation_motion_model_ -> getCamToCenterYaw())) * static_cast<float>(RMM_pred_aim_data.rotation_direction);
+                    chosen_armor_yaw_bias = atan2(sin(chosen_armor_yaw_bias), cos(chosen_armor_yaw_bias));
+
+                    RMM_fire_result_t RMM_fire_result = RMM_fire_control(chosen_armor, RMM_state, chosen_armor_yaw_bias, armor_is_large, cam_to_center_vector, choose_armor_yaw_bias_with_direction);
                     if (RMM_fire_result.aim_center) {
-                        double cam_to_center_vector_norm = cv::norm(cam_to_center_vector);
-                        cv::Point2d reverse_straight_r_vector = cv::Point2d(0.0, 0.0);
-                        if (cam_to_center_vector_norm > 1e-3) {
-                            reverse_straight_r_vector = cam_to_center_vector / cam_to_center_vector_norm * nearest_armor.r;
-                        }
+                        cv::Point2d reverse_straight_r_vector = unit_cam_to_center_vector * chosen_armor.r;
                         cv::Point2d cam_to_center_vector_subtract_r = cam_to_center_vector - reverse_straight_r_vector;
                         predicted_aim_pos = {
                             static_cast<float>(cam_position[0] + cam_to_center_vector_subtract_r.x),
                             static_cast<float>(cam_position[1] + cam_to_center_vector_subtract_r.y),
-                            static_cast<float>(nearest_armor.z) 
+                            static_cast<float>(chosen_armor.z) 
                         };
                     } else {
                         predicted_aim_pos = predicted_armor_pos;
@@ -209,7 +227,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     fire_flag = RMM_fire_result.fire;
                     
                     cv::circle(RMM_visualize_frame, 
-                        cv::Point2f(400+nearest_armor.x/RMM_visualize_zoom_out_factor, 400-nearest_armor.y/RMM_visualize_zoom_out_factor), 8, 
+                        cv::Point2f(400+chosen_armor.x/RMM_visualize_zoom_out_factor, 400-chosen_armor.y/RMM_visualize_zoom_out_factor), 8, 
                         cv::Scalar(0, 0, 255), 2);
                     cv::circle(RMM_visualize_frame, 
                         cv::Point2f(400+predicted_aim_pos.x/RMM_visualize_zoom_out_factor, 400-predicted_aim_pos.y/RMM_visualize_zoom_out_factor), 8, 
@@ -408,49 +426,67 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         PredictResult RMM_pred_aim_data = rotation_motion_model_ -> predict(last_total_delay_);
                         std::vector<float> cam_position = rest_frame_ -> getCamPosition();
                         cv::Point2d cam_to_center_vector = {RMM_pred_aim_data.center_x - cam_position[0], RMM_pred_aim_data.center_y - cam_position[1]};
-                        std::vector<double> center_v_dot_yaw(RMM_pred_aim_data.armors.size());
+                        double cam_to_center_vector_norm = cv::norm(cam_to_center_vector);
+                        cv::Point2d unit_cam_to_center_vector = cv::Point2d(0.0, 1.0);
+                        if (cam_to_center_vector_norm > 1e-3) {
+                            unit_cam_to_center_vector = cam_to_center_vector / cam_to_center_vector_norm;
+                        }
+                        std::vector<double> unit_center_v_dot_yaw(RMM_pred_aim_data.armors.size());
                         float choose_armor_yaw_bias_with_direction = choose_armor_yaw_bias;
                         choose_armor_yaw_bias_with_direction *= static_cast<float>(RMM_pred_aim_data.rotation_direction);
                         for (int RMM_pred_aim_armor_i = 0; RMM_pred_aim_armor_i < RMM_pred_aim_data.armors.size(); RMM_pred_aim_armor_i += 1) {
                             SimpleArmor& RMM_pred_aim_armor = RMM_pred_aim_data.armors[RMM_pred_aim_armor_i];
                             cv::Point2d yaw_vector = {std::sin(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(RMM_pred_aim_armor.yaw + choose_armor_yaw_bias_with_direction)};
-                            center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
+                            unit_center_v_dot_yaw[RMM_pred_aim_armor_i] = cam_to_center_vector.dot(yaw_vector);
                         }
-                        int nearest_idx = std::distance(center_v_dot_yaw.begin(), std::min_element(center_v_dot_yaw.begin(), center_v_dot_yaw.end()));
-                        auto nearest_armor = RMM_pred_aim_data.armors[nearest_idx];
-                        predicted_armor_pos = {
-                            static_cast<float>(nearest_armor.x),
-                            static_cast<float>(nearest_armor.y),
-                            static_cast<float>(nearest_armor.z) 
-                        };
-                        float nearest_armor_yaw_bias = (nearest_armor.yaw - (rotation_motion_model_ -> getCamToCenterYaw())) * static_cast<float>(RMM_pred_aim_data.rotation_direction);
-                        while (nearest_armor_yaw_bias < -M_PI) {
-                            nearest_armor_yaw_bias += 2*M_PI;
-                        }
-                        while (nearest_armor_yaw_bias > M_PI) {
-                            nearest_armor_yaw_bias -= 2*M_PI;
-                        }
-                        
-                        RMM_fire_result_t RMM_fire_result = RMM_fire_control(nearest_armor, RMM_state, nearest_armor_yaw_bias, armor_is_large, cam_to_center_vector, choose_armor_yaw_bias_with_direction);
-                        if (RMM_fire_result.aim_center) {
-                            double cam_to_center_vector_norm = cv::norm(cam_to_center_vector);
-                            cv::Point2d reverse_straight_r_vector = cv::Point2d(0.0, 0.0);
-                            if (cam_to_center_vector_norm > 1e-3) {
-                                reverse_straight_r_vector = cam_to_center_vector / cam_to_center_vector_norm * nearest_armor.r;
+                        std::pair<int, int> nearest_two_idx = findTwoSmallestIndices(unit_center_v_dot_yaw);
+                        auto nearest_armor = RMM_pred_aim_data.armors[nearest_two_idx.first];
+                        auto second_nearest_armor = RMM_pred_aim_data.armors[nearest_two_idx.second];
+                        auto chosen_armor = nearest_armor;
+
+                        if (abs(RMM_state.vyaw) < RMM_fire_control_data.low_vyaw_threshold) {
+                            cv::Point2d yaw_vector_1 = {std::sin(nearest_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(nearest_armor.yaw + choose_armor_yaw_bias_with_direction)};
+                            double yaw_bias_1 = acos(-unit_cam_to_center_vector.dot(yaw_vector_1));
+                            cv::Point2d yaw_vector_2 = {std::sin(second_nearest_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(second_nearest_armor.yaw + choose_armor_yaw_bias_with_direction)};
+                            double yaw_bias_2 = acos(-unit_cam_to_center_vector.dot(yaw_vector_2));
+                            if (abs(yaw_bias_1 - yaw_bias_2) < RMM_fire_control_data.low_vyaw_change_target_delta_yaw_threshold) {
+                                float delta_yaw_1 = nearest_armor.yaw - RMM_fire_control_data.last_target_yaw;
+                                delta_yaw_1 = atan2(sin(delta_yaw_1), cos(delta_yaw_1));
+                                float delta_yaw_2 = second_nearest_armor.yaw - RMM_fire_control_data.last_target_yaw;
+                                delta_yaw_2 = atan2(sin(delta_yaw_2), cos(delta_yaw_2));
+                                if (abs(delta_yaw_1) < abs(delta_yaw_2)) {
+                                    chosen_armor = nearest_armor;
+                                } else {
+                                    chosen_armor = second_nearest_armor;
+                                }
                             }
+                        }
+
+                        predicted_armor_pos = {
+                            static_cast<float>(chosen_armor.x),
+                            static_cast<float>(chosen_armor.y),
+                            static_cast<float>(chosen_armor.z) 
+                        };
+
+                        float chosen_armor_yaw_bias = (chosen_armor.yaw - (rotation_motion_model_ -> getCamToCenterYaw())) * static_cast<float>(RMM_pred_aim_data.rotation_direction);
+                        chosen_armor_yaw_bias = atan2(sin(chosen_armor_yaw_bias), cos(chosen_armor_yaw_bias));
+
+                        RMM_fire_result_t RMM_fire_result = RMM_fire_control(chosen_armor, RMM_state, chosen_armor_yaw_bias, armor_is_large, cam_to_center_vector, choose_armor_yaw_bias_with_direction);
+                        if (RMM_fire_result.aim_center) {
+                            cv::Point2d reverse_straight_r_vector = unit_cam_to_center_vector * chosen_armor.r;
                             cv::Point2d cam_to_center_vector_subtract_r = cam_to_center_vector - reverse_straight_r_vector;
                             predicted_aim_pos = {
                                 static_cast<float>(cam_position[0] + cam_to_center_vector_subtract_r.x),
                                 static_cast<float>(cam_position[1] + cam_to_center_vector_subtract_r.y),
-                                static_cast<float>(nearest_armor.z) 
+                                static_cast<float>(chosen_armor.z) 
                             };
                         } else {
                             predicted_aim_pos = predicted_armor_pos;
                         }
                         fire_flag = RMM_fire_result.fire;
-
+                        
                         cv::circle(RMM_visualize_frame, 
-                            cv::Point2f(400+nearest_armor.x/RMM_visualize_zoom_out_factor, 400-nearest_armor.y/RMM_visualize_zoom_out_factor), 8, 
+                            cv::Point2f(400+chosen_armor.x/RMM_visualize_zoom_out_factor, 400-chosen_armor.y/RMM_visualize_zoom_out_factor), 8, 
                             cv::Scalar(0, 0, 255), 2);
                         cv::circle(RMM_visualize_frame, 
                             cv::Point2f(400+predicted_aim_pos.x/RMM_visualize_zoom_out_factor, 400-predicted_aim_pos.y/RMM_visualize_zoom_out_factor), 8, 
