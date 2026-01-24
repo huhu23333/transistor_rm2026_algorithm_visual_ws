@@ -192,9 +192,15 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
                     RMM_fire_result_t RMM_fire_result = RMM_fire_control(nearest_armor, RMM_state, nearest_armor_yaw_bias, armor_is_large, cam_to_center_vector, choose_armor_yaw_bias_with_direction);
                     if (RMM_fire_result.aim_center) {
+                        double cam_to_center_vector_norm = cv::norm(cam_to_center_vector);
+                        cv::Point2d reverse_straight_r_vector = cv::Point2d(0.0, 0.0);
+                        if (cam_to_center_vector_norm > 1e-3) {
+                            reverse_straight_r_vector = cam_to_center_vector / cam_to_center_vector_norm * nearest_armor.r;
+                        }
+                        cv::Point2d cam_to_center_vector_subtract_r = cam_to_center_vector - reverse_straight_r_vector;
                         predicted_aim_pos = {
-                            static_cast<float>(RMM_pred_aim_data.center_x),
-                            static_cast<float>(RMM_pred_aim_data.center_y),
+                            static_cast<float>(cam_position[0] + cam_to_center_vector_subtract_r.x),
+                            static_cast<float>(cam_position[1] + cam_to_center_vector_subtract_r.y),
                             static_cast<float>(nearest_armor.z) 
                         };
                     } else {
@@ -205,6 +211,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::circle(RMM_visualize_frame, 
                         cv::Point2f(400+nearest_armor.x/10, 400-nearest_armor.y/10), 8, 
                         cv::Scalar(0, 0, 255), 2);
+                    cv::circle(RMM_visualize_frame, 
+                        cv::Point2f(400+predicted_aim_pos.x/10, 400-predicted_aim_pos.y/10), 8, 
+                        cv::Scalar(0, 255, 255), 2);
                     cv::putText(RMM_visualize_frame, 
                         "r_now:"+std::to_string(RMM_pred_aim_data.r_now), 
                         cv::Point2f(20,110), 
@@ -424,9 +433,15 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         
                         RMM_fire_result_t RMM_fire_result = RMM_fire_control(nearest_armor, RMM_state, nearest_armor_yaw_bias, armor_is_large, cam_to_center_vector, choose_armor_yaw_bias_with_direction);
                         if (RMM_fire_result.aim_center) {
+                            double cam_to_center_vector_norm = cv::norm(cam_to_center_vector);
+                            cv::Point2d reverse_straight_r_vector = cv::Point2d(0.0, 0.0);
+                            if (cam_to_center_vector_norm > 1e-3) {
+                                reverse_straight_r_vector = cam_to_center_vector / cam_to_center_vector_norm * nearest_armor.r;
+                            }
+                            cv::Point2d cam_to_center_vector_subtract_r = cam_to_center_vector - reverse_straight_r_vector;
                             predicted_aim_pos = {
-                                static_cast<float>(RMM_pred_aim_data.center_x),
-                                static_cast<float>(RMM_pred_aim_data.center_y),
+                                static_cast<float>(cam_position[0] + cam_to_center_vector_subtract_r.x),
+                                static_cast<float>(cam_position[1] + cam_to_center_vector_subtract_r.y),
                                 static_cast<float>(nearest_armor.z) 
                             };
                         } else {
@@ -437,6 +452,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::circle(RMM_visualize_frame, 
                             cv::Point2f(400+nearest_armor.x/10, 400-nearest_armor.y/10), 8, 
                             cv::Scalar(0, 0, 255), 2);
+                        cv::circle(RMM_visualize_frame, 
+                            cv::Point2f(400+predicted_aim_pos.x/10, 400-predicted_aim_pos.y/10), 8, 
+                            cv::Scalar(0, 255, 255), 2);
                         cv::putText(RMM_visualize_frame, 
                             "r_now:"+std::to_string(RMM_pred_aim_data.r_now), 
                             cv::Point2f(20,110), 
