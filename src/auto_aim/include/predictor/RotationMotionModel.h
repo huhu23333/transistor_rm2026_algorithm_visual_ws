@@ -158,8 +158,8 @@ public:
     /**
      * 处理角度跳变
      */
-    bool handleYawJump(double& measured_yaw, double dt) {
-        if (!initialized_) return false;
+    void handleYawJump(double& measured_yaw, double dt) {
+        if (!initialized_) return;
         
         double yaw_diff = measured_yaw - last_yaw_;
         double yaw_change = 0.0;
@@ -213,11 +213,41 @@ public:
                       << last_yaw_ << " to " << measured_yaw << std::endl;
 
             measured_yaw = atan2(sin(measured_yaw), cos(measured_yaw));
-            return true;
+            return;
         } else {
             measured_yaw += yaw_change;
         }
         
+        return;
+    }
+    
+    bool isYawJumpForRMM(double measured_yaw, double dt) {
+        if (!initialized_) return false;
+        
+        double target_new_yaw = measured_yaw - state_(1) * dt;
+        target_new_yaw = atan2(sin(target_new_yaw), cos(target_new_yaw));
+        double state_yaw = state_(0);
+        state_yaw = atan2(sin(state_yaw), cos(state_yaw));
+        double delta_yaw = target_new_yaw - state_yaw;
+        delta_yaw = atan2(sin(delta_yaw), cos(delta_yaw));
+        int change_jump_time_with_direction = 0;
+        if (is_outpost) {
+            if (delta_yaw > M_PI / 3.0) {
+                return true;
+            } else if(delta_yaw < -M_PI / 3.0) {
+                return true;
+            }
+        } else {
+            if (abs(delta_yaw) < M_PI / 4.0) {
+                return false;
+            } else if (delta_yaw > M_PI / 4.0 && delta_yaw < M_PI * 3.0 / 4.0) {
+                return true;
+            } else if (delta_yaw < -M_PI / 4.0 && delta_yaw > -M_PI * 3.0 / 4.0) {
+                return true;
+            } else {
+                return false;
+            }
+        }
         return false;
     }
     
@@ -357,9 +387,6 @@ private:
 
     std::shared_ptr<RestFrame> rest_frame_;
     bool is_outpost;
-
-    bool isYawJump(double yaw_now);
-    double last_yaw;
 
     unsigned long long update_frames_count = 0;
 

@@ -41,8 +41,6 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
 
     // 遗忘因子，值越大遗忘越快
     lambda_ = is_outpost ? -std::log(0.97) / 0.033 : -std::log(0.88) / 0.033;
-
-    last_yaw = initObservedData.yaw;
     
     // 初始化指数衰减最小二乘
     resetExponentialLS();
@@ -221,7 +219,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
 
     observedData.dt = observedData.t - last_observed_data.t;
 
-    if (isYawJump(observedData.yaw)) {
+    if (angle_ekf_->isYawJumpForRMM(observedData.yaw, observedData.dt)) {
         observedData.yaw_jump = true;
         if (!is_outpost) {
             std::swap(r_now, r_another);
@@ -276,13 +274,10 @@ void RotationMotionModel::update(ObservedData& observedData) {
     updateCenterResult(0.0);  // 当前时刻
     
     // 使用EKF更新角度和角速度，传入xc, yc, r
-    double dt = observedData.t - last_update_time_;
-    if (dt > 0) {
-        angle_ekf_->update(observedData.yaw, observedData.x, observedData.y, 
-                          center_x, center_y, r_now, dt);
-        last_update_time_ = observedData.t;
-        rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;
-    }
+    angle_ekf_->update(observedData.yaw, observedData.x, observedData.y, 
+                        center_x, center_y, r_now, observedData.dt);
+    last_update_time_ = observedData.t;
+    rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;
 }
 
 void RotationMotionModel::emptyUpdate(double update_time) {
@@ -391,16 +386,4 @@ double RotationMotionModel::getTheoreticYawFacingArmor(double armor_x, double ar
         return - M_PI / 2.0;
     }
     return std::asin(right_shift / r_now);
-}
-
-bool RotationMotionModel::isYawJump(double yaw_now) {
-    double yaw_diff = yaw_now - last_yaw;
-    while (yaw_diff > M_PI) yaw_diff -= 2.0 * M_PI;
-    while (yaw_diff < -M_PI) yaw_diff += 2.0 * M_PI;
-    double jump_threshold = M_PI / 4.0; // 45度阈值
-    last_yaw = yaw_now;
-    if (std::abs(yaw_diff) > jump_threshold) {
-        return true;
-    }
-    return false;
 }
