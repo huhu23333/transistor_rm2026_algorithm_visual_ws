@@ -6,6 +6,7 @@ using namespace Eigen;
 RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::shared_ptr<RestFrame> rest_frame_, bool is_outpost, double init_r)
     : rest_frame_(rest_frame_), is_outpost(is_outpost), last_observed_data(initObservedData) {
     observedDataHistory.push_back(initObservedData);
+    observedDataHistory_filteredByAngleEKF.push_back(initObservedData);
     
     // 初始化EKF用于角度跟踪
     angle_ekf_ = std::make_unique<AngleEKF>(is_outpost);
@@ -251,11 +252,25 @@ void RotationMotionModel::update(ObservedData& observedData) {
     }
     bool this_yaw_jump = yaw_jump_count%2==1;
 
+
+
+    AngleEKF angle_ekf_temp_copy = *angle_ekf_;
+    angle_ekf_temp_copy.update(observedData.yaw, observedData.x, observedData.y, 
+                               center_x, center_y, r_now, observedData.dt);
+    observedDataHistory_filteredByAngleEKF.push_back(observedData);
+    observedDataHistory_filteredByAngleEKF.back().yaw = angle_ekf_temp_copy.getYaw();
+    if (observedDataHistory_filteredByAngleEKF.size() > max_history) {
+        observedDataHistory_filteredByAngleEKF = std::vector<ObservedData>(
+            observedDataHistory_filteredByAngleEKF.end() - max_history, observedDataHistory_filteredByAngleEKF.end());
+    }
+
+
+
     // 使用指数衰减最小二乘更新中心状态
     resetExponentialLS();
     double current_time = observedData.t;
-    for (size_t i = 0; i < observedDataHistory.size(); ++i) {
-        const auto& data = observedDataHistory[i];
+    for (size_t i = 0; i < observedDataHistory_filteredByAngleEKF.size(); ++i) {
+        const auto& data = observedDataHistory_filteredByAngleEKF[i];
         double time_offset = data.t - current_time;  // 相对于当前时间的时间偏移
         // 计算权重：时间越近权重越大
         double time_weight = 1.0;//std::exp(-std::abs(time_offset) * 0.1);

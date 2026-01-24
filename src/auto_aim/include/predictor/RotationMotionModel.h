@@ -369,6 +369,7 @@ private:
     void updateCenterResult(double current_time);
 
     std::vector<ObservedData> observedDataHistory;
+    std::vector<ObservedData> observedDataHistory_filteredByAngleEKF;
     ObservedData last_observed_data;
     double center_vx;
     double center_vy;
