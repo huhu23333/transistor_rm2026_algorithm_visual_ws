@@ -109,6 +109,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         !(RMM_state_to_check.r_now > -1e10 && RMM_state_to_check.r_now < 1e10) ||
                         !(RMM_state_to_check.r_another > -1e10 && RMM_state_to_check.r_another < 1e10) ||
                         !(RMM_state_to_check.yaw > -1e10 && RMM_state_to_check.yaw < 1e10) ||
+                        !(RMM_state_to_check.total_yaw > -1e10 && RMM_state_to_check.total_yaw < 1e10) ||
                         !(RMM_state_to_check.vyaw > -1e10 && RMM_state_to_check.vyaw < 1e10)
                     ) {
                         rotation_motion_model_.reset();

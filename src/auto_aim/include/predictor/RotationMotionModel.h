@@ -330,6 +330,8 @@ public:
     const Eigen::Vector2d& getState() const { return state_; }
 
     double getTotalYaw() const { return state_(0) - total_jump_time_with_direction * (is_outpost ? M_PI * 2.0 / 3.0 : M_PI / 2.0); }
+
+    int getTotalJumpTimeWithDirection () { return total_jump_time_with_direction; }
 };
 
 struct RotationMotionState {
@@ -343,6 +345,7 @@ struct RotationMotionState {
     double r_now;
     double r_another;
     double yaw;
+    double total_yaw;
     double vyaw;
     unsigned long long update_frames;
 };

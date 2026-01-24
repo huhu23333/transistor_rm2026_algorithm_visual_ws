@@ -41,7 +41,7 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
 
     // 遗忘因子，值越大遗忘越快
     lambda_ = is_outpost ? -std::log(0.97) / 0.033 : -std::log(0.88) / 0.033;
-    
+
     // 初始化指数衰减最小二乘
     resetExponentialLS();
 }
@@ -318,12 +318,12 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     }
     
     result.rotation_direction = rotation_direction;
-    
+    int total_jump_time_with_direction = angle_ekf_->getTotalJumpTimeWithDirection();
     // 生成装甲板预测
     for (int i = 0; i < n_armors; i++) {
         double armor_yaw = result.yaw - i * jump_rad; // double armor_yaw = result.yaw - i * rotation_direction * jump_rad
-        double r_using = is_outpost ? r_now : ((i%2==0) ? r_now : r_another);
-        double z_using = is_outpost ? result.center_z : ((i%2==0) ? result.center_z : result.z_another);
+        double r_using = is_outpost ? r_now : (((i+total_jump_time_with_direction)%2==0) ? r_now : r_another);
+        double z_using = is_outpost ? result.center_z : (((i+total_jump_time_with_direction)%2==0) ? result.center_z : result.z_another);
         result.armors.push_back(SimpleArmor({
             result.center_x + r_using * std::sin(armor_yaw),
             result.center_y - r_using * std::cos(armor_yaw),
@@ -350,10 +350,12 @@ RotationMotionState RotationMotionModel::getState() {
     state.update_frames = update_frames_count;
     
     if (angle_ekf_->isInitialized()) {
-        state.yaw = angle_ekf_->getTotalYaw();
+        state.yaw = angle_ekf_->getYaw();
+        state.total_yaw = angle_ekf_->getTotalYaw();
         state.vyaw = angle_ekf_->getVyaw();
     } else {
         state.yaw = 0.0;
+        state.total_yaw = 0.0;
         state.vyaw = 0.0;
     }
     
