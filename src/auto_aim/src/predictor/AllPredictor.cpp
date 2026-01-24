@@ -302,6 +302,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Point2f(400 + (RMM_pred_now_data.center_x/RMM_visualize_zoom_out_factor + RMM_state.center_vx*2/RMM_visualize_zoom_out_factor), 
                                 400 - (RMM_pred_now_data.center_y/RMM_visualize_zoom_out_factor + RMM_state.center_vy*2/RMM_visualize_zoom_out_factor)),
                     cv::Scalar(255, 255, 0), 2);
+                cv::line(RMM_visualize_frame, 
+                    cv::Point2f(400+RMM_pred_now_data.center_x/RMM_visualize_zoom_out_factor, 400-RMM_pred_now_data.center_y/RMM_visualize_zoom_out_factor),
+                    cv::Point2f(400+RMM_pred_now_data.center_x/RMM_visualize_zoom_out_factor + std::sin(RMM_state.total_yaw)*1000/RMM_visualize_zoom_out_factor, 
+                                400-RMM_pred_now_data.center_y/RMM_visualize_zoom_out_factor + std::cos(RMM_state.total_yaw)*1000/RMM_visualize_zoom_out_factor),
+                    cv::Scalar(255, 0, 255), 2);
 #ifdef SHOW_WINDOWS
                 cv::imshow("RMM visualize "+std::to_string(armor_class), RMM_visualize_frame);
 #endif
@@ -540,6 +545,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         cv::Point2f(400 + (RMM_pred_now_data.center_x/RMM_visualize_zoom_out_factor + RMM_state.center_vx*2/RMM_visualize_zoom_out_factor), 
                                     400 - (RMM_pred_now_data.center_y/RMM_visualize_zoom_out_factor + RMM_state.center_vy*2/RMM_visualize_zoom_out_factor)),
                         cv::Scalar(255, 255, 0), 2);
+                    cv::line(RMM_visualize_frame, 
+                        cv::Point2f(400+RMM_pred_now_data.center_x/RMM_visualize_zoom_out_factor, 400-RMM_pred_now_data.center_y/RMM_visualize_zoom_out_factor),
+                        cv::Point2f(400+RMM_pred_now_data.center_x/RMM_visualize_zoom_out_factor + std::sin(RMM_state.total_yaw)*1000/RMM_visualize_zoom_out_factor, 
+                                    400-RMM_pred_now_data.center_y/RMM_visualize_zoom_out_factor + std::cos(RMM_state.total_yaw)*1000/RMM_visualize_zoom_out_factor),
+                        cv::Scalar(255, 0, 255), 2);
 #ifdef SHOW_WINDOWS
                     cv::imshow("RMM visualize "+std::to_string(armor_class), RMM_visualize_frame);
 #endif
