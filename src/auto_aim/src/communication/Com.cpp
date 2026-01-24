@@ -186,7 +186,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
         "\033[1;33mGimbal Yaw:\033[0m %d (%.2f°)\n"
         "\033[1;36mMark:\033[0m %d\n"
         "\033[1;31mColor:\033[0m %d\n"
-        "\033[1;35mZ Rotation Velocity:\033[0m %.2f rad/s",
+        "\033[1;35mZ Rotation Velocity:\033[0m %d\n",
         frame.bullet_velocity,
         frame.bullet_angle,
         frame.gimbal_yaw, frame.gimbal_yaw * 180.0 / 4096.0,
