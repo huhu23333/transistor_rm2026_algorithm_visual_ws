@@ -321,21 +321,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 // 绘制瞄准预测点（黄色）
                 cv::Point2f pred_aim_pixel = armor_solver_->project3DToPixel(predicted_aim_pos);
                 cv::circle(frame, pred_aim_pixel, 8, cv::Scalar(0, 255, 255), 2);
-
-                // 计算并绘制瞄准时目标画面中心（天蓝色：未开火 | 红色：开火）
-                cv::Point2f aim_yaw_pitch = cv::Point2f(last_yaw_rad_delayed_ + ballistic_result.delta_yaw_rad, last_pitch_rad_delayed_ + ballistic_result.delta_pitch_rad);
-                cv::Point2f aim_yaw_pitch_pixel = cv::Point2f(
-                    frame.cols / 2 - (aim_yaw_pitch.x - last_yaw_rad_delayed_) * yaw_rad_to_x_pixel_ratio, 
-                    frame.rows / 2 - (aim_yaw_pitch.y - last_pitch_rad_delayed_) * pitch_rad_to_y_pixel_ratio);
-                last_aim_yaw_pitch_ = aim_yaw_pitch;
-                last_aim_yaw_pitch_pixel_ = aim_yaw_pitch_pixel;
-                if (fire_flag) {
-                    cv::circle(frame, aim_yaw_pitch_pixel, 8, cv::Scalar(0, 0, 255), 2);
-                } else {
-                    cv::circle(frame, aim_yaw_pitch_pixel, 8, cv::Scalar(255, 255, 0), 2);
-                }
-                RCLCPP_DEBUG(node->get_logger(), "aim center yaw pitch: (%.2f, %.2f)",
-                        aim_yaw_pitch.x, aim_yaw_pitch.y);
                 
                 cv::Point2f pred_armor_pixel = armor_solver_->project3DToPixel(predicted_armor_pos);
                 // 绘制装甲板预测点（天蓝色）
@@ -366,12 +351,6 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             result.fire_flag = false;
 
             bool fire_flag = false;
-
-            if (result.fire_flag) {
-                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(0, 0, 255), 2);
-            } else {
-                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
-            }
 
             if (armor_class != ArmorType::Base) {
                 cv::Point3f predicted_armor_pos;
@@ -591,13 +570,22 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 result.command_delta_yaw = 0.0;
                 result.fire_flag = false;
             }
-            if (result.fire_flag) {
-                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(0, 0, 255), 2);
-            } else {
-                cv::circle(frame, last_aim_yaw_pitch_pixel_, 8, cv::Scalar(255, 255, 0), 2);
-            }
         }
     }
+
+    // 计算并绘制瞄准时目标画面中心（天蓝色：未开火 | 红色：开火）
+    cv::Point2f aim_yaw_pitch = cv::Point2f(last_yaw_rad_delayed_ + result.command_delta_yaw, last_pitch_rad_delayed_ + result.command_delta_pitch);
+    cv::Point2f aim_yaw_pitch_pixel = cv::Point2f(
+        frame.cols / 2 - (aim_yaw_pitch.x - last_yaw_rad_delayed_) * yaw_rad_to_x_pixel_ratio, 
+        frame.rows / 2 - (aim_yaw_pitch.y - last_pitch_rad_delayed_) * pitch_rad_to_y_pixel_ratio);
+    last_aim_yaw_pitch_ = aim_yaw_pitch;
+    if (result.fire_flag) {
+        cv::circle(frame, aim_yaw_pitch_pixel, 8, cv::Scalar(0, 0, 255), 2);
+    } else {
+        cv::circle(frame, aim_yaw_pitch_pixel, 8, cv::Scalar(255, 255, 0), 2);
+    }
+    RCLCPP_DEBUG(node->get_logger(), "aim center yaw pitch: (%.2f, %.2f)",
+            aim_yaw_pitch.x, aim_yaw_pitch.y);
     
     oscilloscope_common_ -> addDataPoint(((float)(result.fire_flag))/11.0, 1);
     oscilloscope_common_ -> update();

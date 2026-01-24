@@ -123,7 +123,6 @@ private:
     float reset_predictor_time;
     std::chrono::steady_clock::time_point last_com_time;
     cv::Point2f last_aim_yaw_pitch_;
-    cv::Point2f last_aim_yaw_pitch_pixel_;
 
     std::shared_ptr<PredictorSwitcher> predictor_switcher_;
 
