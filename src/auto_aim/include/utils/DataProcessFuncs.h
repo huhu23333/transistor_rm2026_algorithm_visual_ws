@@ -19,3 +19,4 @@ std::vector<double> linearInterpolation(const std::vector<double>& data, int ref
 double meanSquaredError(const std::vector<double>& pred_value, const std::vector<double>& true_value);
 double variancePoint3f(const std::vector<cv::Point3f>& points);
 double meanSquaredErrorPoint3f(const std::vector<cv::Point3f>& pred_points, const std::vector<cv::Point3f>& true_points);
+std::pair<int, int> findTwoSmallestIndices(const std::vector<double>& nums);

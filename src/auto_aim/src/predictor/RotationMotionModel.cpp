@@ -42,8 +42,6 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     // 遗忘因子，值越大遗忘越快
     lambda_ = is_outpost ? -std::log(0.97) / 0.033 : -std::log(0.88) / 0.033;
 
-    last_yaw = initObservedData.yaw;
-    
     // 初始化指数衰减最小二乘
     resetExponentialLS();
 }
@@ -221,7 +219,7 @@ void RotationMotionModel::update(ObservedData& observedData) {
 
     observedData.dt = observedData.t - last_observed_data.t;
 
-    if (isYawJump(observedData.yaw)) {
+    if (angle_ekf_->isYawJumpForRMM(observedData.yaw, observedData.dt)) {
         observedData.yaw_jump = true;
         if (!is_outpost) {
             std::swap(r_now, r_another);
@@ -276,13 +274,10 @@ void RotationMotionModel::update(ObservedData& observedData) {
     updateCenterResult(0.0);  // 当前时刻
     
     // 使用EKF更新角度和角速度，传入xc, yc, r
-    double dt = observedData.t - last_update_time_;
-    if (dt > 0) {
-        angle_ekf_->update(observedData.yaw, observedData.x, observedData.y, 
-                          center_x, center_y, r_now, dt);
-        last_update_time_ = observedData.t;
-        rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;
-    }
+    angle_ekf_->update(observedData.yaw, observedData.x, observedData.y, 
+                        center_x, center_y, r_now, observedData.dt);
+    last_update_time_ = observedData.t;
+    rotation_direction = angle_ekf_->getVyaw() >= 0 ? 1.0 : -1.0;
 }
 
 void RotationMotionModel::emptyUpdate(double update_time) {
@@ -311,7 +306,7 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     
     // 使用EKF预测角度
     if (angle_ekf_->isInitialized()) {
-        double ekf_yaw = angle_ekf_->getYaw();
+        double ekf_yaw = angle_ekf_->getTotalYaw();
         double ekf_vyaw = angle_ekf_->getVyaw();
         result.yaw = ekf_yaw + ekf_vyaw * predictTime;
         
@@ -323,12 +318,12 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     }
     
     result.rotation_direction = rotation_direction;
-    
+    int total_jump_time_with_direction = angle_ekf_->getTotalJumpTimeWithDirection();
     // 生成装甲板预测
     for (int i = 0; i < n_armors; i++) {
-        double armor_yaw = result.yaw - i * rotation_direction * jump_rad;
-        double r_using = is_outpost ? r_now : ((i%2==0) ? r_now : r_another);
-        double z_using = is_outpost ? result.center_z : ((i%2==0) ? result.center_z : result.z_another);
+        double armor_yaw = result.yaw - i * jump_rad; // double armor_yaw = result.yaw - i * rotation_direction * jump_rad
+        double r_using = is_outpost ? r_now : (((i+total_jump_time_with_direction)%2==0) ? r_now : r_another);
+        double z_using = is_outpost ? result.center_z : (((i+total_jump_time_with_direction)%2==0) ? result.center_z : result.z_another);
         result.armors.push_back(SimpleArmor({
             result.center_x + r_using * std::sin(armor_yaw),
             result.center_y - r_using * std::cos(armor_yaw),
@@ -356,9 +351,11 @@ RotationMotionState RotationMotionModel::getState() {
     
     if (angle_ekf_->isInitialized()) {
         state.yaw = angle_ekf_->getYaw();
+        state.total_yaw = angle_ekf_->getTotalYaw();
         state.vyaw = angle_ekf_->getVyaw();
     } else {
         state.yaw = 0.0;
+        state.total_yaw = 0.0;
         state.vyaw = 0.0;
     }
     
@@ -391,16 +388,4 @@ double RotationMotionModel::getTheoreticYawFacingArmor(double armor_x, double ar
         return - M_PI / 2.0;
     }
     return std::asin(right_shift / r_now);
-}
-
-bool RotationMotionModel::isYawJump(double yaw_now) {
-    double yaw_diff = yaw_now - last_yaw;
-    while (yaw_diff > M_PI) yaw_diff -= 2.0 * M_PI;
-    while (yaw_diff < -M_PI) yaw_diff += 2.0 * M_PI;
-    double jump_threshold = M_PI / 4.0; // 45度阈值
-    last_yaw = yaw_now;
-    if (std::abs(yaw_diff) > jump_threshold) {
-        return true;
-    }
-    return false;
 }

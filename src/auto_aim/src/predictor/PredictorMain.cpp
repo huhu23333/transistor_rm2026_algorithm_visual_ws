@@ -92,6 +92,25 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
     }
     chosen_result.command_pitch = last_pitch_rad_delayed_ + chosen_result.command_delta_pitch * command_picth_kp + pitch_integration; // PI控制
     chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * command_yaw_kp + yaw_integration + extra_delta_yaw; // 缓解yaw轴输入数据掉线问题（并不能()）
+
+
+    cv::putText(frame, 
+        auto_aim_switch ? "auto_aim_switch_from_mcu: on" : "auto_aim_switch_from_mcu: off", 
+        cv::Point2f(20,900), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
+    cv::putText(frame, 
+        "pitch_integration: "+std::to_string(pitch_integration * 180.0 / M_PI), 
+        cv::Point2f(20,930), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
+    cv::putText(frame, 
+        "yaw_integration: "+std::to_string(yaw_integration * 180.0 / M_PI), 
+        cv::Point2f(20,960), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
+
+
     return chosen_result;
 }
 
