@@ -62,6 +62,8 @@ private:
     bool initialized_ = false;
 
     bool is_outpost;
+
+    int64_t total_jump_time_with_direction = 0;
     
 public:
     AngleEKF(bool is_outpost) : state_(2), P_(2, 2), Q_(2, 2), R_(3, 3), is_outpost(is_outpost) {
@@ -156,8 +158,8 @@ public:
     /**
      * 处理角度跳变
      */
-    bool handleYawJump(double& measured_yaw, double dt) {
-        if (!initialized_) return false;
+    void handleYawJump(double& measured_yaw, double dt) {
+        if (!initialized_) return;
         
         double yaw_diff = measured_yaw - last_yaw_;
         double yaw_change = 0.0;
@@ -170,15 +172,82 @@ public:
         double jump_threshold = M_PI / 4.0; // 45度阈值
         
         if (std::abs(yaw_diff) > jump_threshold) {
+            double target_new_yaw = measured_yaw - state_(1) * dt;
+            target_new_yaw = atan2(sin(target_new_yaw), cos(target_new_yaw));
+            double state_yaw = state_(0);
+            state_yaw = atan2(sin(state_yaw), cos(state_yaw));
+            double delta_yaw = target_new_yaw - state_yaw;
+            delta_yaw = atan2(sin(delta_yaw), cos(delta_yaw));
+            double new_state_yaw = state_yaw;
+            if (is_outpost) {
+                if (delta_yaw > M_PI / 3.0) {
+                    total_jump_time_with_direction += 1;
+                    new_state_yaw += M_PI * 2.0 / 3.0;
+                } else if(delta_yaw < -M_PI / 3.0) {
+                    total_jump_time_with_direction -= 1;
+                    new_state_yaw -= M_PI * 2.0 / 3.0;
+                }
+            } else {
+                if (abs(delta_yaw) < M_PI / 4.0) {
+                    // nothing
+                } else if (delta_yaw > M_PI / 4.0 && delta_yaw < M_PI * 3.0 / 4.0) {
+                    total_jump_time_with_direction += 1;
+                    new_state_yaw += M_PI / 2.0;
+                } else if (delta_yaw < -M_PI / 4.0 && delta_yaw > -M_PI * 3.0 / 4.0) {
+                    total_jump_time_with_direction -= 1;
+                    new_state_yaw -= M_PI / 2.0;
+                } else {
+                    if (state_(1) > 0.0) {
+                        total_jump_time_with_direction -= 2;
+                        new_state_yaw -= M_PI;
+                    } else {
+                        total_jump_time_with_direction += 2;
+                        new_state_yaw += M_PI;
+                    }
+                }
+            }
+            new_state_yaw = atan2(sin(new_state_yaw), cos(new_state_yaw));
             // 直接更新偏航角状态，保持角速度不变
-            state_(0) = measured_yaw - state_(1) * dt;
+            state_(0) = new_state_yaw;
             std::cout << "Yaw jump detected! Updating yaw from " 
                       << last_yaw_ << " to " << measured_yaw << std::endl;
-            return true;
+
+            measured_yaw = atan2(sin(measured_yaw), cos(measured_yaw));
+            return;
         } else {
             measured_yaw += yaw_change;
         }
         
+        return;
+    }
+    
+    bool isYawJumpForRMM(double measured_yaw, double dt) {
+        if (!initialized_) return false;
+        
+        double target_new_yaw = measured_yaw - state_(1) * dt;
+        target_new_yaw = atan2(sin(target_new_yaw), cos(target_new_yaw));
+        double state_yaw = state_(0);
+        state_yaw = atan2(sin(state_yaw), cos(state_yaw));
+        double delta_yaw = target_new_yaw - state_yaw;
+        delta_yaw = atan2(sin(delta_yaw), cos(delta_yaw));
+        int change_jump_time_with_direction = 0;
+        if (is_outpost) {
+            if (delta_yaw > M_PI / 3.0) {
+                return true;
+            } else if(delta_yaw < -M_PI / 3.0) {
+                return true;
+            }
+        } else {
+            if (abs(delta_yaw) < M_PI / 4.0) {
+                return false;
+            } else if (delta_yaw > M_PI / 4.0 && delta_yaw < M_PI * 3.0 / 4.0) {
+                return true;
+            } else if (delta_yaw < -M_PI / 4.0 && delta_yaw > -M_PI * 3.0 / 4.0) {
+                return true;
+            } else {
+                return false;
+            }
+        }
         return false;
     }
     
@@ -259,6 +328,10 @@ public:
     double getYaw() const { return state_(0); }
     double getVyaw() const { return state_(1); }
     const Eigen::Vector2d& getState() const { return state_; }
+
+    double getTotalYaw() const { return state_(0) - total_jump_time_with_direction * (is_outpost ? M_PI * 2.0 / 3.0 : M_PI / 2.0); }
+
+    int getTotalJumpTimeWithDirection () { return total_jump_time_with_direction; }
 };
 
 struct RotationMotionState {
@@ -272,6 +345,7 @@ struct RotationMotionState {
     double r_now;
     double r_another;
     double yaw;
+    double total_yaw;
     double vyaw;
     unsigned long long update_frames;
 };
@@ -316,9 +390,6 @@ private:
 
     std::shared_ptr<RestFrame> rest_frame_;
     bool is_outpost;
-
-    bool isYawJump(double yaw_now);
-    double last_yaw;
 
     unsigned long long update_frames_count = 0;
 

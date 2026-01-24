@@ -133,3 +133,32 @@ double meanSquaredErrorPoint3f(const std::vector<cv::Point3f>& pred_points, cons
     }
     return result / static_cast<double>(value_num);
 }
+
+std::pair<int, int> findTwoSmallestIndices(const std::vector<double>& nums) {
+    if (nums.size() < 2) {
+        // 处理元素不足的情况
+        return {-1, -1};
+    }
+    
+    int min1 = 0;  // 最小值的索引
+    int min2 = 1;  // 第二小值的索引
+    
+    // 初始化，确保min1对应较小的值
+    if (nums[1] < nums[0]) {
+        std::swap(min1, min2);
+    }
+    
+    // 从第三个元素开始遍历
+    for (int i = 2; i < nums.size(); i++) {
+        if (nums[i] < nums[min1]) {
+            // 当前元素比最小值还小
+            min2 = min1;  // 原来的最小值变成第二小
+            min1 = i;     // 更新最小值索引
+        } else if (nums[i] < nums[min2]) {
+            // 当前元素比最小值大，但比第二小值小
+            min2 = i;
+        }
+    }
+    
+    return {min1, min2};
+}
