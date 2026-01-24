@@ -62,7 +62,7 @@ public:
 
         last_com_time = std::chrono::steady_clock::now();
 
-        oscilloscope_common_ = std::make_shared<Oscilloscope>(640, 480, "Common Debug Oscilloscope", 2);
+        oscilloscope_common_ = std::make_shared<Oscilloscope>(640, 480, "Common Debug Oscilloscope "+std::to_string(armor_class), 2);
         oscilloscope_common_ -> setScale(2.0);
         oscilloscope_common_ -> setOffset(-1.0);
 
@@ -76,12 +76,15 @@ public:
         RMM_fire_control_data.aim_center_vyaw_lower_threshold = (*config_file_ptr)["aim_center_vyaw_lower_threshold"].as<float>();
         RMM_fire_control_data.aim_center_vyaw_upper_threshold = (*config_file_ptr)["aim_center_vyaw_upper_threshold"].as<float>();
         RMM_fire_control_data.aim_center_yaw_bias_expand = (*config_file_ptr)["aim_center_yaw_bias_expand"].as<float>();
+        RMM_fire_control_data.low_vyaw_change_target_delta_yaw_threshold = M_PI / 180.0 * (*config_file_ptr)["low_vyaw_change_target_delta_yaw_threshold_degree"].as<float>();
+        RMM_fire_control_data.low_vyaw_threshold = (*config_file_ptr)["low_vyaw_threshold"].as<float>();
 
         pre_predict_time = (*config_file_ptr)["pre_predict_time"].as<float>();
         pre_predict_time_not_aim = (*config_file_ptr)["pre_predict_time_not_aim"].as<float>();
 
         extra_predict_time = (*config_file_ptr)["extra_predict_time"].as<float>();
         choose_armor_yaw_bias = M_PI / 180.0 * (*config_file_ptr)["choose_armor_yaw_bias_degree"].as<float>();
+        RMM_visualize_zoom_out_factor = (*config_file_ptr)["RMM_visualize_zoom_out_factor"].as<float>();
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
@@ -120,7 +123,6 @@ private:
     float reset_predictor_time;
     std::chrono::steady_clock::time_point last_com_time;
     cv::Point2f last_aim_yaw_pitch_;
-    cv::Point2f last_aim_yaw_pitch_pixel_;
 
     std::shared_ptr<PredictorSwitcher> predictor_switcher_;
 
@@ -138,6 +140,8 @@ private:
         float aim_center_vyaw_lower_threshold;
         float aim_center_vyaw_upper_threshold;
         float aim_center_yaw_bias_expand;
+        float low_vyaw_change_target_delta_yaw_threshold;
+        float low_vyaw_threshold;
 
         bool aim_center_schmitt_trigger = false;
         bool new_target = true;
@@ -155,4 +159,6 @@ private:
     float choose_armor_yaw_bias;
 
     float extra_predict_time;
+
+    float RMM_visualize_zoom_out_factor;
 };
