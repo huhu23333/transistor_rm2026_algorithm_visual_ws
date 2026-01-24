@@ -21,8 +21,10 @@ delta_z_ : 30.0   # 待修正
 pc_ip : "192.168.10.25"
 cam_ip : "192.168.10.10"
 
-video_relative_path : "InputVideo/infantry_blue.mp4"    # 使用视频输入时的视频路径
+video_relative_path : "InputVideo/outpost5_5m.mp4"    # 使用视频输入时的视频路径
 images_relative_path : "InputImages"                    # 使用图片输入时的图片文件夹路径
+
+RMM_visualize_zoom_out_factor : 20.0 # 平面可视化缩放系数，该值越大视野范围越大
 
 frame_rate : 30.0   # fps
 serial_delay_time : 30.0 # ms           电控传来的信息相对相机画面快的时间，将对电控信息再延迟这个时间以同步两者

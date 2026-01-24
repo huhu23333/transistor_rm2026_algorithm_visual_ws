@@ -82,6 +82,7 @@ public:
 
         extra_predict_time = (*config_file_ptr)["extra_predict_time"].as<float>();
         choose_armor_yaw_bias = M_PI / 180.0 * (*config_file_ptr)["choose_armor_yaw_bias_degree"].as<float>();
+        RMM_visualize_zoom_out_factor = (*config_file_ptr)["RMM_visualize_zoom_out_factor"].as<float>();
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType control_predictor_type);
@@ -155,4 +156,6 @@ private:
     float choose_armor_yaw_bias;
 
     float extra_predict_time;
+
+    float RMM_visualize_zoom_out_factor;
 };
