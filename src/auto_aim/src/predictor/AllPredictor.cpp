@@ -97,6 +97,24 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 if (!rotation_motion_model_) {
                     rotation_motion_model_ = std::make_unique<RotationMotionModel>(RMM_update_data, rest_frame_, armor_class==ArmorType::Outpost, init_r);
                 } else {
+                    RotationMotionState RMM_state_to_check = rotation_motion_model_ -> getState();
+                    if (
+                        !(RMM_state_to_check.center_x > -1e10 && RMM_state_to_check.center_x < 1e10) ||
+                        !(RMM_state_to_check.center_y > -1e10 && RMM_state_to_check.center_y < 1e10) ||
+                        !(RMM_state_to_check.center_z > -1e10 && RMM_state_to_check.center_z < 1e10) ||
+                        !(RMM_state_to_check.z_another > -1e10 && RMM_state_to_check.z_another < 1e10) ||
+                        !(RMM_state_to_check.center_vx > -1e10 && RMM_state_to_check.center_vx < 1e10) ||
+                        !(RMM_state_to_check.center_vy > -1e10 && RMM_state_to_check.center_vy < 1e10) ||
+                        !(RMM_state_to_check.center_vz > -1e10 && RMM_state_to_check.center_vz < 1e10) ||
+                        !(RMM_state_to_check.r_now > -1e10 && RMM_state_to_check.r_now < 1e10) ||
+                        !(RMM_state_to_check.r_another > -1e10 && RMM_state_to_check.r_another < 1e10) ||
+                        !(RMM_state_to_check.yaw > -1e10 && RMM_state_to_check.yaw < 1e10) ||
+                        !(RMM_state_to_check.vyaw > -1e10 && RMM_state_to_check.vyaw < 1e10)
+                    ) {
+                        rotation_motion_model_.reset();
+                        rotation_motion_model_ = std::make_unique<RotationMotionModel>(RMM_update_data, rest_frame_, armor_class==ArmorType::Outpost, init_r);
+                    } // 出现nan立即重置
+
                     if (best_result.is_tracked_now) {
                         rotation_motion_model_ -> update(RMM_update_data);
                     } else {
@@ -135,11 +153,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     // cv::line(frame, RMM_pred_now_center_pixel, RMM_pred_now_armor_pixel, cv::Scalar(0, 255, 0), 2);
                     
                     cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/RMM_visualize_zoom_out_factor, 400-RMM_pred_now_armor.y/RMM_visualize_zoom_out_factor), 8, 
-                        cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
+                        cv::Scalar(255 - RMM_pred_now_armor_i * 60, 0, RMM_pred_now_armor_i * 60), 2);
                     // cv::line(RMM_visualize_frame, 
                     //     cv::Point2f(400+RMM_pred_now_data.center_x/RMM_visualize_zoom_out_factor, 400-RMM_pred_now_data.center_y/RMM_visualize_zoom_out_factor), 
                     //     cv::Point2f(400+RMM_pred_now_armor.x/RMM_visualize_zoom_out_factor, 400-RMM_pred_now_armor.y/RMM_visualize_zoom_out_factor), 
-                    //     cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
+                    //     cv::Scalar(255 - RMM_pred_now_armor_i * 60, 0, RMM_pred_now_armor_i * 60), 2);
                 }
                 cv::circle(RMM_visualize_frame, cv::Point2f(400+rest_frame_pos.x/RMM_visualize_zoom_out_factor, 400-rest_frame_pos.y/RMM_visualize_zoom_out_factor), 8, cv::Scalar(255, 255, 0), 2);
                 cv::line(RMM_visualize_frame, 
@@ -384,11 +402,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                         // cv::line(frame, RMM_pred_now_center_pixel, RMM_pred_now_armor_pixel, cv::Scalar(0, 255, 0), 2);
                         
                         cv::circle(RMM_visualize_frame, cv::Point2f(400+RMM_pred_now_armor.x/RMM_visualize_zoom_out_factor, 400-RMM_pred_now_armor.y/RMM_visualize_zoom_out_factor), 8, 
-                            cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
+                            cv::Scalar(255 - RMM_pred_now_armor_i * 60, 0, RMM_pred_now_armor_i * 60), 2);
                         // cv::line(RMM_visualize_frame, 
                         //     cv::Point2f(400+RMM_pred_now_data.center_x/RMM_visualize_zoom_out_factor, 400-RMM_pred_now_data.center_y/RMM_visualize_zoom_out_factor), 
                         //     cv::Point2f(400+RMM_pred_now_armor.x/RMM_visualize_zoom_out_factor, 400-RMM_pred_now_armor.y/RMM_visualize_zoom_out_factor), 
-                        //     cv::Scalar(0, 255 - RMM_pred_now_armor_i * 80, RMM_pred_now_armor_i * 80), 2);
+                        //     cv::Scalar(255 - RMM_pred_now_armor_i * 60, 0, RMM_pred_now_armor_i * 60), 2);
                     }
                     RotationMotionState RMM_state = rotation_motion_model_ -> getState();
                     cv::putText(RMM_visualize_frame, 

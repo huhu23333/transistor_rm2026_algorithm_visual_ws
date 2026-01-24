@@ -311,7 +311,7 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     
     // 使用EKF预测角度
     if (angle_ekf_->isInitialized()) {
-        double ekf_yaw = angle_ekf_->getYaw();
+        double ekf_yaw = angle_ekf_->getTotalYaw();
         double ekf_vyaw = angle_ekf_->getVyaw();
         result.yaw = ekf_yaw + ekf_vyaw * predictTime;
         
@@ -326,7 +326,7 @@ PredictResult RotationMotionModel::predict(double predictTime) {
     
     // 生成装甲板预测
     for (int i = 0; i < n_armors; i++) {
-        double armor_yaw = result.yaw - i * rotation_direction * jump_rad;
+        double armor_yaw = result.yaw - i * jump_rad; // double armor_yaw = result.yaw - i * rotation_direction * jump_rad
         double r_using = is_outpost ? r_now : ((i%2==0) ? r_now : r_another);
         double z_using = is_outpost ? result.center_z : ((i%2==0) ? result.center_z : result.z_another);
         result.armors.push_back(SimpleArmor({
@@ -355,7 +355,7 @@ RotationMotionState RotationMotionModel::getState() {
     state.update_frames = update_frames_count;
     
     if (angle_ekf_->isInitialized()) {
-        state.yaw = angle_ekf_->getYaw();
+        state.yaw = angle_ekf_->getTotalYaw();
         state.vyaw = angle_ekf_->getVyaw();
     } else {
         state.yaw = 0.0;
