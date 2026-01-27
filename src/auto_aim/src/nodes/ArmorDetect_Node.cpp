@@ -36,6 +36,7 @@
 #include "2d_armor_detector/Armor.h"
 #include "communication/WatchdogClient.h"
 #include "visualizer/RestFrameDraw.h"
+#include "communication/HeadIMU.h"
 
 namespace fs = std::filesystem;
 
@@ -165,7 +166,10 @@ public:
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
 
         com_timer_thread_ = std::thread(std::bind(&SerialCommunicationClass::timerThread, serial_communication_));
-        com_timer_thread_.detach();
+        // com_timer_thread_.detach();
+
+        headIMUInfos.headIMU_communication_ = std::make_shared<HeadIMUSerialCommunicationClass>(std::bind(&ArmorDetectNode::headIMUSerialDataCallback, this, std::placeholders::_1));
+        headIMUInfos.headIMU_timer_thread_ = std::thread(std::bind(&HeadIMUSerialCommunicationClass::timerThread, headIMUInfos.headIMU_communication_));
 
         // 串口通信下位机初始化
         serial_communication_->sendData(0, 0, false);
@@ -244,10 +248,76 @@ private:
         }).detach();
     }
 
+    void headIMUSerialDataCallback(const HeadIMUSerialData& msg) {
+
+
+        float current_pitch_;
+        float current_yaw_;
+        float last_pitch_rad_;
+        float last_yaw_rad_;
+        float total_yaw_rad_;
+
+
+        current_pitch_ = msg.euler_pitch;
+        current_yaw_ = msg.euler_yaw;
+
+
+        headIMUInfos.head_imu_yaw = msg.euler_yaw;
+        headIMUInfos.head_imu_pitch = msg.euler_pitch;
+        headIMUInfos.head_imu_roll = msg.euler_roll;
+        headIMUInfos.to_mcu_delta_yaw = headIMUInfos.mcu_yaw - headIMUInfos.latest_head_imu_yaw_when_mcu_yaw_update;
+        headIMUInfos.to_mcu_delta_pitch = headIMUInfos.mcu_pitch - headIMUInfos.head_imu_pitch;
+
+        while (current_yaw_ < -M_PI) {
+            current_yaw_ += 2 * M_PI;
+        }
+        while (current_yaw_ > M_PI) {
+            current_yaw_ -= 2 * M_PI;
+        }
+        
+        if (current_yaw_ < -M_PI/2 && last_yaw_rad_imu_ > M_PI/2) {
+            current_yaw_circle_imu_ += 1;
+        } else if (current_yaw_ > M_PI/2 && last_yaw_rad_imu_ < -M_PI/2) {
+            current_yaw_circle_imu_ -= 1;
+        }
+
+        total_yaw_rad_imu_ = current_yaw_circle_imu_ * 2 * M_PI + current_yaw_;
+        last_pitch_rad_imu_ = current_pitch_;
+        last_yaw_rad_imu_ = current_yaw_;
+
+        if (headIMUInfos.use_head_imu) {
+            std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+            DelayInfos now_serial_infos;
+            now_serial_infos.last_pitch_rad_ = last_pitch_rad_imu_;
+            now_serial_infos.last_yaw_rad_ = last_yaw_rad_imu_;
+            now_serial_infos.total_yaw_rad_ = total_yaw_rad_imu_;
+            now_serial_infos.push_time = current_time;
+            serial_infos_delay_.push(now_serial_infos);
+        }
+    }
+
     void serialDataCallback(const SerialData& msg) {
+
+
+        float current_pitch_;
+        float current_yaw_;
+
+
         bullet_velocity_ = msg.bullet_velocity;
         current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180; // 测定pitch轴传入数据1.8大约对应30°
         current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
+
+
+        headIMUInfos.mcu_yaw = current_yaw_;
+        headIMUInfos.mcu_pitch = current_pitch_;
+        if (headIMUInfos.last_mcu_yaw != headIMUInfos.mcu_yaw) {
+            headIMUInfos.latest_head_imu_yaw_when_mcu_yaw_update = headIMUInfos.head_imu_yaw;
+            headIMUInfos.last_mcu_yaw = current_yaw_;
+        }
+        headIMUInfos.to_mcu_delta_yaw = headIMUInfos.mcu_yaw - headIMUInfos.latest_head_imu_yaw_when_mcu_yaw_update;
+        headIMUInfos.to_mcu_delta_pitch = headIMUInfos.mcu_pitch - headIMUInfos.head_imu_pitch;
+
+
         while (current_yaw_ < -M_PI) {
             current_yaw_ += 2 * M_PI;
         }
@@ -267,46 +337,31 @@ private:
             yolo_pose_armor_detector->setEnemyColor(msg.color == 0 ? Params::RED : Params::BLUE);
         }
 
-        if (current_yaw_ < -M_PI/2 && last_yaw_rad_ > M_PI/2) {
-            yaw_circle_ += 1;
-        } else if (current_yaw_ > M_PI/2 && last_yaw_rad_ < -M_PI/2) {
-            yaw_circle_ -= 1;
+        if (current_yaw_ < -M_PI/2 && last_yaw_rad_mcu_ > M_PI/2) {
+            current_yaw_circle_mcu_ += 1;
+        } else if (current_yaw_ > M_PI/2 && last_yaw_rad_mcu_ < -M_PI/2) {
+            current_yaw_circle_mcu_ -= 1;
         }
 
-        total_yaw_rad_ = yaw_circle_ * 2 * M_PI + current_yaw_;
-        last_pitch_rad_ = current_pitch_;
-        last_yaw_rad_ = current_yaw_;
+        total_yaw_rad_mcu_ = current_yaw_circle_mcu_ * 2 * M_PI + current_yaw_;
+        last_pitch_rad_mcu_ = current_pitch_;
+        last_yaw_rad_mcu_ = current_yaw_;
 
         RCLCPP_DEBUG(this->get_logger(), 
             "Received serial data: v=%.2f, pitch=%.2f, yaw=%.2f, color=%s \nyaw_circle=%d, total_yaw_rad=%.2f",
             bullet_velocity_, current_pitch_, current_yaw_, enemy_color_.c_str(),
-            yaw_circle_, total_yaw_rad_);
+            current_yaw_circle_mcu_, total_yaw_rad_mcu_);
 
 
-        std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
-        DelayInfos now_serial_infos;
-        now_serial_infos.last_pitch_rad_ = last_pitch_rad_;
-        now_serial_infos.last_yaw_rad_ = last_yaw_rad_;
-        now_serial_infos.total_yaw_rad_ = total_yaw_rad_;
-        now_serial_infos.push_time = current_time;
-        serial_infos_delay_.push(now_serial_infos);
-        while (serial_infos_delay_.size() > 1 && 
-               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - serial_infos_delay_.front().push_time).count() > serial_delay_time + extra_info_delay_time_ms) {
-            serial_infos_delay_.pop();
+        if (!headIMUInfos.use_head_imu) {
+            std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+            DelayInfos now_serial_infos;
+            now_serial_infos.last_pitch_rad_ = last_pitch_rad_mcu_;
+            now_serial_infos.last_yaw_rad_ = last_yaw_rad_mcu_;
+            now_serial_infos.total_yaw_rad_ = total_yaw_rad_mcu_;
+            now_serial_infos.push_time = current_time;
+            serial_infos_delay_.push(now_serial_infos);
         }
-        DelayInfos delayed_serial_infos = serial_infos_delay_.front();
-        last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
-        last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
-        total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
-
-        ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
-
-        rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
-        rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
-        predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
-        
-        RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
-
     }
 
     void drawResults(cv::Mat& image, 
@@ -527,12 +582,18 @@ private:
                 cv::Point2f(0, 100), 
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
+            float mcu_command_pitch = predictor_result.command_pitch;
+            float mcu_command_yaw = predictor_result.command_yaw;
+            if (headIMUInfos.use_head_imu) {
+                mcu_command_pitch = predictor_result.command_pitch + headIMUInfos.to_mcu_delta_pitch;
+                mcu_command_yaw = predictor_result.command_yaw + headIMUInfos.to_mcu_delta_yaw;
+            }
             if (predictor_result.reset) {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 serial_communication_->sendData(0.0, 0.0, false);
             } else {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
-                serial_communication_->sendData(predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
+                serial_communication_->sendData(mcu_command_pitch, mcu_command_yaw, predictor_result.fire_flag);
             }
             
             // 显示当前参数状态
@@ -554,7 +615,25 @@ private:
                 watchdog_client -> feed();
                 last_feed_dog_time = std::chrono::steady_clock::now();
             } // 正常运行时，每3秒喂一次狗
-        }        
+        }
+
+
+
+        while (serial_infos_delay_.size() > 1 && 
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - serial_infos_delay_.front().push_time).count() > serial_delay_time + extra_info_delay_time_ms) {
+            serial_infos_delay_.pop();
+        }
+        DelayInfos delayed_serial_infos = serial_infos_delay_.front();
+        last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
+        last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
+        total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
+        ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
+        rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
+        rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
+        predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
+        RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
+
+
 
         // 获取处理帧率
         RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
@@ -583,12 +662,18 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> node_start_time;
     
     float bullet_velocity_;
-    float current_pitch_ = 0.0;
-    float current_yaw_ = 0.0;
-    int yaw_circle_ = 0;
-    float last_pitch_rad_ = 0;
-    float last_yaw_rad_ = 0;
-    float total_yaw_rad_ = 0;
+
+
+    float last_pitch_rad_mcu_;
+    float last_yaw_rad_mcu_;
+    float total_yaw_rad_mcu_;
+    int current_yaw_circle_mcu_ = 0;
+    
+    float last_pitch_rad_imu_;
+    float last_yaw_rad_imu_;
+    float total_yaw_rad_imu_;
+    int current_yaw_circle_imu_ = 0;
+
     float last_pitch_rad_delayed_ = 0;
     float last_yaw_rad_delayed_ = 0;
     float total_yaw_rad_delayed_ = 0;
@@ -632,6 +717,27 @@ private:
 
     std::shared_ptr<WatchdogClient> watchdog_client;
     std::chrono::steady_clock::time_point last_feed_dog_time;
+
+    struct {
+        std::shared_ptr<HeadIMUSerialCommunicationClass> headIMU_communication_;
+        std::thread headIMU_timer_thread_;
+
+        bool use_head_imu = true;
+
+        float head_imu_yaw;
+        float head_imu_pitch;
+        float head_imu_roll;
+
+        float mcu_yaw;
+        float mcu_pitch;
+        
+        float last_mcu_yaw;
+        float latest_head_imu_yaw_when_mcu_yaw_update;
+
+        float to_mcu_delta_yaw;
+        float to_mcu_delta_pitch;
+
+    } headIMUInfos;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
