@@ -16,7 +16,9 @@ Camera::Camera(const std::string& deviceIp, const std::string& netIp)
     , netIp(netIp)
     , deviceIndex(0)
     , grabbing(false)
-    , needReconnect(false) {
+    , needReconnect(false)
+    , exposureTime(5000)
+    , gain(16.0) {
     
     std::cout << "GigE Camera created with IP: " << deviceIp << std::endl;
 }
@@ -31,7 +33,9 @@ Camera::Camera(int deviceIndex)
     , netIp("")
     , deviceIndex(deviceIndex)
     , grabbing(false)
-    , needReconnect(false) {
+    , needReconnect(false)
+    , exposureTime(5000)
+    , gain(16.0) {
     
     std::cout << "USB Camera created with device index: " << deviceIndex << std::endl;
 }
@@ -454,7 +458,8 @@ void Camera::parseIp(const std::string& ip, unsigned int& parsedIp) {
     parsedIp = (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3];
 }
 
-bool Camera::setExposureTime(float exposureTime) {
+bool Camera::setExposureTime(float exposureTime_) {
+    exposureTime = exposureTime_;
     if (handle == nullptr) {
         return false;
     }
@@ -468,7 +473,8 @@ bool Camera::setExposureTime(float exposureTime) {
     return true;
 }
 
-bool Camera::setGain(float gain) {
+bool Camera::setGain(float gain_) {
+    gain = gain_;
     if (handle == nullptr) {
         return false;
     }
@@ -490,14 +496,14 @@ bool Camera::initCameraParams() {
     int nRet;
     
     // 设置默认曝光时间 (5100微秒)
-    nRet = MV_CC_SetFloatValue(handle, "ExposureTime", 5100.0f);
+    nRet = MV_CC_SetFloatValue(handle, "ExposureTime", exposureTime);
     if (MV_OK != nRet) {
         std::cerr << "Set ExposureTime fail! nRet [0x" << std::hex << nRet << "]" << std::endl;
         return false;
     }
     
     // 设置默认增益值 (16.0)
-    nRet = MV_CC_SetFloatValue(handle, "Gain", 16.0f);
+    nRet = MV_CC_SetFloatValue(handle, "Gain", gain);
     if (MV_OK != nRet) {
         std::cerr << "Set Gain fail! nRet [0x" << std::hex << nRet << "]" << std::endl;
         return false;

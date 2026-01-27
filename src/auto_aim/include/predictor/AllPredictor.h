@@ -66,9 +66,6 @@ public:
         oscilloscope_common_ -> setScale(2.0);
         oscilloscope_common_ -> setOffset(-1.0);
 
-        armor_distance_filter_ = std::make_shared<SimpleDataFilter>(1);
-        armor_distance_filter_ -> setExponentialAlpha((*config_file_ptr)["armor_distance_smooth_factor"].as<float>());
-
         predictor_switcher_ = std::make_shared<PredictorSwitcher>(config_file_ptr, node);
 
         RMM_fire_control_data.after_target_change_ceasefire_ms = (*config_file_ptr)["after_target_change_ceasefire_ms"].as<int>();
@@ -109,7 +106,6 @@ private:
     float last_total_delay_ = 0.0;
 
     std::shared_ptr<Oscilloscope> oscilloscope_common_;
-    std::shared_ptr<SimpleDataFilter> armor_distance_filter_;
 
     std::shared_ptr<RotationMotionModel> rotation_motion_model_;
 
