@@ -51,10 +51,10 @@ public:
     static void parseIp(const std::string& ip, unsigned int& parsedIp);
 
     // 新增：设置曝光时间（单位：微秒）
-    bool setExposureTime(float exposureTime);
+    bool setExposureTime(float exposureTime_);
     
     // 新增：设置增益值（范围通常在0-15之间）
-    bool setGain(float gain);
+    bool setGain(float gain_);
     
     // 枚举USB设备
     static std::vector<std::string> enumUSBDevices();
@@ -113,6 +113,9 @@ private:
     void updateReconnectTime() {
         lastReconnectTime.store(std::chrono::steady_clock::now());
     }
+
+    float exposureTime;
+    float gain;
 };
 
 #endif // CAMERA_H
