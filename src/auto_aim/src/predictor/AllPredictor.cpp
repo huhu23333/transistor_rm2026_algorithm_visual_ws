@@ -17,6 +17,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     cv::Point3f predicted_aim_pos;
     bool fire_flag = false;
     std::vector<float> cam_position = rest_frame_ -> getCamPosition();
+    result.integrating = true;
 
 
     if (armor_class != ArmorType::Base) {
@@ -453,6 +454,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
         result.fire_flag = false;
         result.reset = true;
+        result.integrating = false;
     }
 
     return result;
