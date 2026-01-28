@@ -78,6 +78,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             predicted_armor_pos = rest_frame_pos;
             predicted_aim_pos = predicted_armor_pos;
             fire_flag = true;
+
+            if (!chosen_armor.is_tracked_now) {
+                result.command_delta_pitch = 0.0;
+                result.command_delta_yaw = 0.0;
+            }
         }
     } else {
         if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_predictor_time) {
