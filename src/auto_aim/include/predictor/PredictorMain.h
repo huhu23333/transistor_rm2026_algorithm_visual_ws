@@ -34,8 +34,10 @@ public:
         yaw_integration_min_degree = (*config_file_ptr)["yaw_integration_min_degree"].as<float>();
         command_picth_kp = (*config_file_ptr)["command_picth_kp"].as<float>();
         command_picth_integration_speed = (*config_file_ptr)["command_picth_integration_speed"].as<float>();
+        command_picth_integration_max_speed_degree = (*config_file_ptr)["command_picth_integration_max_speed_degree"].as<float>();
         command_yaw_kp = (*config_file_ptr)["command_yaw_kp"].as<float>();
         command_yaw_integration_speed = (*config_file_ptr)["command_yaw_integration_speed"].as<float>();
+        command_yaw_integration_max_speed_degree = (*config_file_ptr)["command_yaw_integration_max_speed_degree"].as<float>();
     }
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor,  bool auto_aim_switch, bool mcu_yaw_online);
@@ -67,6 +69,8 @@ private:
     float yaw_integration_min_degree;
     float command_picth_kp;
     float command_picth_integration_speed;
+    float command_picth_integration_max_speed_degree;
     float command_yaw_kp;
     float command_yaw_integration_speed;
+    float command_yaw_integration_max_speed_degree;
 };
