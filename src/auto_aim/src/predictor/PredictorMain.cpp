@@ -11,7 +11,7 @@ void PredictorMain::update_serial_info(float bullet_velocity, float last_pitch_r
     }
 }
 
-PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor, bool auto_aim_switch) {
+PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor, bool auto_aim_switch, bool mcu_yaw_online) {
 
     PredictorResult chosen_result;
 
@@ -79,27 +79,34 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
         if (pitch_integration < pitch_integration_min_degree * M_PI / 180.0) {
             pitch_integration = pitch_integration_min_degree * M_PI / 180.0;
         }
-
-        if (yaw_integration > yaw_integration_max_degree * M_PI / 180.0) {
-            yaw_integration = yaw_integration_max_degree * M_PI / 180.0;
-        }
-        if (yaw_integration < yaw_integration_min_degree * M_PI / 180.0) {
-            yaw_integration = yaw_integration_min_degree * M_PI / 180.0;
+        if (mcu_yaw_online) { // 电控yaw轴掉线时，关闭yaw轴积分重置及积分限制
+            if (yaw_integration > yaw_integration_max_degree * M_PI / 180.0) {
+                yaw_integration = yaw_integration_max_degree * M_PI / 180.0;
+            }
+            if (yaw_integration < yaw_integration_min_degree * M_PI / 180.0) {
+                yaw_integration = yaw_integration_min_degree * M_PI / 180.0;
+            }
         }
     } else {
         pitch_integration = 0.0;
-        yaw_integration = 0.0;
+        if (mcu_yaw_online) { // 电控yaw轴掉线时，关闭yaw轴积分重置及积分限制
+            yaw_integration = 0.0;
+        }
     }
     chosen_result.command_pitch = last_pitch_rad_delayed_ + chosen_result.command_delta_pitch * command_picth_kp + pitch_integration; // PI控制
     chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * command_yaw_kp + yaw_integration; // 缓解yaw轴输入数据掉线问题（并不能()）
 
 
-    
+    cv::putText(frame, 
+        mcu_yaw_online ? "mcu_yaw: online" : "mcu_yaw: offline", 
+        cv::Point2f(20,870), 
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        mcu_yaw_online ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 1, 8, false);
     cv::putText(frame, 
         auto_aim_switch ? "auto_aim_switch_from_mcu: on" : "auto_aim_switch_from_mcu: off", 
         cv::Point2f(20,900), 
         cv::FONT_HERSHEY_COMPLEX, 0.7, 
-        cv::Scalar(0, 255, 0), 1, 8, false);
+        auto_aim_switch ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 1, 8, false);
     cv::putText(frame, 
         "pitch_integration: "+std::to_string(pitch_integration * 180.0 / M_PI), 
         cv::Point2f(20,930), 
