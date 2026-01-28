@@ -36,6 +36,7 @@ struct PredictorResult {
     float enemy_position_y;
     
     float latest_armor_distance = 1e10;
+    bool integrating = false;
 };
 
 struct RMM_fire_result_t {

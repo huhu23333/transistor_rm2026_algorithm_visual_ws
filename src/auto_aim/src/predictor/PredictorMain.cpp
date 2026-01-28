@@ -71,8 +71,14 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
     }
 
     if (auto_aim_switch) { // 仅在电控自瞄开关打开时进行积分
-        pitch_integration += chosen_result.command_delta_pitch * command_picth_integration_speed;
-        yaw_integration += chosen_result.command_delta_yaw * command_yaw_integration_speed;
+        if (chosen_result.integrating) {
+            pitch_integration += std::min(std::max(chosen_result.command_delta_pitch,
+                                    -command_picth_integration_max_speed_degree),
+                                    command_picth_integration_max_speed_degree) * command_picth_integration_speed;
+            yaw_integration += std::min(std::max(chosen_result.command_delta_yaw,
+                                    -command_yaw_integration_max_speed_degree),
+                                    command_yaw_integration_max_speed_degree) * command_yaw_integration_speed;
+        }
         if (pitch_integration > pitch_integration_max_degree * M_PI / 180.0) {
             pitch_integration = pitch_integration_max_degree * M_PI / 180.0;
         }

@@ -20,6 +20,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     cv::Point3f predicted_aim_pos;
     bool fire_flag = false;
     std::vector<float> cam_position = rest_frame_ -> getCamPosition();
+    result.integrating = true;
 
 
     if (armor_class != ArmorType::Base) {
@@ -87,6 +88,12 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             last_enemy_position_y = predicted_armor_pos.y - cam_position[1];
             result.enemy_position_x = last_enemy_position_x;
             result.enemy_position_y = last_enemy_position_y;
+
+            
+            if (!chosen_armor.is_tracked_now) {
+                result.command_delta_pitch = 0.0;
+                result.command_delta_yaw = 0.0;
+            }
         }
     } else {
         if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_com_time).count() >= reset_predictor_time) {
@@ -461,6 +468,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
         result.fire_flag = false;
         result.reset = true;
+        result.integrating = false;
     }
 
     return result;
