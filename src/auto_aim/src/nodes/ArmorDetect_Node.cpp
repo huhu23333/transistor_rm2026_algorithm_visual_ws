@@ -316,6 +316,9 @@ private:
         if (headIMUInfos.last_mcu_yaw != headIMUInfos.mcu_yaw) {
             headIMUInfos.latest_head_imu_yaw_when_mcu_yaw_update = headIMUInfos.head_imu_yaw;
             headIMUInfos.last_mcu_yaw = current_yaw_;
+            headIMUInfos.last_mcu_yaw_update_time = std::chrono::steady_clock::now();
+            headIMUInfos.mcu_yaw_online = true;
+            headIMUInfos.latest_mcu_command_yaw_when_mcu_yaw_update = headIMUInfos.last_mcu_command_yaw;
         }
         headIMUInfos.to_mcu_delta_yaw = headIMUInfos.mcu_yaw - headIMUInfos.latest_head_imu_yaw_when_mcu_yaw_update;
         headIMUInfos.to_mcu_delta_pitch = headIMUInfos.mcu_pitch - headIMUInfos.head_imu_pitch;
@@ -488,6 +491,37 @@ private:
     }
 
     void processImage() {
+    
+
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - headIMUInfos.last_mcu_yaw_update_time).count() > 3000
+        ) {
+            if (fabs(headIMUInfos.last_mcu_command_yaw - headIMUInfos.latest_mcu_command_yaw_when_mcu_yaw_update)
+                > 5.0 * M_PI / 180.0
+            ) {
+                headIMUInfos.mcu_yaw_online = false;
+            }
+        }
+
+
+
+        while (serial_infos_delay_.size() > 1 && 
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - serial_infos_delay_.front().push_time).count() > serial_delay_time + extra_info_delay_time_ms) {
+            serial_infos_delay_.pop();
+        }
+        DelayInfos delayed_serial_infos = serial_infos_delay_.front();
+        last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
+        last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
+        total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
+        ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
+        rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
+        rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
+        predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
+        RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
+
+
+
+
         
         cv::Mat frame;
 #if defined(USE_VIDEO) || defined(USE_IMAGES) || defined(SYNC_CAMERA_FPS)
@@ -581,7 +615,9 @@ private:
             }
 
             // auto_aim_switch = true;
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::Middle, auto_aim_switch); // Todo
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, 
+                                                                       PredictorType::AutoSwitch, ArmorType::Middle, 
+                                                                       auto_aim_switch, headIMUInfos.mcu_yaw_online); // Todo
             cv::putText(frame, 
                 "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
                 cv::Point2f(0, 100), 
@@ -593,6 +629,7 @@ private:
                 mcu_command_pitch = predictor_result.command_pitch + headIMUInfos.to_mcu_delta_pitch;
                 mcu_command_yaw = predictor_result.command_yaw + headIMUInfos.to_mcu_delta_yaw;
             }
+            headIMUInfos.last_mcu_command_yaw = mcu_command_yaw;
             if (predictor_result.reset) {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 serial_communication_->sendData(0.0, 0.0, false);
@@ -622,24 +659,6 @@ private:
                 last_feed_dog_time = std::chrono::steady_clock::now();
             } // 正常运行时，每3秒喂一次狗
         }
-
-
-
-        while (serial_infos_delay_.size() > 1 && 
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - serial_infos_delay_.front().push_time).count() > serial_delay_time + extra_info_delay_time_ms) {
-            serial_infos_delay_.pop();
-        }
-        DelayInfos delayed_serial_infos = serial_infos_delay_.front();
-        last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
-        last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
-        total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
-        ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
-        rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
-        rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
-        predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
-        RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
-
-
 
         // 获取处理帧率
         RCLCPP_INFO(this->get_logger(), "frame rate: %.1f fps\n" , fps_counter->fps());
@@ -741,6 +760,10 @@ private:
         
         float last_mcu_yaw;
         float latest_head_imu_yaw_when_mcu_yaw_update;
+        std::chrono::steady_clock::time_point last_mcu_yaw_update_time;
+        bool mcu_yaw_online = true;
+        float last_mcu_command_yaw;
+        float latest_mcu_command_yaw_when_mcu_yaw_update;
 
         float to_mcu_delta_yaw;
         float to_mcu_delta_pitch;
