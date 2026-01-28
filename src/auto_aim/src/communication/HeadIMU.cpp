@@ -146,7 +146,7 @@ std::vector<std::string> HeadIMUSerialCommunicationClass::findAvailableSerialPor
             if (fd >= 0) {
                 close(fd);  // 串口可用，返回串口名称
                 ports.push_back(candidate_port);
-                break;
+                // break;
             }
         }
     }
