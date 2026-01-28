@@ -98,7 +98,7 @@ camera_matrix: # 相机内参矩阵
   - [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
 dist_coeffs: [-0.05392145, -0.02516686, -0.00222499, -0.00149047,  0.43693918] # 畸变系数
 max_expected_small_distance_mismatch_ratio : 0.35
-max_expected_large_distance_mismatch_ratio : 0.35
+max_expected_large_distance_mismatch_ratio : 0.7
 
 # ArmorClassifier 参数
 MAX_ROI_SAVE_COUNT : 20000  # 最大保存数量
