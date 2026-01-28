@@ -31,6 +31,7 @@ struct PredictorResult {
     ArmorType::ArmorType armor_type = ArmorType::Hero;
     float pixel_horizontal_center_distance = 1e10;
     float latest_armor_distance = 1e10;
+    bool integrating = false;
 };
 
 struct RMM_fire_result_t {

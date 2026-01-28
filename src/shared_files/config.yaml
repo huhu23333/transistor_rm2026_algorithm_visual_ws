@@ -41,8 +41,10 @@ yaw_integration_max_degree : 60.0
 yaw_integration_min_degree : -60.0
 command_picth_kp: 1.0
 command_picth_integration_speed: 0.02
+command_picth_integration_max_speed_degree: 5.0     # 积分时超过这个角度的误差会被截断为这个大小进行积分
 command_yaw_kp: 0.3
 command_yaw_integration_speed: 0.02
+command_yaw_integration_max_speed_degree: 5.0
 
 # 火控设置
 after_target_change_ceasefire_ms : 200                      # 切换至下一块装甲板后，在这段时间内不开火
@@ -101,7 +103,7 @@ camera_matrix: # 相机内参矩阵
 dist_coeffs: [-0.07695277, 0.17359923, -0.00017619, -0.00075521, -0.14730178] # 畸变系数 
 
 max_expected_small_distance_mismatch_ratio : 0.35
-max_expected_large_distance_mismatch_ratio : 0.35
+max_expected_large_distance_mismatch_ratio : 0.7
 
 # ArmorClassifier 参数
 MAX_ROI_SAVE_COUNT : 20000  # 最大保存数量
