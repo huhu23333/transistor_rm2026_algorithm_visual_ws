@@ -120,6 +120,7 @@ target_link_libraries(armor_detector
     cxsparse
     Sophus::Sophus
     fmt::fmt
+    udev
 )
 
 # 为装甲板检测节点添加依赖
