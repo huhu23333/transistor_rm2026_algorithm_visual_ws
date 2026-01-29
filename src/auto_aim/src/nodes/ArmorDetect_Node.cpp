@@ -647,7 +647,7 @@ private:
 
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
 
-            yaw_visualizer_ -> update(last_yaw_rad_delayed_, mcu_command_yaw);
+            yaw_visualizer_ -> update(last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0), mcu_command_yaw);
             yaw_visualizer_ -> show();
 
             //计算帧率
