@@ -37,6 +37,7 @@
 #include "communication/WatchdogClient.h"
 #include "visualizer/RestFrameDraw.h"
 #include "communication/HeadIMU.h"
+#include "visualizer/YawVisualizer.h"
 
 namespace fs = std::filesystem;
 
@@ -161,6 +162,7 @@ public:
             yolo_pose_armor_detector->setEnemyColor(enemy_color_ == "RED" ? Params::RED : Params::BLUE);
         }
 
+        yaw_visualizer_ = std::make_shared<YawVisualizer>();
 
         // 初始化串口通信器
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
@@ -645,6 +647,9 @@ private:
 
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
 
+            yaw_visualizer_ -> update(last_yaw_rad_delayed_, mcu_command_yaw);
+            yaw_visualizer_ -> show();
+
             //计算帧率
             fps_counter->tick();
 
@@ -761,6 +766,8 @@ private:
         float to_mcu_delta_pitch;
 
     } headIMUInfos;
+
+    std::shared_ptr<YawVisualizer> yaw_visualizer_;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
