@@ -43,7 +43,7 @@ command_picth_kp: 1.0
 command_picth_integration_speed: 0.02
 command_picth_integration_max_speed_degree: 5.0     # 积分时超过这个角度的误差会被截断为这个大小进行积分
 command_yaw_kp: 1.0
-command_yaw_integration_speed: 0.0
+command_yaw_integration_speed: 0.02
 command_yaw_integration_max_speed_degree: 5.0
 
 # 火控设置
