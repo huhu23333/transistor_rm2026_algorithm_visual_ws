@@ -2,7 +2,7 @@
 
 YawVisualizer::YawVisualizer() {
     yaw_oscilloscope = std::make_shared<Oscilloscope>(800, 800, "yaw_oscilloscope", 2, cv::Scalar(0, 0, 0), cv::Scalar(0, 255, 0));
-    yaw_oscilloscope -> setScale(1.0);
+    yaw_oscilloscope -> setScale(0.5);
     yaw_oscilloscope -> setOffset(0.0);
     yaw_oscilloscope -> setRollingSpeed(5);
     yaw_oscilloscope -> setLayerColor(1, cv::Scalar(0, 0, 255));
@@ -32,39 +32,42 @@ void YawVisualizer::update(float current_yaw, float target_yaw) {
 
 
 
-    bool now_target_yaw_raise_cross_mid = false;
-    bool now_current_yaw_raise_cross_mid = false;
-    current_yaw_history.push_back(current_yaw);
-    target_yaw_history.push_back(target_yaw);
-    if (current_yaw_history.size() > 90) {
-        current_yaw_history = std::vector<float>(
-            current_yaw_history.end() - 90, current_yaw_history.end());
-        target_yaw_history = std::vector<float>(
-            target_yaw_history.end() - 90, target_yaw_history.end());
+    bool now_total_target_yaw_raise_cross_mid = false;
+    bool now_total_current_yaw_raise_cross_mid = false;
+    total_current_yaw_history.push_back(total_current_yaw);
+    total_target_yaw_history.push_back(total_target_yaw);
+    if (total_current_yaw_history.size() > 90) {
+        total_current_yaw_history = std::vector<float>(
+            total_current_yaw_history.end() - 90, total_current_yaw_history.end());
+        total_target_yaw_history = std::vector<float>(
+            total_target_yaw_history.end() - 90, total_target_yaw_history.end());
     }
-    if (current_yaw_history.size() > 30) {
+    if (total_current_yaw_history.size() > 30) {
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        float max_target_yaw = *std::max_element(target_yaw_history.begin(), target_yaw_history.end());
-        float min_target_yaw = *std::min_element(target_yaw_history.begin(), target_yaw_history.end());
-        float mid_target_yaw = (max_target_yaw + min_target_yaw) / 2.0;
+        float max_total_target_yaw = *std::max_element(total_target_yaw_history.begin(), total_target_yaw_history.end());
+        float min_total_target_yaw = *std::min_element(total_target_yaw_history.begin(), total_target_yaw_history.end());
+        float mid_total_target_yaw = (max_total_target_yaw + min_total_target_yaw) / 2.0;
 
 
-        bool target_yaw_raise_cross_mid = 
-            ((last_target_yaw < mid_target_yaw) ^ raise_direction) && ((target_yaw >= mid_target_yaw) ^ raise_direction);
-        if (target_yaw_raise_cross_mid) {
-            last_target_mid_time = now;
-            now_target_yaw_raise_cross_mid = false;
+        float last_total_target_yaw = total_target_yaw_history[total_target_yaw_history.size()-2];
+        float last_total_current_yaw = total_current_yaw_history[total_current_yaw_history.size()-2];
+
+        bool total_target_yaw_raise_cross_mid = 
+            ((last_total_target_yaw < mid_total_target_yaw) ^ raise_direction) && ((total_target_yaw >= mid_total_target_yaw) ^ raise_direction);
+        if (total_target_yaw_raise_cross_mid) {
+            last_total_target_mid_time = now;
+            now_total_target_yaw_raise_cross_mid = true;
         }
 
-        bool current_yaw_raise_cross_mid = 
-            ((last_current_yaw < mid_target_yaw) ^ raise_direction) && ((current_yaw >= mid_target_yaw) ^ raise_direction);
-        if (current_yaw_raise_cross_mid) {
+        bool total_current_yaw_raise_cross_mid = 
+            ((last_total_current_yaw < mid_total_target_yaw) ^ raise_direction) && ((total_current_yaw >= mid_total_target_yaw) ^ raise_direction);
+        if (total_current_yaw_raise_cross_mid) {
             if (
-                std::chrono::duration_cast<std::chrono::milliseconds>(now - last_target_mid_time).count() < max_delay
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - last_total_target_mid_time).count() < max_delay
             ) {
-                delay_history.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(now - last_target_mid_time).count());
-                last_target_mid_time = last_target_mid_time - std::chrono::milliseconds(max_delay);
-                now_current_yaw_raise_cross_mid = false;
+                delay_history.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(now - last_total_target_mid_time).count());
+                last_total_target_mid_time = last_total_target_mid_time - std::chrono::milliseconds(max_delay);
+                now_total_current_yaw_raise_cross_mid = true;
             }
         }
     }
@@ -73,8 +76,8 @@ void YawVisualizer::update(float current_yaw, float target_yaw) {
             delay_history.end() - 90, delay_history.end());
     }
 
-    yaw_oscilloscope -> addDataPoint(total_target_yaw, 0, now_target_yaw_raise_cross_mid ? 5 : 1);
-    yaw_oscilloscope -> addDataPoint(total_current_yaw, 1, now_current_yaw_raise_cross_mid ? 5 : 1);
+    yaw_oscilloscope -> addDataPoint(total_target_yaw, 0, now_total_target_yaw_raise_cross_mid ? 5 : 1);
+    yaw_oscilloscope -> addDataPoint(total_current_yaw, 1, now_total_current_yaw_raise_cross_mid ? 5 : 1);
     yaw_oscilloscope -> update();
     yaw_oscilloscope -> putText(cv::format("total_target_yaw: %f", total_target_yaw), 
         cv::Point(20, 50), cv::Scalar(0, 255, 0), 0.7);

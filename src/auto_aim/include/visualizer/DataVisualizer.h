@@ -15,6 +15,8 @@ private:
     struct data_point_t {
         float value;
         int point_size;
+
+        data_point_t(float value_, int point_size_) : value(value_), point_size(point_size_) {}
     };
     std::vector<cv::Mat> data_displays;          // 数据图像
     std::vector<std::deque<data_point_t>> datas;   // 存储数据点的双端队列
