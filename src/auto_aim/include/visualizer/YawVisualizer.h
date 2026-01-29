@@ -23,15 +23,15 @@ private:
 
     cv::Mat display;
 
-    std::vector<float> current_yaw_history;
-    std::vector<float> target_yaw_history;
+    std::vector<float> total_current_yaw_history;
+    std::vector<float> total_target_yaw_history;
 
-    std::chrono::steady_clock::time_point last_target_mid_time;
-    float last_target_mid_value;
+    std::chrono::steady_clock::time_point last_total_target_mid_time;
+    float last_total_target_mid_value;
     int max_delay = 1000;
     std::vector<float> delay_history;
 
-    bool raise_direction = true;
+    bool raise_direction = false;
 
 public:
     // 构造函数

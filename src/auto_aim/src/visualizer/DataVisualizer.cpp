@@ -32,7 +32,7 @@ Oscilloscope::Oscilloscope(int w, int h,
 // 添加数据点
 void Oscilloscope::addDataPoint(float value, size_t layer_index, int point_size) {
     std::deque<data_point_t>& data = datas[layer_index];
-    data.push_back({value, point_size});
+    data.emplace_back(value, point_size);
     
     // 如果数据点超过窗口宽度，删除最旧的数据
     if (data.size() > width) {
