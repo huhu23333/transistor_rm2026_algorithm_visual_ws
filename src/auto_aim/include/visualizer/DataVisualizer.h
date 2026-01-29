@@ -23,6 +23,7 @@ private:
     std::string window_name;  // 窗口名称
     cv::Scalar background_color; // 背景颜色
     size_t layer_num;
+    uint32_t rolling_speed = 1;
 
 public:
     // 构造函数
@@ -61,6 +62,12 @@ public:
         int lineType = 8,
         bool bottomLeftOrigin = false
     );
+
+    cv::Mat getDisplay();
+
+    void setLayerColor(size_t layer_index, cv::Scalar color);
+
+    void setRollingSpeed(uint32_t speed);
 };
 
 
