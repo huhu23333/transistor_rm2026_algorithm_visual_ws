@@ -48,12 +48,14 @@ void Oscilloscope::update() {
         std::deque<float>& data = datas[layer_index];
         cv::Scalar& waveform_color = waveform_colors[layer_index];
 
-        // 将显示图像向左滚动一个像素
-        cv::Mat rolled = data_display(cv::Rect(1, 0, width - 1, height));
-        rolled.copyTo(data_display(cv::Rect(0, 0, width - 1, height)));
+        // 将显示图像向左滚动n个像素
+        cv::Mat rolled = data_display(cv::Rect(rolling_speed, 0, width - rolling_speed, height));
+        rolled.copyTo(data_display(cv::Rect(0, 0, width - rolling_speed, height)));
         
         // 清除最右侧的列
-        data_display.col(width - 1).setTo(cv::Scalar(0, 0, 0));
+        for (uint32_t i = 0; i < rolling_speed; i++) {
+            data_display.col(width - 1 - i).setTo(cv::Scalar(0, 0, 0));
+        }
         
         // 如果有数据点，绘制最新的数据点
         if (!data.empty()) {
@@ -76,7 +78,7 @@ void Oscilloscope::update() {
                 int prev_y = height - static_cast<int>(prev_normalized * height);
                 prev_y = std::max(0, std::min(height - 1, prev_y));
                 
-                cv::line(data_display, cv::Point(width - 2, prev_y), 
+                cv::line(data_display, cv::Point(width - 1 - rolling_speed, prev_y), 
                         cv::Point(width - 1, y), waveform_color, 1);
             }
         }
@@ -124,4 +126,16 @@ void Oscilloscope::putText(
     bool bottomLeftOrigin
 ) {
     cv::putText(display, text, org, fontFace, fontScale, color, thickness, lineType, bottomLeftOrigin);
+}
+
+cv::Mat Oscilloscope::getDisplay() {
+    return display;
+}
+
+void Oscilloscope::setLayerColor(size_t layer_index, cv::Scalar color) {
+    waveform_colors[layer_index] = color;
+}
+
+void Oscilloscope::setRollingSpeed(uint32_t speed) {
+    rolling_speed = speed;
 }
