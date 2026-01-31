@@ -247,7 +247,7 @@ private:
     void serialDataCallback(const SerialData& msg) {
         auto_aim_switch = msg.auto_aim_switch;
         bullet_velocity_ = msg.bullet_velocity;
-        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180; // 测定pitch轴传入数据1.8大约对应30°
+        current_pitch_ = (-((float)(msg.bullet_angle)) * 120 / 1.8 - 33.0) * M_PI / 180.0; // 测定pitch轴传入数据1.8大约对应30°
         current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
         while (current_yaw_ < -M_PI) {
             current_yaw_ += 2 * M_PI;
@@ -549,6 +549,11 @@ private:
 
             drawRestFrame(frame, rest_frame_, armor_solver_);
 
+            // 添加跟踪状态显示
+            cv::putText(frame, cv::format("pitch:%f degree", last_pitch_rad_delayed_ * 180.0 / M_PI), cv::Point(20, 400),
+                        cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                        cv::Scalar(0, 255, 0), 1);
+
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
 
             //计算帧率
@@ -558,6 +563,7 @@ private:
                 watchdog_client -> feed();
                 last_feed_dog_time = std::chrono::steady_clock::now();
             } // 正常运行时，每3秒喂一次狗
+            
         }        
 
         // 获取处理帧率
