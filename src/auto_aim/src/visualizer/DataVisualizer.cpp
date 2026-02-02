@@ -30,9 +30,9 @@ Oscilloscope::Oscilloscope(int w, int h,
 }
 
 // 添加数据点
-void Oscilloscope::addDataPoint(float value, size_t layer_index) {
-    std::deque<float>& data = datas[layer_index];
-    data.push_back(value);
+void Oscilloscope::addDataPoint(float value, size_t layer_index, int point_size) {
+    std::deque<data_point_t>& data = datas[layer_index];
+    data.emplace_back(value, point_size);
     
     // 如果数据点超过窗口宽度，删除最旧的数据
     if (data.size() > width) {
@@ -45,19 +45,22 @@ void Oscilloscope::update() {
     display.setTo(background_color);
     for (size_t layer_index = 0; layer_index < layer_num; layer_index += 1) {
         cv::Mat& data_display = data_displays[layer_index];
-        std::deque<float>& data = datas[layer_index];
+        std::deque<data_point_t>& data = datas[layer_index];
         cv::Scalar& waveform_color = waveform_colors[layer_index];
 
-        // 将显示图像向左滚动一个像素
-        cv::Mat rolled = data_display(cv::Rect(1, 0, width - 1, height));
-        rolled.copyTo(data_display(cv::Rect(0, 0, width - 1, height)));
+        // 将显示图像向左滚动n个像素
+        cv::Mat rolled = data_display(cv::Rect(rolling_speed, 0, width - rolling_speed, height));
+        rolled.copyTo(data_display(cv::Rect(0, 0, width - rolling_speed, height)));
         
         // 清除最右侧的列
-        data_display.col(width - 1).setTo(cv::Scalar(0, 0, 0));
+        for (uint32_t i = 0; i < rolling_speed; i++) {
+            data_display.col(width - 1 - i).setTo(cv::Scalar(0, 0, 0));
+        }
         
         // 如果有数据点，绘制最新的数据点
         if (!data.empty()) {
-            float latest_value = data.back();
+            data_point_t latest_point = data.back();
+            float latest_value = latest_point.value;
             
             // 计算归一化坐标 (0到1范围)
             float normalized = (latest_value * scale + offset + 1.0f) / 2.0f;
@@ -67,16 +70,16 @@ void Oscilloscope::update() {
             y = std::max(0, std::min(height - 1, y));
             
             // 绘制最新的数据点
-            cv::circle(data_display, cv::Point(width - 1, y), 1, waveform_color, -1);
+            cv::circle(data_display, cv::Point(width - 1, y), latest_point.point_size, waveform_color, -1);
             
             // 如果数据点足够多，绘制连线
             if (data.size() > 1) {
-                float prev_value = data[data.size() - 2];
+                float prev_value = data[data.size() - 2].value;
                 float prev_normalized = (prev_value * scale + offset + 1.0f) / 2.0f;
                 int prev_y = height - static_cast<int>(prev_normalized * height);
                 prev_y = std::max(0, std::min(height - 1, prev_y));
                 
-                cv::line(data_display, cv::Point(width - 2, prev_y), 
+                cv::line(data_display, cv::Point(width - 1 - rolling_speed, prev_y), 
                         cv::Point(width - 1, y), waveform_color, 1);
             }
         }
@@ -106,7 +109,7 @@ void Oscilloscope::setOffset(float o) {
 void Oscilloscope::clear_all() {
     for (size_t layer_index = 0; layer_index < layer_num; layer_index += 1) {
         cv::Mat& data_display = data_displays[layer_index];
-        std::deque<float>& data = datas[layer_index];
+        std::deque<data_point_t>& data = datas[layer_index];
 
         data.clear();
         data_display.setTo(cv::Scalar(0, 0, 0));
@@ -124,4 +127,16 @@ void Oscilloscope::putText(
     bool bottomLeftOrigin
 ) {
     cv::putText(display, text, org, fontFace, fontScale, color, thickness, lineType, bottomLeftOrigin);
+}
+
+cv::Mat Oscilloscope::getDisplay() {
+    return display;
+}
+
+void Oscilloscope::setLayerColor(size_t layer_index, cv::Scalar color) {
+    waveform_colors[layer_index] = color;
+}
+
+void Oscilloscope::setRollingSpeed(uint32_t speed) {
+    rolling_speed = speed;
 }

@@ -74,11 +74,13 @@ add_library(armor_detector SHARED
     # src/predictor/RotationJudge.cpp
     src/visualizer/DataVisualizer.cpp
     src/visualizer/RestFrameDraw.cpp
+    src/visualizer/YawVisualizer.cpp
     src/communication/SharedMemoryClassifier.cpp
     src/communication/SharedMemoryYOLOPose.cpp
     src/communication/Com.cpp
     src/communication/CRC.cpp
     src/communication/WatchdogClient.cpp
+    src/communication/HeadIMU.cpp
     src/utils/FrameRateCounter.cpp
     src/utils/SimpleDataFilter.cpp
     src/utils/DataProcessFuncs.cpp
@@ -119,6 +121,7 @@ target_link_libraries(armor_detector
     cxsparse
     Sophus::Sophus
     fmt::fmt
+    udev
 )
 
 # 为装甲板检测节点添加依赖
