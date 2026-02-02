@@ -250,6 +250,20 @@ private:
         }).detach();
     }
 
+    void recalibrateHeadIMU() {
+        if (predictor_main_) {
+            predictor_main_ -> reset_yaw_integration();
+        }
+
+        float reset_command_yaw = last_yaw_rad_delayed_;
+        for (int i = 0; i < 60; i++) {
+            serial_communication_ -> sendData(0.0, reset_command_yaw, false);
+            usleep(30*1000);
+        }
+
+        headIMUInfos.to_mcu_delta_yaw = reset_command_yaw - last_yaw_rad_delayed_;
+    }
+
     void headIMUSerialDataCallback(const HeadIMUSerialData& msg) {
 
 
@@ -290,6 +304,8 @@ private:
         if (headIMUInfos.use_head_imu) {
             std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
             DelayInfos now_serial_infos;
+            // now_serial_infos.last_pitch_rad_ = last_pitch_rad_imu_;
+            now_serial_infos.last_pitch_rad_ = last_pitch_rad_mcu_;
             now_serial_infos.last_pitch_rad_ = last_pitch_rad_imu_;
             now_serial_infos.last_yaw_rad_ = last_yaw_rad_imu_;
             now_serial_infos.total_yaw_rad_ = total_yaw_rad_imu_;
@@ -623,7 +639,7 @@ private:
             float mcu_command_pitch = predictor_result.command_pitch;
             float mcu_command_yaw = predictor_result.command_yaw;
             if (headIMUInfos.use_head_imu) {
-                mcu_command_pitch = predictor_result.command_pitch + headIMUInfos.to_mcu_delta_pitch;
+                mcu_command_pitch = predictor_result.command_pitch; // + headIMUInfos.to_mcu_delta_pitch;
                 mcu_command_yaw = predictor_result.command_yaw + headIMUInfos.to_mcu_delta_yaw;
             }
             headIMUInfos.last_mcu_command_yaw = mcu_command_yaw;
