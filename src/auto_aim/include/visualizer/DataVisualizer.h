@@ -12,8 +12,14 @@
 
 class Oscilloscope {
 private:
+    struct data_point_t {
+        float value;
+        int point_size;
+
+        data_point_t(float value_, int point_size_) : value(value_), point_size(point_size_) {}
+    };
     std::vector<cv::Mat> data_displays;          // 数据图像
-    std::vector<std::deque<float>> datas;   // 存储数据点的双端队列
+    std::vector<std::deque<data_point_t>> datas;   // 存储数据点的双端队列
     std::vector<cv::Scalar> waveform_colors;   // 波形颜色
     cv::Mat display;          // 显示图像
     int width;                // 显示窗口宽度
@@ -23,6 +29,7 @@ private:
     std::string window_name;  // 窗口名称
     cv::Scalar background_color; // 背景颜色
     size_t layer_num;
+    uint32_t rolling_speed = 1;
 
 public:
     // 构造函数
@@ -33,7 +40,7 @@ public:
                  cv::Scalar wf_color = cv::Scalar(0, 255, 0));
 
     // 添加数据点
-    void addDataPoint(float value, size_t layer_index = 0);
+    void addDataPoint(float value, size_t layer_index = 0, int point_size = 1);
     
     // 更新显示
     void update();
@@ -61,6 +68,12 @@ public:
         int lineType = 8,
         bool bottomLeftOrigin = false
     );
+
+    cv::Mat getDisplay();
+
+    void setLayerColor(size_t layer_index, cv::Scalar color);
+
+    void setRollingSpeed(uint32_t speed);
 };
 
 
