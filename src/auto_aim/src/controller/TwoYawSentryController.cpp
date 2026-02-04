@@ -23,7 +23,7 @@ void TwoYawSentryController::update_gimbal_infos(float real_pitch_, float real_s
 
 TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_target, float yaw_target) {
     std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
-    float dt = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_step_time).count()) / 1e6;
+    float dt = static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(current_time - last_step_time).count()) / 1e6;
 
     TwoYawGimbalControll_t result;
     if (reset) {
