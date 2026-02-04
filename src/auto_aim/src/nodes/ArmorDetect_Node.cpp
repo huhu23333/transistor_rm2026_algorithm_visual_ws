@@ -185,10 +185,11 @@ public:
         debug_code();
 #endif
 
-        // 创建定时器
-        timer_ = this->create_wall_timer(
-            std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
-            std::bind(&ArmorDetectNode::processImage, this));
+        // // 创建定时器
+        // timer_ = this->create_wall_timer(
+        //     std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
+        //     std::bind(&ArmorDetectNode::processImage, this));
+        main_loop_thread_ = std::thread(std::bind(&ArmorDetectNode::main_loop_func, this));
 
 
         RCLCPP_INFO(this->get_logger(), "ArmorDetectNode initialized");
@@ -202,6 +203,14 @@ public:
     }
 
 private:
+    void main_loop_func() {
+        while (true) {
+            std::chrono::steady_clock::time_point loop_start_time = std::chrono::steady_clock::now();
+            processImage();
+            std::this_thread::sleep_until(loop_start_time + std::chrono::microseconds(static_cast<int>(1e6 / frame_rate_)));
+        }
+    }
+
     void debug_code() {
         // while (true) {
         //     static double debug_time_count = 0.0;
@@ -674,8 +683,9 @@ private:
     std::shared_ptr<YAML::Node> config_file_ptr; 
 
     // 成员变量
-    rclcpp::TimerBase::SharedPtr timer_;
+    // rclcpp::TimerBase::SharedPtr timer_;
     std::thread com_timer_thread_;
+    std::thread main_loop_thread_;
     
     std::shared_ptr<Camera> camera_;
     std::shared_ptr<LightBarDetector> light_detector_;
