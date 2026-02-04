@@ -210,48 +210,9 @@ private:
 
     void debug_code() {
         // while (true) {
-        //     static double debug_time_count = 0.0;
-        //     double debug_freq = 0.3;
-        //     double debug_yaw = std::cos(debug_time_count*M_PI*debug_freq) * M_PI / 6;
-        //     double debug_pitch = std::sin(debug_time_count*M_PI*debug_freq) * M_PI / 6;
-        //     serial_communication_->sendData(debug_pitch, debug_yaw);
-        //     RCLCPP_INFO(this->get_logger(), "send debug data: yaw[%.2f] pitch[%.2f]", debug_yaw, debug_pitch);
-        //     RCLCPP_INFO(this->get_logger(), "received data: yaw[%.2f] pitch[%.2f]", last_yaw_rad_delayed_, last_pitch_rad_delayed_);
-        //     cv::Mat frame;
-        //     pthread_mutex_lock(&g_mutex);
-        //     if (!g_image.empty()) {
-        //         frame = g_image.clone();
-        //         image_used = true;
-        //     }
-        //     pthread_mutex_unlock(&g_mutex);
-        //     if (!frame.empty()) {
-        //         cv::imshow("debug_code", frame);
-        //         cv::waitKey(1);
-        //     }
-        //     auto start = std::chrono::steady_clock::now();
-        //     std::this_thread::sleep_until(start + std::chrono::microseconds(33000));
-        //     debug_time_count += 0.033;
         // }
         std::thread([&]() {
-            double debug_time_count = 0.0;
             while (true) {
-                auto start = std::chrono::steady_clock::now();
-
-                SerialData fakeSerialData;
-                fakeSerialData.bullet_velocity = 25.0;  // 子弹速度
-                fakeSerialData.gimbal_pitch = std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
-                fakeSerialData.gimbal_yaw =  
-                    // static_cast<int16_t>(60.0 * 4095.0 / 180.0);
-                    // static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 2 * M_PI), std::cos(debug_time_count * 2 * M_PI)) * 4095.0 / M_PI / 12); 
-                    // static_cast<int16_t>(static_cast<float>((std::atan2(std::sin(debug_time_count * 1.0), std::cos(debug_time_count * 1.0)) > 0) - 0.5) * 4095); 
-                    static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 0.3), std::cos(debug_time_count * 0.3)) * 4095.0 / M_PI);
-                    // static_cast<int16_t>(std::cos(debug_time_count * 0.5 * (2*M_PI)) * 4095 / 180 * 15);       // 云台当前偏航角
-                fakeSerialData.color = 1;            // 敌方颜色(0:红色, 1:蓝色)
-
-                serialDataCallback(fakeSerialData);
-
-                std::this_thread::sleep_until(start + std::chrono::microseconds(10000));  // 大约10ms周期
-                debug_time_count += 0.01;
             }
         }).detach();
     }
@@ -259,7 +220,11 @@ private:
     void serialDataCallback(const SerialData& msg) {
         bullet_velocity_ = msg.bullet_velocity;
         current_pitch_ = msg.gimbal_pitch;
-        current_yaw_ = msg.gimbal_yaw;
+
+        current_yaw_small_ = msg.gimbal_yaw_small;
+        current_yaw_big_ = msg.gimbal_yaw_big;
+        current_yaw_ = current_yaw_small_ + current_yaw_big_;
+
         enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -549,26 +514,18 @@ private:
                     reset_behavior_infos.pitch = reset_behavior_infos.min_pitch;
                 }
 
-                RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d], enemy_x[%.2f] enemy_y[%.2f]", reset_behavior_infos.yaw, reset_behavior_infos.pitch, false, 0.0, 0.0);
-                serial_communication_->sendData(true, reset_behavior_infos.pitch, reset_behavior_infos.yaw, false, 0.0, 0.0);
+                // serial_communication_->sendData(true, reset_behavior_infos.pitch, reset_behavior_infos.yaw, false, 0.0, 0.0);
             } else {
-                RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d], enemy_x[%.2f] enemy_y[%.2f]", 
-                    predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag,
-                    predictor_result.enemy_position_x, predictor_result.enemy_position_y
-                );
-                serial_communication_->sendData(
-                    false, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag,
-                    predictor_result.enemy_position_x, predictor_result.enemy_position_y
-                );
+                // serial_communication_->sendData(
+                //     false, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag,
+                //     predictor_result.enemy_position_x, predictor_result.enemy_position_y
+                // );
 
                 reset_behavior_infos.last_time = std::chrono::steady_clock::now();
                 reset_behavior_infos.yaw = predictor_result.command_yaw;
                 reset_behavior_infos.pitch = predictor_result.command_pitch;
             }
-            // serial_communication_->sendData(false, last_pitch_rad_delayed_, last_yaw_rad_delayed_, false, 0, 0);
-            RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f]", 
-                    last_pitch_rad_delayed_, last_yaw_rad_delayed_);
-            // serial_communication_->sendData(true, 0.1, 0.2, true, -32667, 200);
+            serial_communication_->sendData(false, current_pitch_, current_yaw_small_, current_yaw_big_, false, 0, 0);
             
             // 显示当前参数状态
             cv::putText(frame, 
@@ -624,6 +581,10 @@ private:
     float bullet_velocity_;
     float current_pitch_ = 0.0;
     float current_yaw_ = 0.0;
+
+    float current_yaw_big_ = 0.0;
+    float current_yaw_small_ = 0.0;
+
     int yaw_circle_ = 0;
     float last_pitch_rad_ = 0;
     float last_yaw_rad_ = 0;

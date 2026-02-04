@@ -106,18 +106,18 @@ std::string SerialCommunicationClass::findAvailableSerialPort() {
     return port;
 }
 
-bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float yaw_target, bool fire, float enemy_position_x, float enemy_position_y) {
+bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float small_yaw_target, float big_yaw_target, bool fire, float big_yaw_enemy_position_x, float big_yaw_enemy_position_y) {
     if (fd_ >= 0) {
         //pitch_target = -0.01; // 约 0.01对应30°
-        //yaw_target = 0;
+        //small_yaw_target = 0;
         // 传入参数使用弧度制 [-M_PI, M_PI]
-        // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + reset(1) + pitch_target(2) + yaw_target(2) + enemy_position_x(2) + enemy_position_y(2) + fire(1) + CRC(1) = 15字节
-        std::array<uint8_t, 15> tx_data{};
+        // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + reset(1) + pitch_target(2) + small_yaw_target(2) + big_yaw_enemy_position_x(2) + big_yaw_enemy_position_y(2) + fire(1) + CRC(1) + big_yaw_target(2) = 17字节
+        std::array<uint8_t, 17> tx_data{};
         
         tx_data[0] = FRAME_HEADER1;
         tx_data[1] = FRAME_HEADER2;
         tx_data[2] = COMMAND_CODE;
-        tx_data[3] = 0x0A;  // 数据长度为10（1字节reset + 2字节pitch_target + 2字节yaw_target + 2字节enemy_position_x + 2字节enemy_position_y + 1字节fire）
+        tx_data[3] = 12;  // 数据长度为12（1字节reset + 2字节pitch_target + 2字节small_yaw_target + 2字节big_yaw_enemy_position_x + 2字节big_yaw_enemy_position_y + 1字节fire + 2字节big_yaw_target）
 
         // 处理reset
         if (reset) {
@@ -138,22 +138,16 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         }
         memcpy(&tx_data[5], &pitch_uint16, sizeof(uint16_t));  // 2字节
         
-        // 处理yaw_target (2字节)
-        // yaw_target = yaw_target + 0.95;
-        int16_t yaw_int16 = static_cast<int16_t>(yaw_target * 4096 / M_PI) + 1350;  // 将float转换为定点数
-        while (yaw_int16 > 4095) {
-            yaw_int16 -= 8192;
-        }
-        while (yaw_int16 < -4096) {
-            yaw_int16 += 8192;
-        }
-        uint16_t yaw_uint16;
-        if (yaw_int16 >= 0) {
-            yaw_uint16 = yaw_int16;
+        // 处理small_yaw_target (2字节)
+        small_yaw_target = std::atan2(std::sin(small_yaw_target), std::cos(small_yaw_target));
+        int16_t small_yaw_int16 = static_cast<int16_t>(small_yaw_target * 4096 / M_PI) + 1350;  // 将float转换为定点数
+        uint16_t small_yaw_uint16;
+        if (small_yaw_int16 >= 0) {
+            small_yaw_uint16 = small_yaw_int16;
         } else {
-            yaw_uint16 = 8192 + yaw_int16;
+            small_yaw_uint16 = 8192 + small_yaw_int16;
         }
-        memcpy(&tx_data[7], &yaw_uint16, sizeof(uint16_t));  // 2字节
+        memcpy(&tx_data[7], &small_yaw_uint16, sizeof(uint16_t));  // 2字节
 
         // 处理fire
         if (fire) {
@@ -163,31 +157,39 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float ya
         }
 
         // 处理enemy_position (2+2字节)
-        int16_t enemy_position_x_int16 = static_cast<int16_t>(std::clamp(enemy_position_x, -32766.0f, 32766.0f));
-        int16_t enemy_position_y_int16 = static_cast<int16_t>(std::clamp(enemy_position_y, -32766.0f, 32766.0f));
-        memcpy(&tx_data[10], &enemy_position_x_int16, sizeof(int16_t));
-        memcpy(&tx_data[12], &enemy_position_y_int16, sizeof(int16_t));
+        int16_t big_yaw_enemy_position_x_int16 = static_cast<int16_t>(std::clamp(big_yaw_enemy_position_x, -32766.0f, 32766.0f));
+        int16_t big_yaw_enemy_position_y_int16 = static_cast<int16_t>(std::clamp(big_yaw_enemy_position_y, -32766.0f, 32766.0f));
+        memcpy(&tx_data[10], &big_yaw_enemy_position_x_int16, sizeof(int16_t));
+        memcpy(&tx_data[12], &big_yaw_enemy_position_y_int16, sizeof(int16_t));
         
+        // 处理big_yaw_target (2字节)
+        big_yaw_target = -std::atan2(std::sin(big_yaw_target), std::cos(big_yaw_target));
+        int16_t big_yaw_int16 = static_cast<int16_t>(big_yaw_target * 4096 / M_PI);
+        memcpy(&tx_data[14], &big_yaw_int16, sizeof(int16_t));
+
+
         // 计算并添加CRC
-        tx_data[14] = CRC8_Check_Sum(tx_data.data(), 14);
+        tx_data[16] = CRC8_Check_Sum(tx_data.data(), 16);
 
 
         RCLCPP_INFO(node->get_logger(), 
             "\033[1;34m[Send Data]\033[0m\n"
             "\033[1;32mReset:\033[0m %d\n"
             "\033[1;32mPitch_uint16 Angle:\033[0m %d\n"
-            "\033[1;33mYaw_uint16:\033[0m %d\n"
+            "\033[1;33msmall_yaw_uint16:\033[0m %d\n"
+            "\033[1;33mbig_yaw_int16:\033[0m %u\n"
             "\033[1;36mFire:\033[0m %d\n",
             reset,
             pitch_uint16,
-            yaw_uint16,
+            small_yaw_uint16,
+            big_yaw_int16,
             fire
         );
 
         ssize_t written = write(fd_, tx_data.data(), tx_data.size());
         if (written == static_cast<ssize_t>(tx_data.size())) {
-            RCLCPP_INFO(node->get_logger(), "TX: pitch_target=%.2f yaw_target=%.2f(int16=%d)", 
-                        pitch_target, yaw_target, yaw_int16);
+            RCLCPP_INFO(node->get_logger(), "TX: pitch_target=%.2f small_yaw_target=%.2f(uint16=%u) big_yaw_target=%.2f(uint16=%d)", 
+                        pitch_target, small_yaw_target, small_yaw_uint16, big_yaw_target, big_yaw_int16);
             return true;
         } else {
             RCLCPP_INFO(node->get_logger(), "TX write failed: written %ld bytes", 
@@ -209,7 +211,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     // 哨兵新增
     memcpy(&frame.chassis_mode, &data[17], sizeof(uint8_t));
     memcpy(&frame.lack_blood_son_mode, &data[18], sizeof(uint8_t));
-    memcpy(&frame.gimbal_yaw_big, &data[19], sizeof(float));
+    memcpy(&frame.gimbal_yaw_big, &data[19], sizeof(int16_t));
 
     // 格式化输出
     RCLCPP_INFO(node->get_logger(), 
@@ -222,7 +224,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
         "\033[1;35mZ Rotation Velocity:\033[0m %d\n"
         "\033[1;34mchassis_mode:\033[0m %d\n"
         "\033[1;34mlack_blood_son_mode:\033[0m %d\n"
-        "\033[1;34mgimbal_yaw_big:\033[0m %.2f\n",
+        "\033[1;34mgimbal_yaw_big:\033[0m %d\n",
         frame.bullet_velocity,
         frame.gimbal_pitch,
         frame.gimbal_yaw_small,
@@ -236,16 +238,14 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
 
     SerialData msg;
     msg.bullet_velocity = frame.bullet_velocity;
-    msg.gimbal_pitch = static_cast<float>(frame.gimbal_pitch - 32844) * (60.0f / 173.5f * M_PI / 180.0f);
-    if (msg.gimbal_pitch > M_PI) {
-        msg.gimbal_pitch -= 2 * M_PI;
-    }
-    msg.gimbal_pitch = msg.gimbal_pitch + 0.40;
-    msg.gimbal_yaw = static_cast<float>(frame.gimbal_yaw_small - 1350) * M_PI / 4096.0f + frame.gimbal_yaw_big * M_PI / 4096.0f;
-    while (msg.gimbal_yaw > M_PI) {
-        msg.gimbal_yaw -= 2 * M_PI;
-    }
+    msg.gimbal_pitch = static_cast<float>(frame.gimbal_pitch - 32844) * (60.0f / 173.5f * M_PI / 180.0f) + 0.40;
+    msg.gimbal_yaw_small = static_cast<float>(frame.gimbal_yaw_small - 1350) * M_PI / 4096.0f;
+    msg.gimbal_yaw_big = - static_cast<float>(frame.gimbal_yaw_big) * M_PI / 4096.0f;
     msg.color = frame.color;
+
+    msg.gimbal_pitch = std::atan2(std::sin(msg.gimbal_pitch), std::cos(msg.gimbal_pitch));
+    msg.gimbal_yaw_small = std::atan2(std::sin(msg.gimbal_yaw_small), std::cos(msg.gimbal_yaw_small));
+    msg.gimbal_yaw_big = std::atan2(std::sin(msg.gimbal_yaw_big), std::cos(msg.gimbal_yaw_big));
     
     serialDataCallback(msg);
 

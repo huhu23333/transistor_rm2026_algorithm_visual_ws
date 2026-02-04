@@ -32,7 +32,8 @@
 struct SerialData {
     float bullet_velocity;  // 子弹速度
     float gimbal_pitch;    // 子弹角度
-    float gimbal_yaw;       // 云台当前偏航角
+    float gimbal_yaw_small;       // 云台当前偏航角
+    float gimbal_yaw_big;       // 云台当前偏航角
     uint8_t color;            // 敌方颜色(0:红色, 1:蓝色)
 };
 
@@ -41,7 +42,7 @@ public:
     SerialCommunicationClass(rclcpp::Node* node, std::function<void(const SerialData&)> serialDataCallback);
     ~SerialCommunicationClass();
     void timerCallback();
-    bool sendData(bool reset, float pitch_target, float yaw_target, bool fire, float enemy_position_x, float enemy_position_y);
+    bool sendData(bool reset, float pitch_target, float small_yaw_target, float big_yaw_target, bool fire, float big_yaw_enemy_position_x, float big_yaw_enemy_position_y);
     void timerThread();
     
 private:
@@ -55,7 +56,7 @@ private:
         // 哨兵新增
         uint8_t chassis_mode; // 底盘模式
         uint8_t lack_blood_son_mode; // 缺血回城子模式
-        float gimbal_yaw_big; // 大yaw当前角度(世界坐标系下)，单位rad
+        int16_t gimbal_yaw_big; // 大yaw当前角度(世界坐标系下)，单位rad
     };
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;
@@ -85,4 +86,4 @@ private:
     void tryReconnect();
 };
 
-#endif // COM_H
+#endif // COM_H2
