@@ -270,7 +270,7 @@ private:
             usleep(30*1000);
         }
 
-        headIMUInfos.to_mcu_delta_yaw = reset_command_yaw - last_yaw_rad_delayed_;
+        headIMUInfos.to_mcu_delta_yaw = reset_command_yaw - last_yaw_rad_imu_;
     }
 
     void headIMUSerialDataCallback(const HeadIMUSerialData& msg) {
@@ -290,7 +290,6 @@ private:
         headIMUInfos.head_imu_yaw = msg.euler_yaw;
         headIMUInfos.head_imu_pitch = msg.euler_pitch;
         headIMUInfos.head_imu_roll = msg.euler_roll;
-        headIMUInfos.to_mcu_delta_yaw = headIMUInfos.mcu_yaw - headIMUInfos.latest_head_imu_yaw_when_mcu_yaw_update;
         headIMUInfos.to_mcu_delta_pitch = headIMUInfos.mcu_pitch - headIMUInfos.head_imu_pitch;
 
         while (current_yaw_ < -M_PI) {
@@ -343,8 +342,8 @@ private:
             headIMUInfos.last_mcu_yaw_update_time = std::chrono::steady_clock::now();
             headIMUInfos.mcu_yaw_online = true;
             headIMUInfos.latest_mcu_command_yaw_when_mcu_yaw_update = headIMUInfos.last_mcu_command_yaw;
+            headIMUInfos.to_mcu_delta_yaw = headIMUInfos.mcu_yaw - headIMUInfos.latest_head_imu_yaw_when_mcu_yaw_update;
         }
-        headIMUInfos.to_mcu_delta_yaw = headIMUInfos.mcu_yaw - headIMUInfos.latest_head_imu_yaw_when_mcu_yaw_update;
         headIMUInfos.to_mcu_delta_pitch = headIMUInfos.mcu_pitch - headIMUInfos.head_imu_pitch;
 
 
