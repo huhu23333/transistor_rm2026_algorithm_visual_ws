@@ -17,21 +17,35 @@ struct TwoYawGimbalControll_t {
 
 class TwoYawSentryController {
 private:
+    float real_pitch = 0.0;
+    float real_small_yaw = 0.0;
+    float real_big_yaw = 0.0;
 
     struct {
         float v_yaw;
         float v_pitch;
         float max_pitch;
         float min_pitch;
+        float reset_max_big_yaw_gap;
 
-        std::chrono::steady_clock::time_point last_time;
+        float v_pitch_direction = 1.0f;
     } reset_behavior_infos;
 
+    std::chrono::steady_clock::time_point last_step_time;
+
+    float big_yaw_smooth_factor;
+    float small_yaw_to_big_boundary;
+
+    float last_pitch_target = 0.0;
+    float last_big_yaw_target = 0.0;
+    float last_small_yaw_target = 0.0;
+
+    bool last_reset_state = true;
 
 public:
     TwoYawSentryController(std::shared_ptr<YAML::Node> config_file_ptr);
 
-    void update_gimbal_infos(float real_pitch, float real_small_yaw, float real_big_yaw);
+    void update_gimbal_infos(float real_pitch_, float real_small_yaw_, float real_big_yaw_);
 
     TwoYawGimbalControll_t step(bool reset, float pitch_target, float yaw_target);
 };

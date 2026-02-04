@@ -37,6 +37,7 @@
 #include "communication/WatchdogClient.h"
 #include "visualizer/RestFrameDraw.h"
 #include "visualizer/YawVisualizer.h"
+#include "controller/TwoYawSentryController.h"
 
 namespace fs = std::filesystem;
 
@@ -52,7 +53,6 @@ class ArmorDetectNode : public rclcpp::Node {
 public:
     ArmorDetectNode() : Node("armor_detect_node") {
         node_start_time = std::chrono::steady_clock::now();
-        reset_behavior_infos.last_time = node_start_time;
 
         // 1. 获取可执行文件路径    
         char exec_path[PATH_MAX];
@@ -151,6 +151,10 @@ public:
         rest_frame_ -> updateCamOrientation(0, 0, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0);
 
+        rest_frame_big_yaw_ = std::make_shared<RestFrame>();
+        rest_frame_big_yaw_ -> updateCamOrientation(0, 0, 0);
+        rest_frame_big_yaw_ -> updateCamPosition(0, 0, 0);
+
         fps_counter = std::make_shared<FrameRateCounter>(30); // 30帧滑动窗口统计帧率
 
         predictor_main_ = std::make_shared<PredictorMain>(
@@ -164,6 +168,8 @@ public:
         }
 
         yaw_visualizer_ = std::make_shared<YawVisualizer>();
+
+        two_yaw_sentry_controller = std::make_shared<TwoYawSentryController>(config_file_ptr);
 
         // 初始化串口通信器
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
@@ -288,7 +294,9 @@ private:
         rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
         predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
-        
+        two_yaw_sentry_controller -> update_gimbal_infos(current_pitch_, current_yaw_small_, delayed_once_yaw_big_);
+        rest_frame_big_yaw_ -> updateCamOrientation(delayed_once_yaw_big_, 0.0, 0.0);
+
         RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
 
     }
@@ -511,34 +519,11 @@ private:
                 cv::Point2f(0, 100), 
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
-            if (predictor_result.reset) {
-                std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-                float dt = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(now - reset_behavior_infos.last_time).count()) / 1000.0f;
-                reset_behavior_infos.last_time = now;
-                reset_behavior_infos.yaw += reset_behavior_infos.v_yaw * dt;
-                reset_behavior_infos.pitch += reset_behavior_infos.v_pitch * reset_behavior_infos.v_pitch_direction * dt;
-                while (reset_behavior_infos.yaw > M_PI) {reset_behavior_infos.yaw -= 2.0 * M_PI;}
-                while (reset_behavior_infos.yaw < -M_PI) {reset_behavior_infos.yaw += 2.0 * M_PI;}
-                if (reset_behavior_infos.pitch >= reset_behavior_infos.max_pitch) {
-                    reset_behavior_infos.v_pitch_direction = -1.0f;
-                    reset_behavior_infos.pitch = reset_behavior_infos.max_pitch;
-                } else if (reset_behavior_infos.pitch <= reset_behavior_infos.min_pitch) {
-                    reset_behavior_infos.v_pitch_direction = 1.0f;
-                    reset_behavior_infos.pitch = reset_behavior_infos.min_pitch;
-                }
-
-                // serial_communication_->sendData(true, reset_behavior_infos.pitch, reset_behavior_infos.yaw, false, 0.0, 0.0);
-            } else {
-                // serial_communication_->sendData(
-                //     false, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag,
-                //     predictor_result.enemy_position_x, predictor_result.enemy_position_y
-                // );
-
-                reset_behavior_infos.last_time = std::chrono::steady_clock::now();
-                reset_behavior_infos.yaw = predictor_result.command_yaw;
-                reset_behavior_infos.pitch = predictor_result.command_pitch;
-            }
-            serial_communication_->sendData(false, current_pitch_, current_yaw_small_, delayed_once_yaw_big_, false, 0, 0);
+            TwoYawGimbalControll_t controller_result = two_yaw_sentry_controller -> step(predictor_result.reset, predictor_result.command_pitch, predictor_result.command_yaw);
+            std::vector<float> big_yaw_frame_enemy_position = rest_frame_big_yaw_ -> getCamPositionFromWorld(predictor_result.enemy_position_x, predictor_result.enemy_position_y, 0.0);
+            serial_communication_->sendData(predictor_result.reset, 
+                controller_result.target_pitch, controller_result.target_yaw_small, controller_result.target_yaw_big, 
+                predictor_result.fire_flag, big_yaw_frame_enemy_position[0], big_yaw_frame_enemy_position[1]);
             
             // 显示当前参数状态
             cv::putText(frame, 
@@ -588,6 +573,7 @@ private:
     float frame_rate_;
 
     std::shared_ptr<RestFrame> rest_frame_;
+    std::shared_ptr<RestFrame> rest_frame_big_yaw_;
 
     std::chrono::time_point<std::chrono::steady_clock> node_start_time;
     
@@ -648,25 +634,14 @@ private:
     int yolo_delay_frame = 0;
     float extra_info_delay_time_ms = 0.0;
 
-    struct {
-        float v_yaw = -100.0f * M_PI / 180.0f;
-        float v_pitch = 100.0f * M_PI / 180.0f;
-        float max_pitch = 15.0f * M_PI / 180.0f;
-        float min_pitch = -15.0f * M_PI / 180.0f;
-
-        float v_pitch_direction = 1.0f;
-
-        std::chrono::steady_clock::time_point last_time;
-        float yaw = 0.0f;
-        float pitch = 0.0f;
-    } reset_behavior_infos;
-
     float max_armor_position_height;
 
     std::shared_ptr<WatchdogClient> watchdog_client;
     std::chrono::steady_clock::time_point last_feed_dog_time;
 
     std::shared_ptr<YawVisualizer> yaw_visualizer_;
+
+    std::shared_ptr<TwoYawSentryController> two_yaw_sentry_controller;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

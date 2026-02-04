@@ -6,14 +6,75 @@ TwoYawSentryController::TwoYawSentryController(std::shared_ptr<YAML::Node> confi
     reset_behavior_infos.v_pitch = M_PI / 180.0 * (*config_file_ptr)["reset_vpitch"].as<float>();
     reset_behavior_infos.min_pitch = M_PI / 180.0 * (*config_file_ptr)["reset_min_pitch"].as<float>();
     reset_behavior_infos.max_pitch = M_PI / 180.0 * (*config_file_ptr)["reset_max_pitch"].as<float>();
-    reset_behavior_infos.last_time = std::chrono::steady_clock::now();
+    reset_behavior_infos.reset_max_big_yaw_gap = M_PI / 180.0 * (*config_file_ptr)["reset_max_big_yaw_gap"].as<float>();
+
+    last_step_time = std::chrono::steady_clock::now();
+
+    big_yaw_smooth_factor = (*config_file_ptr)["big_yaw_smooth_factor"].as<float>();
+    small_yaw_to_big_boundary = M_PI / 180.0 * (*config_file_ptr)["small_yaw_to_big_boundary"].as<float>();
 }
 
-void TwoYawSentryController::update_gimbal_infos(float real_pitch, float real_small_yaw, float real_big_yaw) {
-    
+void TwoYawSentryController::update_gimbal_infos(float real_pitch_, float real_small_yaw_, float real_big_yaw_) {
+    real_pitch = real_pitch_;
+    real_small_yaw = real_small_yaw_;
+    real_big_yaw = real_big_yaw_;
 }
 
 
 TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_target, float yaw_target) {
+    std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+    float dt = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_step_time).count()) / 1e6;
 
+    TwoYawGimbalControll_t result;
+    if (reset) {
+        if (!last_reset_state) {
+            last_pitch_target = real_pitch;
+            last_big_yaw_target = real_big_yaw;
+        }
+
+        result.target_pitch = last_pitch_target + reset_behavior_infos.v_pitch * dt * reset_behavior_infos.v_pitch_direction;
+        result.target_yaw_small = 0.0;
+        result.target_yaw_big = last_big_yaw_target + reset_behavior_infos.v_yaw * dt;
+
+        if (result.target_pitch > reset_behavior_infos.max_pitch) {
+            result.target_pitch = reset_behavior_infos.max_pitch;
+            reset_behavior_infos.v_pitch_direction = -1.0;
+        } else if (result.target_pitch < reset_behavior_infos.min_pitch) {
+            result.target_pitch = reset_behavior_infos.min_pitch;
+            reset_behavior_infos.v_pitch_direction = 1.0;
+        }
+
+        float big_yaw_gap = result.target_yaw_big - real_big_yaw;
+        big_yaw_gap = std::atan2(std::sin(big_yaw_gap), std::cos(big_yaw_gap));
+        if (fabs(big_yaw_gap) > reset_behavior_infos.reset_max_big_yaw_gap) {
+            if (big_yaw_gap > 0.0) {
+                result.target_yaw_big = real_big_yaw + reset_behavior_infos.reset_max_big_yaw_gap;
+            } else {
+                result.target_yaw_big = real_big_yaw - reset_behavior_infos.reset_max_big_yaw_gap;
+            }
+        }
+
+    } else {
+        if (last_reset_state) {
+            last_big_yaw_target = yaw_target;
+        }
+
+        result.target_pitch = pitch_target;
+        result.target_yaw_big = big_yaw_smooth_factor * yaw_target + (1.0 - big_yaw_smooth_factor) * last_big_yaw_target;
+        result.target_yaw_small = yaw_target - result.target_yaw_big;
+
+        if (fabs(result.target_yaw_small) > small_yaw_to_big_boundary) {
+            last_big_yaw_target = yaw_target;
+            result.target_yaw_small = 0.0;
+        }
+    }
+
+
+    last_pitch_target = result.target_pitch;
+    last_small_yaw_target = result.target_yaw_small;
+    last_big_yaw_target = result.target_yaw_big;
+    last_reset_state = reset;
+    last_step_time = current_time;
+
+    return result;
 }
