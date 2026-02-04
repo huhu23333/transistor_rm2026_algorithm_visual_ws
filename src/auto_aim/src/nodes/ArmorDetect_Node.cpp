@@ -125,6 +125,7 @@ public:
 #endif
 #endif
         serial_delay_time = (*config_file_ptr)["serial_delay_time"].as<float>();
+        big_yaw_extra_delay_time = (*config_file_ptr)["big_yaw_extra_delay_time"].as<float>();
 
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -218,12 +219,25 @@ private:
     }
 
     void serialDataCallback(const SerialData& msg) {
+        std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+
         bullet_velocity_ = msg.bullet_velocity;
         current_pitch_ = msg.gimbal_pitch;
 
         current_yaw_small_ = msg.gimbal_yaw_small;
         current_yaw_big_ = msg.gimbal_yaw_big;
-        current_yaw_ = current_yaw_small_ + current_yaw_big_;
+
+        BigYawDelayInfos now_big_yaw_infos;
+        now_big_yaw_infos.last_big_yaw_rad_ = current_yaw_big_;
+        now_big_yaw_infos.push_time = current_time;
+        big_yaw_delay_.push(now_big_yaw_infos);
+        while (big_yaw_delay_.size() > 1 && 
+               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - big_yaw_delay_.front().push_time).count() > big_yaw_extra_delay_time) {
+            big_yaw_delay_.pop();
+        }
+        delayed_once_yaw_big_ = big_yaw_delay_.front().last_big_yaw_rad_;
+
+        current_yaw_ = current_yaw_small_ + delayed_once_yaw_big_;
 
         enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
@@ -254,7 +268,6 @@ private:
             yaw_circle_, total_yaw_rad_);
 
 
-        std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
         DelayInfos now_serial_infos;
         now_serial_infos.last_pitch_rad_ = last_pitch_rad_;
         now_serial_infos.last_yaw_rad_ = last_yaw_rad_;
@@ -525,7 +538,7 @@ private:
                 reset_behavior_infos.yaw = predictor_result.command_yaw;
                 reset_behavior_infos.pitch = predictor_result.command_pitch;
             }
-            serial_communication_->sendData(false, current_pitch_, current_yaw_small_, current_yaw_big_, false, 0, 0);
+            serial_communication_->sendData(false, current_pitch_, current_yaw_small_, delayed_once_yaw_big_, false, 0, 0);
             
             // 显示当前参数状态
             cv::putText(frame, 
@@ -583,6 +596,7 @@ private:
     float current_yaw_ = 0.0;
 
     float current_yaw_big_ = 0.0;
+    float delayed_once_yaw_big_ = 0.0;
     float current_yaw_small_ = 0.0;
 
     int yaw_circle_ = 0;
@@ -600,6 +614,12 @@ private:
     };
     std::queue<DelayInfos> serial_infos_delay_;
     float serial_delay_time;
+    struct BigYawDelayInfos {
+        float last_big_yaw_rad_;
+        std::chrono::steady_clock::time_point push_time;
+    };
+    std::queue<BigYawDelayInfos> big_yaw_delay_;
+    float big_yaw_extra_delay_time;
     std::string enemy_color_;
     Params params_;
 
