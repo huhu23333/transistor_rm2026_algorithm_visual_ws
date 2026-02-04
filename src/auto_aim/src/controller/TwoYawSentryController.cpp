@@ -64,7 +64,7 @@ TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_targ
         result.target_yaw_small = yaw_target - result.target_yaw_big;
 
         if (fabs(result.target_yaw_small) > small_yaw_to_big_boundary) {
-            last_big_yaw_target = yaw_target;
+            result.target_yaw_big = yaw_target;
             result.target_yaw_small = 0.0;
         }
     }
