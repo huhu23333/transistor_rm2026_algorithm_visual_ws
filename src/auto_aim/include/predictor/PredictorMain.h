@@ -44,6 +44,8 @@ public:
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
     void set_extra_delta_yaw(float extra_delta_yaw_);
 
+    void reset_yaw_integration();
+
 private:
     std::shared_ptr<YAML::Node> config_file_ptr; 
     rclcpp::Node* node;

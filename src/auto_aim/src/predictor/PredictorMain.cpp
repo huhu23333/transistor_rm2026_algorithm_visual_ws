@@ -131,3 +131,7 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
 void PredictorMain::set_extra_delta_yaw(float extra_delta_yaw_) {
     extra_delta_yaw = extra_delta_yaw_;
 }
+
+void PredictorMain::reset_yaw_integration() {
+    yaw_integration = 0.0;
+}
