@@ -36,6 +36,7 @@
 #include "2d_armor_detector/Armor.h"
 #include "communication/WatchdogClient.h"
 #include "visualizer/RestFrameDraw.h"
+#include "visualizer/YawVisualizer.h"
 
 namespace fs = std::filesystem;
 
@@ -160,12 +161,13 @@ public:
             yolo_pose_armor_detector->setEnemyColor(enemy_color_ == "RED" ? Params::RED : Params::BLUE);
         }
 
+        yaw_visualizer_ = std::make_shared<YawVisualizer>();
 
         // 初始化串口通信器
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
 
         com_timer_thread_ = std::thread(std::bind(&SerialCommunicationClass::timerThread, serial_communication_));
-        com_timer_thread_.detach();
+        // com_timer_thread_.detach();
 
         // 串口通信下位机初始化
         serial_communication_->sendData(0, 0, false);
@@ -179,10 +181,11 @@ public:
         debug_code();
 #endif
 
-        // 创建定时器
-        timer_ = this->create_wall_timer(
-            std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
-            std::bind(&ArmorDetectNode::processImage, this));
+        // // 创建定时器
+        // timer_ = this->create_wall_timer(
+        //     std::chrono::milliseconds((int)(1000/frame_rate_)), // 33
+        //     std::bind(&ArmorDetectNode::processImage, this));
+        main_loop_thread_ = std::thread(std::bind(&ArmorDetectNode::main_loop_func, this));
 
 
         RCLCPP_INFO(this->get_logger(), "ArmorDetectNode initialized");
@@ -196,6 +199,14 @@ public:
     }
 
 private:
+    void main_loop_func() {
+        while (true) {
+            std::chrono::steady_clock::time_point loop_start_time = std::chrono::steady_clock::now();
+            processImage();
+            std::this_thread::sleep_until(loop_start_time + std::chrono::microseconds(static_cast<int>(1e6 / frame_rate_)));
+        }
+    }
+
     void debug_code() {
         // while (true) {
         //     static double debug_time_count = 0.0;
@@ -557,6 +568,9 @@ private:
 
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
 
+            yaw_visualizer_ -> update(last_yaw_rad_delayed_, predictor_result.command_yaw);
+            yaw_visualizer_ -> show();
+
             //计算帧率
             fps_counter->tick();
 
@@ -575,8 +589,9 @@ private:
     std::shared_ptr<YAML::Node> config_file_ptr; 
 
     // 成员变量
-    rclcpp::TimerBase::SharedPtr timer_;
+    // rclcpp::TimerBase::SharedPtr timer_;
     std::thread com_timer_thread_;
+    std::thread main_loop_thread_;
     
     std::shared_ptr<Camera> camera_;
     std::shared_ptr<LightBarDetector> light_detector_;
@@ -645,6 +660,8 @@ private:
     std::chrono::steady_clock::time_point last_feed_dog_time;
     
     bool auto_aim_switch;
+
+    std::shared_ptr<YawVisualizer> yaw_visualizer_;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
