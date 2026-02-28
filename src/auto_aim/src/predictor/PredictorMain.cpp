@@ -127,3 +127,7 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
 
     return chosen_result;
 }
+
+void PredictorMain::reset_yaw_integration() {
+    yaw_integration = 0.0;
+}
