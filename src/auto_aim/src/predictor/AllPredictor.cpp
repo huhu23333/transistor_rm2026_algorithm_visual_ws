@@ -469,14 +469,9 @@ RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, Rotat
         RMM_fire_control_data.last_target_yaw_jump_time = now;
         RMM_fire_control_data.new_target = false;
     } else {
-        float yaw_diff = fabs(RMM_fire_control_data.last_target_yaw - chosen_armor.yaw);
-        while (yaw_diff > M_PI) {
-            yaw_diff -= 2 *  M_PI;
-        }
-        while (yaw_diff < -M_PI) {
-            yaw_diff += 2 *  M_PI;
-        }
-        if (yaw_diff > M_PI / 4.0) {
+        float yaw_diff = RMM_fire_control_data.last_target_yaw - chosen_armor.yaw;
+        yaw_diff = std::atan2(std::sin(yaw_diff), std::cos(yaw_diff));
+        if (fabs(yaw_diff) > M_PI / 4.0) {
             RMM_fire_control_data.last_target_yaw_jump_time = now;
         }
     }
