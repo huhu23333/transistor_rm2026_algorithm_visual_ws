@@ -314,7 +314,6 @@ private:
             DelayInfos now_serial_infos;
             // now_serial_infos.last_pitch_rad_ = last_pitch_rad_imu_;
             now_serial_infos.last_pitch_rad_ = last_pitch_rad_mcu_;
-            now_serial_infos.last_pitch_rad_ = last_pitch_rad_imu_;
             now_serial_infos.last_yaw_rad_ = last_yaw_rad_imu_;
             now_serial_infos.total_yaw_rad_ = total_yaw_rad_imu_;
             now_serial_infos.push_time = current_time;
