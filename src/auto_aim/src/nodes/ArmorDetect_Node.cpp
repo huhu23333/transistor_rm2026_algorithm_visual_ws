@@ -636,6 +636,12 @@ private:
             }
 
             // auto_aim_switch = true;
+            if (((!headIMUInfos.last_auto_aim_switch) && auto_aim_switch) &&
+                (headIMUInfos.use_head_imu && (!headIMUInfos.mcu_yaw_online))
+            ) { // 仅在使用IMU且电控yaw轴数据掉线时在开启自瞄时校准
+                recalibrateHeadIMU();
+            }
+            headIMUInfos.last_auto_aim_switch = auto_aim_switch;
             PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, 
                                                                        PredictorType::AutoSwitch, ArmorType::Middle, 
                                                                        auto_aim_switch, headIMUInfos.mcu_yaw_online); // Todo
@@ -792,6 +798,7 @@ private:
         float to_mcu_delta_yaw;
         float to_mcu_delta_pitch;
 
+        bool last_auto_aim_switch = false; // 用于在开启自瞄时进行校准
     } headIMUInfos;
 
     std::shared_ptr<YawVisualizer> yaw_visualizer_;
