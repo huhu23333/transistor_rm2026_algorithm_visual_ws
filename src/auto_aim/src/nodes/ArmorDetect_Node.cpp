@@ -786,7 +786,7 @@ private:
         std::shared_ptr<HeadIMUSerialCommunicationClass> headIMU_communication_;
         std::thread headIMU_timer_thread_;
 
-        bool use_head_imu = false;
+        bool use_head_imu = true;
 
         float head_imu_yaw;
         float head_imu_pitch;
