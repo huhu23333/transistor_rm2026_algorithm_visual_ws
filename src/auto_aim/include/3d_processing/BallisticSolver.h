@@ -30,8 +30,6 @@ public:
 
     cv::Point3d calcNearestPointWithAirResistance(cv::Point3d target_pos, cv::Point3d self_pos, cv::Point2d aim_yaw_pitch, float v_bullet);
 
-    void set_extra_delta_yaw(float extra_delta_yaw);
-
 private:
     std::shared_ptr<YAML::Node> config_file_ptr;
     rclcpp::Node* node;
