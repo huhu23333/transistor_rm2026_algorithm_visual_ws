@@ -1,7 +1,6 @@
-// Com.cpp
-#include "communication/Com.h"
+#include "communication/HeadIMU.h"
 
-std::string SerialCommunicationClass::getSerialProductInfo(const std::string& port) {
+std::string HeadIMUSerialCommunicationClass::getSerialProductInfo(const std::string& port) {
     struct udev *udev;
     struct udev_device *dev;
     std::string result = "";
@@ -37,21 +36,21 @@ std::string SerialCommunicationClass::getSerialProductInfo(const std::string& po
     return result;
 }
 
-SerialCommunicationClass::SerialCommunicationClass(rclcpp::Node* node, std::function<void(const SerialData&)> serialDataCallback) 
-: node(node), serialDataCallback(serialDataCallback), fd_(-1) {
+HeadIMUSerialCommunicationClass::HeadIMUSerialCommunicationClass(std::function<void(const HeadIMUSerialData&)> serialDataCallback) 
+: serialDataCallback(serialDataCallback), fd_(-1) {
     initializeSerial();
     last_reconnect_time = std::chrono::steady_clock::now();
     last_received_time = std::chrono::steady_clock::now();
 }
 
-SerialCommunicationClass::~SerialCommunicationClass() {
+HeadIMUSerialCommunicationClass::~HeadIMUSerialCommunicationClass() {
     running = false;
     if (fd_ >= 0) {
         close(fd_);
     }
 }
 
-void SerialCommunicationClass::tryReconnect() {
+void HeadIMUSerialCommunicationClass::tryReconnect() {
     if (fd_ >= 0) {
         close(fd_);
     }
@@ -61,7 +60,7 @@ void SerialCommunicationClass::tryReconnect() {
     last_received_time = std::chrono::steady_clock::now();
 }
     
-void SerialCommunicationClass::initializeSerial() {
+void HeadIMUSerialCommunicationClass::initializeSerial() {
     std::vector<std::string> ports = findAvailableSerialPorts();
     if (ports.empty()) {
         printf("No available serial port found!\n");
@@ -70,7 +69,7 @@ void SerialCommunicationClass::initializeSerial() {
     std::string port;
     for (auto test_port : ports) {
         try {
-            if(getSerialProductInfo(test_port.substr(5)) != std::string("STM32 Virtual ComPort MyIMU")) {
+            if(getSerialProductInfo(test_port.substr(5)) == std::string("STM32 Virtual ComPort MyIMU")) {
                 port = test_port;
                 break;
             };
@@ -85,7 +84,7 @@ void SerialCommunicationClass::initializeSerial() {
 
     fd_ = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd_ < 0) {
-        RCLCPP_ERROR(node->get_logger(), "Failed to open port %s: %s", port.c_str(), strerror(errno));
+        printf("Failed to open port %s: %s\n", port.c_str(), strerror(errno));
         return;
     }
 
@@ -93,7 +92,7 @@ void SerialCommunicationClass::initializeSerial() {
     memset(&tty, 0, sizeof(tty));
 
     if (tcgetattr(fd_, &tty) != 0) {
-        RCLCPP_ERROR(node->get_logger(), "Failed to get serial attributes");
+        printf("Failed to get serial attributes\n");
         close(fd_);
         fd_ = -1;
         return;
@@ -120,18 +119,18 @@ void SerialCommunicationClass::initializeSerial() {
     tty.c_cc[VTIME] = 1;
 
     if (tcsetattr(fd_, TCSANOW, &tty) != 0) {
-        RCLCPP_ERROR(node->get_logger(), "Failed to set serial attributes");
+        printf("Failed to set serial attributes\n");
         close(fd_);
         fd_ = -1;
         return;
     }
 
     tcflush(fd_, TCIOFLUSH);
-    RCLCPP_DEBUG(node->get_logger(), "Serial initialized: %s", port.c_str());
+    printf("Serial initialized: %s\n", port.c_str());
 }
 
 // 查找可用的串口
-std::vector<std::string> SerialCommunicationClass::findAvailableSerialPorts() {
+std::vector<std::string> HeadIMUSerialCommunicationClass::findAvailableSerialPorts() {
     struct dirent *entry;
     DIR *dp = opendir("/dev/");
     if (dp == nullptr) {
@@ -156,108 +155,41 @@ std::vector<std::string> SerialCommunicationClass::findAvailableSerialPorts() {
     return ports;
 }
 
-bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target, bool fire) {
-    if (fd_ >= 0) {
-        //pitch_target = -0.01; // 约 0.01对应30°
-        //yaw_target = 0;
-        // 传入参数使用弧度制 [-M_PI, M_PI]
-        // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + pitch_target(4) + yaw_target(2) + fire(1) + CRC(1) = 12字节
-        std::array<uint8_t, 12> tx_data{};
-        
-        tx_data[0] = FRAME_HEADER1;
-        tx_data[1] = FRAME_HEADER2;
-        tx_data[2] = COMMAND_CODE;
-        tx_data[3] = 0x07;  // 数据长度为7（4字节pitch_target + 2字节yaw_target + 1字节fire）
-        
-        // 处理pitch_target (4字节)
-        pitch_target = (pitch_target * 180/M_PI - 1.2) * 0.01 / 37.5;
-        memcpy(&tx_data[4], &pitch_target, sizeof(float));  // 4字节float
-        
-        // 处理yaw_target (2字节)
-        int16_t yaw_int16 = static_cast<int16_t>(yaw_target * 4096 / M_PI);  // 将float转换为定点数
-        while (yaw_int16 > 4095) {
-            yaw_int16 -= 8192;
-        }
-        while (yaw_int16 < -4096) {
-            yaw_int16 += 8192;
-        }
-
-        //yaw_int16 = 1234;
-
-        memcpy(&tx_data[8], &yaw_int16, sizeof(int16_t));  // 2字节
-
-        // 处理fire
-        if (fire) {
-            tx_data[10] = 0x01;
-        } else {
-            tx_data[10] = 0x00;
-        }
-        
-        // 计算并添加CRC
-        tx_data[11] = CRC8_Check_Sum(tx_data.data(), 11);
-
-        ssize_t written = write(fd_, tx_data.data(), tx_data.size());
-        if (written == static_cast<ssize_t>(tx_data.size())) {
-            RCLCPP_DEBUG(node->get_logger(), "TX: pitch_target=%.2f yaw_target=%.2f(int16=%d)", 
-                        pitch_target, yaw_target, yaw_int16);
-            return true;
-        } else {
-            RCLCPP_DEBUG(node->get_logger(), "TX write failed: written %ld bytes", 
-                        written);
-        }
-    }
-    return false;
-}
-
-void SerialCommunicationClass::processFrame(const uint8_t* data) {
+void HeadIMUSerialCommunicationClass::processFrame(const uint8_t* data) {
     DataFrame frame{};
-    size_t offset = 4;
 
-    memcpy(&frame.bullet_velocity, &data[offset], sizeof(float));
-    offset += sizeof(float);
-    memcpy(&frame.bullet_angle, &data[offset], sizeof(float));
-    offset += sizeof(float);
-    memcpy(&frame.gimbal_yaw, &data[offset], sizeof(int16_t));
-    offset += sizeof(int16_t);
-    memcpy(&frame.mark, &data[offset], sizeof(uint16_t));
-    offset += sizeof(uint16_t);
-    memcpy(&frame.color, &data[offset], sizeof(uint8_t));
-    offset += sizeof(uint8_t);
-    memcpy(&frame.z_rotation_velocity, &data[offset], sizeof(int16_t));
-    offset += sizeof(int16_t);
-    memcpy(&frame.auto_aim_switch, &data[offset], sizeof(uint8_t));
+    memcpy(&frame.header1, &data[0], sizeof(uint8_t));
+    memcpy(&frame.header2, &data[1], sizeof(uint8_t));
+    memcpy(&frame.header3, &data[2], sizeof(uint8_t));
+    memcpy(&frame.data_len, &data[3], sizeof(uint8_t));
+    memcpy(&frame.rectified_avx_multiply_8, &data[4], sizeof(int32_t));
+    memcpy(&frame.rectified_avy_multiply_8, &data[8], sizeof(int32_t));
+    memcpy(&frame.rectified_avz_multiply_8, &data[12], sizeof(int32_t));
+    memcpy(&frame.received_ax, &data[16], sizeof(short));
+    memcpy(&frame.received_ay, &data[18], sizeof(short));
+    memcpy(&frame.received_az, &data[20], sizeof(short));
+    memcpy(&frame.euler_yaw, &data[22], sizeof(float));
+    memcpy(&frame.euler_pitch, &data[26], sizeof(float));
+    memcpy(&frame.euler_roll, &data[30], sizeof(float));
+    memcpy(&frame.crc32, &data[34], sizeof(uint32_t));
 
-    // 格式化输出
-    RCLCPP_INFO(node->get_logger(), 
-        "\033[1;34m[Received Data]\033[0m\n"
-        "\033[1;32mBullet Velocity:\033[0m %.2f m/s\n"
-        "\033[1;32mBullet Angle:\033[0m %.2f\n"
-        "\033[1;33mGimbal Yaw:\033[0m %d (%.2f°)\n"
-        "\033[1;36mMark:\033[0m %d\n"
-        "\033[1;31mColor:\033[0m %d\n"
-        "\033[1;35mZ Rotation Velocity:\033[0m %.2d\n",
-        frame.bullet_velocity,
-        frame.bullet_angle,
-        frame.gimbal_yaw, frame.gimbal_yaw * 180.0 / 4096.0,
-        frame.mark,
-        frame.color,
-        frame.z_rotation_velocity
-    );
-
-    SerialData msg;
-    msg.bullet_velocity = frame.bullet_velocity;
-    msg.bullet_angle = frame.bullet_angle;
-    msg.gimbal_yaw = frame.gimbal_yaw;
-    msg.color = frame.color;
-    msg.auto_aim_switch = frame.auto_aim_switch == 1;
-    msg.z_rotation_velocity = frame.z_rotation_velocity;
+    HeadIMUSerialData msg;
+    msg.rectified_avx_multiply_8 = frame.rectified_avx_multiply_8;
+    msg.rectified_avy_multiply_8 = frame.rectified_avy_multiply_8;
+    msg.rectified_avz_multiply_8 = frame.rectified_avz_multiply_8;
+    msg.received_ax = frame.received_ax;
+    msg.received_ay = frame.received_ay;
+    msg.received_az = frame.received_az;
+    msg.euler_yaw = frame.euler_yaw;
+    msg.euler_pitch = frame.euler_pitch;
+    msg.euler_roll = frame.euler_roll;
     
     serialDataCallback(msg);
 
     last_received_time = std::chrono::steady_clock::now();
 }
 
-void SerialCommunicationClass::processBuffer() {
+void HeadIMUSerialCommunicationClass::processBuffer() {
     
     // 每次处理最多处理10个帧，防止处理过多数据导致阻塞
     static const size_t MAX_FRAMES_PER_LOOP = 10;
@@ -266,7 +198,7 @@ void SerialCommunicationClass::processBuffer() {
     while (buffer_index_ >= FRAME_MIN_SIZE && frames_processed < MAX_FRAMES_PER_LOOP) {
         // 安全检查：如果缓冲区接近满，立即清空
         if (buffer_index_ >= BUFFER_SIZE - 128) {
-            RCLCPP_WARN(node->get_logger(), "Buffer approaching capacity (%zu bytes), clearing", buffer_index_);
+            printf("Buffer approaching capacity (%zu bytes), clearing\n", buffer_index_);
             buffer_index_ = 0;
             return;
         }
@@ -279,7 +211,7 @@ void SerialCommunicationClass::processBuffer() {
         while (header_pos <= buffer_index_ - 3 && header_pos < 128) {
             if (buffer_[header_pos] == FRAME_HEADER1 && 
                 buffer_[header_pos + 1] == FRAME_HEADER2 && 
-                buffer_[header_pos + 2] == COMMAND_CODE) {
+                buffer_[header_pos + 2] == FRAME_HEADER3) {
                 found_header = true;
                 break;
             }
@@ -309,11 +241,11 @@ void SerialCommunicationClass::processBuffer() {
         }
 
         uint8_t data_length = buffer_[3];
-        size_t frame_length = data_length + 5;
+        size_t frame_length = data_length + 4 + 4;
 
         // 验证帧长度的合理性
         if (data_length > 64 || frame_length > BUFFER_SIZE) {  // 假设最大帧长度为64字节
-            RCLCPP_ERROR(node->get_logger(), "Invalid frame length detected: %zu", frame_length);
+            printf("Invalid frame length detected: %zu\n", frame_length);
             buffer_index_ = 0;
             return;
         }
@@ -323,12 +255,15 @@ void SerialCommunicationClass::processBuffer() {
         }
 
         // CRC校验
-        if (CRC8_Check_Sum(buffer_.data(), frame_length - 1) == buffer_[frame_length - 1]) {
+        uint32_t computed_crc32 = HAL_CRC_Calculate(buffer_.data(), frame_length-4);
+        uint32_t received_crc32;
+        memcpy(&received_crc32, buffer_.data()+(frame_length-4), sizeof(uint32_t));
+        if (computed_crc32 == received_crc32) {
             processFrame(buffer_.data());
             frames_processed++;
         } else {
             // CRC错误，移除这一帧
-            RCLCPP_WARN(node->get_logger(), "CRC check failed, discarding frame");
+            printf("CRC check failed, discarding frame\n");
             memmove(buffer_.data(), buffer_.data() + 3, buffer_index_ - 3);
             buffer_index_ -= 3;
             continue;
@@ -345,22 +280,22 @@ void SerialCommunicationClass::processBuffer() {
 
     // 如果还有数据未处理，在下一个循环继续处理
     if (buffer_index_ >= FRAME_MIN_SIZE) {
-        RCLCPP_DEBUG(node->get_logger(), "Remaining data in buffer: %zu bytes", buffer_index_);
+        printf("Remaining data in buffer: %zu bytes\n", buffer_index_);
     }
 }
 
-void SerialCommunicationClass::timerCallback() {
+void HeadIMUSerialCommunicationClass::timerCallback() {
     // 检查串口状态
     if (fd_ < 0) {
         if (std::chrono::steady_clock::now() - last_reconnect_time > std::chrono::seconds(3)) {
-            RCLCPP_ERROR(node->get_logger(), "Serial port not available, trying reconnect");
+            printf("Serial port not available, trying reconnect\n");
             tryReconnect();
         }
         return;
     }
     if (std::chrono::steady_clock::now() - last_received_time > std::chrono::seconds(3)) {
         if (std::chrono::steady_clock::now() - last_reconnect_time > std::chrono::seconds(3)) {
-            RCLCPP_ERROR(node->get_logger(), "No data received, trying reconnect");
+            printf("No data received, trying reconnect\n");
             tryReconnect();
         }
         return;
@@ -377,14 +312,14 @@ void SerialCommunicationClass::timerCallback() {
                 buffer_index_ += bytes_read;
                 processBuffer();
             } else {
-                RCLCPP_WARN(node->get_logger(), "Buffer near full, discarding data");
+                printf("Buffer near full, discarding data\n");
                 buffer_index_ = 0;
             }
         }
     }
 }
 
-void SerialCommunicationClass::timerThread() {
+void HeadIMUSerialCommunicationClass::timerThread() {
     while (running) {
         auto start = std::chrono::steady_clock::now();
 
@@ -393,4 +328,36 @@ void SerialCommunicationClass::timerThread() {
         // 休眠至下一次调用
         std::this_thread::sleep_until(start + std::chrono::microseconds(1000));  // 大约1ms周期
     }
+}
+
+
+
+// ================= 工具函数 =================
+uint32_t HAL_CRC_Calculate(const uint8_t* data, size_t length) {
+    const uint32_t POLYNOMIAL = 0x04C11DB7;
+    uint32_t crc = 0xFFFFFFFF;
+    
+    for (size_t i = 0; i < length; i += 4) {
+        uint32_t word = 0;
+        if (i + 3 < length) {
+            word = *reinterpret_cast<const uint32_t*>(&data[i]);
+        } else {
+            // 处理不足4字节的情况
+            for (size_t j = 0; j < 4 && i + j < length; ++j) {
+                word |= static_cast<uint32_t>(data[i + j]) << (8 * j);
+            }
+        }
+        
+        crc ^= word;
+        
+        for (int j = 0; j < 32; ++j) {
+            if (crc & 0x80000000) {
+                crc = (crc << 1) ^ POLYNOMIAL;
+            } else {
+                crc <<= 1;
+            }
+        }
+    }
+    
+    return crc;
 }

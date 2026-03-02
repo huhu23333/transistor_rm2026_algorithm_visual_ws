@@ -31,7 +31,7 @@ private:
     int max_delay = 1000;
     std::vector<float> delay_history;
 
-    bool raise_direction = false;
+    bool raise_direction = true;
 
 public:
     // 构造函数
