@@ -1,0 +1,267 @@
+import serial
+import serial.tools.list_ports
+import struct
+import copy
+import time
+import numpy as np
+import math
+
+import numpy as np
+
+# ================= 工具函数 =================
+
+def normalize(v):
+    return v / np.linalg.norm(v)
+
+def quat_mul(q1, q2):
+    w1, x1, y1, z1 = q1
+    w2, x2, y2, z2 = q2
+    return np.array([
+        w1*w2 - x1*x2 - y1*y2 - z1*z2,
+        w1*x2 + x1*w2 + y1*z2 - z1*y2,
+        w1*y2 - x1*z2 + y1*w2 + z1*x2,
+        w1*z2 + x1*y2 - y1*x2 + z1*w2
+    ])
+
+def quat_to_rotmat(q):
+    w, x, y, z = q
+    return np.array([
+        [1-2*(y*y+z*z), 2*(x*y-z*w),   2*(x*z+y*w)],
+        [2*(x*y+z*w),   1-2*(x*x+z*z), 2*(y*z-x*w)],
+        [2*(x*z-y*w),   2*(y*z+x*w),   1-2*(x*x+y*y)]
+    ])
+
+def quat_to_euler(q):
+    w, x, y, z = q
+    yaw = np.arctan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
+    pitch = np.arcsin(2*(w*x - y*z))
+    roll = np.arctan2(2*(w*y + x*z), 1 - 2*(x*x + y*y))
+    return yaw, pitch, roll
+
+def quat_to_euler_local_ZXY(q):
+    """
+    Intrinsic Z-X-Y (Yaw-Pitch-Roll)
+    """
+    w, x, y, z = q
+
+    R = np.array([
+        [1-2*(y*y+z*z), 2*(x*y-z*w),   2*(x*z+y*w)],
+        [2*(x*y+z*w),   1-2*(x*x+z*z), 2*(y*z-x*w)],
+        [2*(x*z-y*w),   2*(y*z+x*w),   1-2*(x*x+y*y)]
+    ])
+
+    pitch = np.arcsin(R[2,1])             # 绕局部 X
+    yaw   = np.arctan2(-R[0,1], R[1,1])   # 绕局部 Z
+    roll  = np.arctan2(-R[2,0], R[2,2])   # 绕局部 Y
+
+    return yaw, pitch, roll
+
+def euler_local_ZXY_to_quat(yaw, pitch, roll):
+    # 计算半角的正弦和余弦
+    cy = np.cos(yaw * 0.5)
+    sy = np.sin(yaw * 0.5)
+    cp = np.cos(pitch * 0.5)
+    sp = np.sin(pitch * 0.5)
+    cr = np.cos(roll * 0.5)
+    sr = np.sin(roll * 0.5)
+
+    # 根据推导出的公式计算四元数分量
+    # 对应旋转顺序: Z(yaw) -> X(pitch) -> Y(roll)
+    w = cy * cp * cr - sy * sp * sr
+    x = cy * sp * cr - sy * cp * sr
+    y = cy * cp * sr + sy * sp * cr
+    z = cy * sp * sr + sy * cp * cr
+
+    return np.array([w, x, y, z])
+
+# ================= IMU 解算器 =================
+
+
+class IMUTracker:
+    def __init__(self, kp=0.001, init_acc=None):
+        """
+        初始化IMUTracker
+        Args:
+            kp: Mahony滤波器的比例增益
+            init_acc: 初始加速度向量 (m/s²) [ax, ay, az]
+                      如果提供，将根据此计算初始俯仰和横滚角
+        """
+        self.kp = kp
+        self.g = 9.81
+        
+        if init_acc is not None:
+            # 根据初始加速度计算初始俯仰和横滚角
+            ax, ay, az = init_acc
+            norm_acc = np.linalg.norm(init_acc)
+            print(init_acc)
+            
+            if norm_acc > 0:
+                # 计算俯仰和横滚角（yaw设为0）
+                pitch = np.arcsin(-ay / norm_acc)
+                roll = np.arctan2(ax, -az)
+                yaw = 0.0  # 初始yaw设为0
+                
+                # 从欧拉角创建四元数
+                self.q = np.array(euler_local_ZXY_to_quat(yaw, pitch, roll))
+                print(f"初始姿态计算: pitch={math.degrees(pitch):.2f}°, roll={math.degrees(roll):.2f}°")
+            else:
+                print("警告: 初始加速度为0，使用默认四元数")
+                self.q = np.array([1.0, 0.0, 0.0, 0.0])
+        else:
+            # 如果没有提供初始加速度，使用默认四元数
+            self.q = np.array([1.0, 0.0, 0.0, 0.0])
+            print("使用默认初始姿态")
+
+    def rk4_quat(self, q, omega):
+        def q_dot(q, w):
+            return 0.5 * quat_mul(q, np.array([0, *w]))
+
+        k1 = q_dot(q, omega)
+        k2 = q_dot(q + 0.5*k1, omega)
+        k3 = q_dot(q + 0.5*k2, omega)
+        k4 = q_dot(q + k3, omega)
+
+        return normalize(q + (k1 + 2*k2 + 2*k3 + k4) / 6)
+    
+
+    def update(self, acc, dtheta):
+        # ---------- Mahony 姿态修正 ----------
+        acc_unit = normalize(acc)
+
+        R = quat_to_rotmat(self.q)
+        g_est = R.T @ np.array([0, 0, 1])
+
+        error = np.cross(g_est, acc_unit)
+        # error[2] = 0.0   # 不允许修正 yaw
+        omega = dtheta + self.kp * error
+
+        # ---------- RK4 姿态更新 ----------
+        self.q = self.rk4_quat(self.q, omega)
+
+        return quat_to_euler_local_ZXY(self.q)
+
+
+
+
+# uint32_t HAL_CRC_Calculate(CRC_HandleTypeDef *hcrc, uint32_t pBuffer[], uint32_t BufferLength)
+def HAL_CRC_Calculate(buffer):
+    POLYNOMIAL = 0x04C11DB7
+    
+    crc = 0xFFFFFFFF
+    
+    # 处理每个32位数据字
+    for i in range(len(buffer)):
+        # 将当前数据与CRC进行异或
+        crc ^= buffer[i] & 0xFFFFFFFF
+        
+        # 处理32位
+        for _ in range(32):
+            # 检查最高位是否为1
+            if crc & 0x80000000:
+                # 如果最高位为1，左移并与多项式异或
+                crc = ((crc << 1) & 0xFFFFFFFF) ^ POLYNOMIAL
+            else:
+                # 如果最高位为0，只左移
+                crc = (crc << 1) & 0xFFFFFFFF
+    
+    return crc & 0xFFFFFFFF
+
+
+port_list = serial.tools.list_ports.comports()
+
+print(port_list)
+
+for port in port_list:
+    if port.product == 'STM32 Virtual ComPort MyIMU':
+        target_port = port
+        print(port)
+        print(port.name)
+        print(port.product)
+        print(port.description)
+        break
+serial_port = "/dev/"+target_port.name
+target_serial = serial.Serial(serial_port, 115200, timeout=1)
+
+# time_list = []
+# check_time_len = 1000
+
+# avx_average = 0.0
+# avy_average = 0.0
+# avz_average = 0.0
+# avx_count = 0
+# avy_count = 0
+# avz_count = 0
+
+to_degree_ratio = 45548
+to_rad_ratio = to_degree_ratio * 180.0 / math.pi 
+g = 9.81
+to_mpersq_ratio = 2048 / g
+
+USBUartRxDataBufferLen = 38
+USB_uart_rx_data = target_serial.read(USBUartRxDataBufferLen)
+received_ax = struct.unpack('h', USB_uart_rx_data[16:18])[0]
+received_ay = struct.unpack('h', USB_uart_rx_data[18:20])[0]
+received_az = struct.unpack('h', USB_uart_rx_data[20:22])[0]
+acc = np.array([received_ay/to_mpersq_ratio, -received_ax/to_mpersq_ratio, -received_az/to_mpersq_ratio])
+
+imu = IMUTracker(init_acc=acc)
+
+last_t = time.time()
+
+while True:
+    USB_uart_rx_data = target_serial.read(USBUartRxDataBufferLen)
+
+    USB_uart_rx_data_0_crc = list(copy.copy(USB_uart_rx_data))
+    for i in range(4):
+        USB_uart_rx_data_0_crc[i+USBUartRxDataBufferLen-4] = 0
+    USB_uart_rx_data_0_crc = bytearray(USB_uart_rx_data_0_crc)
+
+    USB_uart_rx_data_uint32_block_num = len(USB_uart_rx_data) // 4
+    if USB_uart_rx_data_uint32_block_num * 4 < len(USB_uart_rx_data) :
+        USB_uart_rx_data_uint32_block_num += 1
+    USB_uart_rx_data_0_crc = USB_uart_rx_data_0_crc[:(USB_uart_rx_data_uint32_block_num-1)*4]
+    computed_crc32 = HAL_CRC_Calculate([struct.unpack('I', USB_uart_rx_data_0_crc[i*4:i*4+4])[0] for i in range(USB_uart_rx_data_uint32_block_num-1)])
+    received_crc32 = struct.unpack('I', USB_uart_rx_data[USBUartRxDataBufferLen-4:USBUartRxDataBufferLen])[0]
+
+    rectified_avx_multiply_8 = struct.unpack('i', USB_uart_rx_data[4:8])[0]
+    rectified_avy_multiply_8 = struct.unpack('i', USB_uart_rx_data[8:12])[0]
+    rectified_avz_multiply_8 = struct.unpack('i', USB_uart_rx_data[12:16])[0]
+    received_ax = struct.unpack('h', USB_uart_rx_data[16:18])[0]
+    received_ay = struct.unpack('h', USB_uart_rx_data[18:20])[0]
+    received_az = struct.unpack('h', USB_uart_rx_data[20:22])[0]
+
+
+    acc = np.array([received_ay/to_mpersq_ratio, -received_ax/to_mpersq_ratio, -received_az/to_mpersq_ratio])
+    dtheta = np.array([-rectified_avy_multiply_8/to_rad_ratio, rectified_avx_multiply_8/to_rad_ratio, rectified_avz_multiply_8/to_rad_ratio])
+
+    now_t = time.time()
+    dt = now_t - last_t
+    last_t = now_t
+    euler = imu.update(acc, dtheta) # quat_to_euler_local_ZXY(euler_local_ZXY_to_quat(*imu.update(acc, dtheta)))
+
+    yaw = math.degrees(euler[0])
+    pitch = math.degrees(euler[1])
+    roll = math.degrees(euler[2])
+    received_yaw = struct.unpack('f', USB_uart_rx_data[22:26])[0]
+    received_pitch = struct.unpack('f', USB_uart_rx_data[26:30])[0]
+    received_roll = struct.unpack('f', USB_uart_rx_data[30:34])[0]
+
+    print(f"{yaw:.2f} {pitch:.2f} {roll:.2f} {received_yaw:.2f} {received_pitch:.2f} {received_roll:.2f}")
+    # print(f"{acc[0]:.2f} {acc[1]:.2f} {acc[2]:.2f}")
+    # print(f"{pos[0]*1000:.2f} {pos[1]*1000:.2f} {pos[2]*1000:.2f}")
+
+
+    # print(USB_uart_rx_data, USB_uart_rx_data_0_crc)
+
+    # print(rectified_avx_multiply_8, rectified_avy_multiply_8, rectified_avz_multiply_8, received_crc32, computed_crc32)
+    # print(received_ax, received_ay, received_az, received_crc32, computed_crc32)
+    
+    # print(f"{yaw:.2f} {pitch:.2f} {roll:.2f} {received_crc32} {computed_crc32}")
+
+    # avx_average = (avx_average * avx_count + avx) / (avx_count + 1)
+    # avx_count += 1
+    # avy_average = (avy_average * avy_count + avy) / (avy_count + 1)
+    # avy_count += 1
+    # avz_average = (avz_average * avz_count + avz) / (avz_count + 1)
+    # avz_count += 1
+    # print(avx_average, avy_average, avz_average)
