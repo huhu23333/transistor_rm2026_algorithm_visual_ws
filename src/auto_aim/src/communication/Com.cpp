@@ -1,6 +1,41 @@
 // Com.cpp
 #include "communication/Com.h"
 
+std::string SerialCommunicationClass::getSerialProductInfo(const std::string& port) {
+    struct udev *udev;
+    struct udev_device *dev;
+    std::string result = "";
+    
+    // 创建udev对象
+    udev = udev_new();
+    if (!udev) {
+        return "Failed to create udev";
+    }
+    
+    // 根据设备路径获取设备信息
+    dev = udev_device_new_from_subsystem_sysname(udev, "tty", port.c_str());
+    if (!dev) {
+        udev_unref(udev);
+        return "Device not found";
+    }
+    
+    // 获取父设备（USB设备）
+    struct udev_device *parent = udev_device_get_parent_with_subsystem_devtype(
+        dev, "usb", "usb_device");
+    
+    if (parent) {
+        // 获取产品信息
+        const char *product = udev_device_get_sysattr_value(parent, "product");
+        
+        if (product) {
+            result += std::string(product);
+        }
+    }
+    
+    udev_device_unref(dev);
+    udev_unref(udev);
+    return result;
+}
 
 SerialCommunicationClass::SerialCommunicationClass(rclcpp::Node* node, std::function<void(const SerialData&)> serialDataCallback) 
 : node(node), serialDataCallback(serialDataCallback), fd_(-1) {
@@ -27,9 +62,24 @@ void SerialCommunicationClass::tryReconnect() {
 }
     
 void SerialCommunicationClass::initializeSerial() {
-    std::string port = findAvailableSerialPort();
+    std::vector<std::string> ports = findAvailableSerialPorts();
+    if (ports.empty()) {
+        printf("No available serial port found!\n");
+        return;
+    }
+    std::string port;
+    for (auto test_port : ports) {
+        try {
+            if(getSerialProductInfo(test_port.substr(5)) != std::string("STM32 Virtual ComPort MyIMU")) {
+                port = test_port;
+                break;
+            };
+        } catch (...) {
+
+        }
+    }
     if (port.empty()) {
-        RCLCPP_ERROR(node->get_logger(), "No available serial port found!");
+        printf("Target serial port Not found!\n");
         return;
     }
 
@@ -80,30 +130,30 @@ void SerialCommunicationClass::initializeSerial() {
     RCLCPP_DEBUG(node->get_logger(), "Serial initialized: %s", port.c_str());
 }
 
-    // 查找可用的串口
-std::string SerialCommunicationClass::findAvailableSerialPort() {
+// 查找可用的串口
+std::vector<std::string> SerialCommunicationClass::findAvailableSerialPorts() {
     struct dirent *entry;
     DIR *dp = opendir("/dev/");
     if (dp == nullptr) {
-        RCLCPP_ERROR(node->get_logger(), "Failed to open /dev/ directory");
-        return "";
+        printf("Failed to open /dev/ directory\n");
+        return std::vector<std::string>(0);
     }
 
-    std::string port;
+    std::vector<std::string> ports;
     while ((entry = readdir(dp)) != nullptr) {
         if (strncmp(entry->d_name, "ttyACM", 6) == 0) {  // 匹配ttyACM串口
             std::string candidate_port = "/dev/" + std::string(entry->d_name);
             int fd = open(candidate_port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
             if (fd >= 0) {
                 close(fd);  // 串口可用，返回串口名称
-                port = candidate_port;
-                break;
+                ports.push_back(candidate_port);
+                // break;
             }
         }
     }
 
     closedir(dp);
-    return port;
+    return ports;
 }
 
 bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float small_yaw_target, float big_yaw_target, bool fire, float big_yaw_enemy_position_x, float big_yaw_enemy_position_y) {

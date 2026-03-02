@@ -1,0 +1,340 @@
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <cstring>
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <errno.h>
+#include <opencv2/opencv.hpp>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+#include <chrono>
+
+// ================= 常量定义 =================
+const double G = 9.81;
+const double TO_DEGREE_RATIO = 51016.0;
+const double TO_RAD_RATIO = TO_DEGREE_RATIO * 180.0 / M_PI;
+const double TO_MPERSQ_RATIO = 2048.0 / G;
+
+// ================= 工具函数 =================
+uint32_t HAL_CRC_Calculate(const uint8_t* data, size_t length) {
+    const uint32_t POLYNOMIAL = 0x04C11DB7;
+    uint32_t crc = 0xFFFFFFFF;
+    
+    for (size_t i = 0; i < length; i += 4) {
+        uint32_t word = 0;
+        if (i + 3 < length) {
+            word = *reinterpret_cast<const uint32_t*>(&data[i]);
+        } else {
+            // 处理不足4字节的情况
+            for (size_t j = 0; j < 4 && i + j < length; ++j) {
+                word |= static_cast<uint32_t>(data[i + j]) << (8 * j);
+            }
+        }
+        
+        crc ^= word;
+        
+        for (int j = 0; j < 32; ++j) {
+            if (crc & 0x80000000) {
+                crc = (crc << 1) ^ POLYNOMIAL;
+            } else {
+                crc <<= 1;
+            }
+        }
+    }
+    
+    return crc;
+}
+
+// ================= IMU Tracker 类 =================
+class IMUTracker {
+private:
+    Eigen::Quaterniond q;
+    double kp;
+    
+public:
+    IMUTracker(double k = 0.01) : q(1.0, 0.0, 0.0, 0.0), kp(k) {}
+    
+    std::vector<double> update(const Eigen::Vector3d& acc, const Eigen::Vector3d& dtheta, double dt) {
+        // Mahony姿态修正
+        Eigen::Vector3d acc_unit = acc.normalized();
+        Eigen::Matrix3d R = q.toRotationMatrix();
+        Eigen::Vector3d g_est = R.transpose() * Eigen::Vector3d(0, 0, 1);
+        
+        Eigen::Vector3d error = g_est.cross(acc_unit);
+        error[2] = 0.0;  // 不允许修正yaw
+        
+        Eigen::Vector3d omega = dtheta + kp * error;
+        
+        // 四元数更新
+        Eigen::Quaterniond delta_q;
+        delta_q.w() = 1.0;
+        delta_q.vec() = 0.5 * omega;
+        q = (q * delta_q).normalized();
+        
+        // 四元数转欧拉角 (Z-X-Y顺序)
+        Eigen::Vector3d euler = q.toRotationMatrix().eulerAngles(2, 0, 1);
+        
+        return {euler[0], euler[1], euler[2]}; // yaw, pitch, roll
+    }
+};
+
+// ================= RestFrame 类 =================
+class RestFrame {
+private:
+    double camera_yaw, camera_pitch, camera_roll;
+    double camera_x, camera_y, camera_z;
+    
+public:
+    RestFrame() : camera_yaw(0), camera_pitch(0), camera_roll(0), 
+                  camera_x(0), camera_y(0), camera_z(0) {}
+    
+    void updateCamOrientation(float yaw, float pitch, float roll) {
+        camera_yaw = yaw;
+        camera_pitch = pitch;
+        camera_roll = roll;
+    }
+    
+    void updateCamPosition(float x, float y, float z) {
+        camera_x = x;
+        camera_y = y;
+        camera_z = z;
+    }
+    
+    cv::Point3f worldToPnpP3f(const cv::Point3f& world_pos) {
+        // 使用旋转矩阵方法
+        Eigen::Matrix3d R = eulerToRotationMatrix(camera_yaw, camera_pitch, camera_roll);
+        Eigen::Vector3d v(world_pos.x - camera_x, 
+                         world_pos.y - camera_y, 
+                         world_pos.z - camera_z);
+        Eigen::Vector3d v_rotated = R.transpose() * v;
+        
+        // 转换为PNP坐标系 (x, -z, y)
+        return cv::Point3f(v_rotated.x(), -v_rotated.z(), v_rotated.y());
+    }
+    
+private:
+    Eigen::Matrix3d eulerToRotationMatrix(double yaw, double pitch, double roll) {
+        Eigen::AngleAxisd yawAngle(yaw, Eigen::Vector3d::UnitZ());
+        Eigen::AngleAxisd pitchAngle(pitch, Eigen::Vector3d::UnitX());
+        Eigen::AngleAxisd rollAngle(roll, Eigen::Vector3d::UnitY());
+        
+        Eigen::Quaterniond q = yawAngle * pitchAngle * rollAngle;
+        return q.toRotationMatrix();
+    }
+};
+
+// ================= 主函数 =================
+int main() {
+    // 查找串口
+    const char* serial_port = "/dev/ttyACM0"; // 修改为你的串口设备
+    
+    // 打开串口
+    int fd = open(serial_port, O_RDWR | O_NOCTTY);
+    if (fd < 0) {
+        std::cerr << "Error opening serial port: " << strerror(errno) << std::endl;
+        return -1;
+    }
+    
+    // 配置串口
+    struct termios tty;
+    memset(&tty, 0, sizeof(tty));
+    
+    if (tcgetattr(fd, &tty) != 0) {
+        std::cerr << "Error from tcgetattr: " << strerror(errno) << std::endl;
+        close(fd);
+        return -1;
+    }
+    
+    cfsetospeed(&tty, B115200);
+    cfsetispeed(&tty, B115200);
+    
+    tty.c_cflag &= ~PARENB; // 无奇偶校验
+    tty.c_cflag &= ~CSTOPB; // 1位停止位
+    tty.c_cflag &= ~CSIZE;
+    tty.c_cflag |= CS8; // 8位数据位
+    tty.c_cflag |= (CLOCAL | CREAD); // 本地连接，启用接收
+    tty.c_cflag &= ~CRTSCTS; // 无硬件流控制
+    
+    tty.c_lflag = 0; // 非规范模式
+    tty.c_oflag = 0; // 原始输出
+    
+    // 设置超时
+    tty.c_cc[VMIN] = 22; // 读取22字节
+    tty.c_cc[VTIME] = 10; // 超时1秒
+    
+    if (tcsetattr(fd, TCSANOW, &tty) != 0) {
+        std::cerr << "Error from tcsetattr: " << strerror(errno) << std::endl;
+        close(fd);
+        return -1;
+    }
+    
+    // 初始化IMU跟踪器
+    IMUTracker imu;
+    
+    // 初始化相机内参和畸变系数
+    cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) << 
+        1.31280460e+03, 0.00000000e+00, 6.38736364e+02,
+        0.00000000e+00, 1.31309593e+03, 5.34133502e+02,
+        0.00000000e+00, 0.00000000e+00, 1.00000000e+00);
+    
+    cv::Mat dist_coeffs = (cv::Mat_<double>(5, 1) << 
+        -0.05392145, -0.02516686, -0.00222499, -0.00149047, 0.43693918);
+    
+    // 初始化RestFrame
+    RestFrame rest_frame;
+    
+    // 创建显示窗口
+    cv::namedWindow("IMU 3D Visualization", cv::WINDOW_NORMAL);
+    cv::resizeWindow("IMU 3D Visualization", 1280, 1024);
+    
+    auto last_time = std::chrono::steady_clock::now();
+    
+    while (true) {
+        // 读取串口数据
+        uint8_t buffer[22];
+        ssize_t bytes_read = read(fd, buffer, 22);
+        
+        if (bytes_read == 22) {
+            // 解析数据
+            int32_t rectified_avx_multiply_8, rectified_avy_multiply_8, rectified_avz_multiply_8;
+            int16_t received_ax, received_ay, received_az;
+            
+            memcpy(&rectified_avx_multiply_8, buffer, 4);
+            memcpy(&rectified_avy_multiply_8, buffer + 4, 4);
+            memcpy(&rectified_avz_multiply_8, buffer + 8, 4);
+            memcpy(&received_ax, buffer + 12, 2);
+            memcpy(&received_ay, buffer + 14, 2);
+            memcpy(&received_az, buffer + 16, 2);
+            
+            // 注意：根据Python代码的转换逻辑
+            // Python: acc = np.array([received_ay/to_mpersq_ratio, -received_ax/to_mpersq_ratio, -received_az/to_mpersq_ratio])
+            // 所以这里使用相同的转换
+            Eigen::Vector3d acc(
+                received_ay / TO_MPERSQ_RATIO,
+                -received_ax / TO_MPERSQ_RATIO,
+                -received_az / TO_MPERSQ_RATIO
+            );
+            
+            // Python: dtheta = np.array([rectified_avz_multiply_8/to_rad_ratio, -rectified_avy_multiply_8/to_rad_ratio, rectified_avz_multiply_8/to_rad_ratio])
+            // 看起来第三个元素应该是rectified_avx_multiply_8，修正如下：
+            Eigen::Vector3d dtheta(
+                -rectified_avy_multiply_8 / TO_RAD_RATIO,
+                rectified_avx_multiply_8 / TO_RAD_RATIO,
+                rectified_avz_multiply_8 / TO_RAD_RATIO
+            );
+            
+            // 计算时间间隔
+            auto now = std::chrono::steady_clock::now();
+            double dt = std::chrono::duration<double>(now - last_time).count();
+            last_time = now;
+            
+            // 更新IMU姿态
+            auto euler = imu.update(acc, dtheta, dt);
+            
+            // 转换为角度
+            double yaw_deg = euler[0] * 180.0 / M_PI;
+            double pitch_deg = euler[1] * 180.0 / M_PI;
+            double roll_deg = euler[2] * 180.0 / M_PI;
+            
+            // 更新相机姿态（使用弧度）
+            rest_frame.updateCamOrientation(euler[0], euler[1], euler[2]);
+            
+            // 打印姿态信息
+            std::cout << "\rYaw: " << yaw_deg << "°, Pitch: " << pitch_deg << "°, Roll: " << roll_deg 
+                      << "°, dt: " << dt * 1000 << "ms" << std::flush;
+            
+            // 创建空白图像
+            cv::Mat frame = cv::Mat::zeros(1024, 1280, CV_8UC3);
+            
+            // 绘制网格点（类似drawRestFrame函数）
+            for (float x = -3.0f; x <= 3.0f; x += 0.2f) {
+                for (float y = -3.0f; y <= 3.0f; y += 0.2f) {
+                    float z = -0.5f; // 固定高度
+                    
+                    cv::Point3f world_point(x * 1000.0f, y * 1000.0f, z * 1000.0f);
+                    cv::Point3f cam_point = rest_frame.worldToPnpP3f(world_point);
+                    
+                    // 投影到图像平面
+                    std::vector<cv::Point3f> object_points = {cam_point};
+                    std::vector<cv::Point2f> image_points;
+                    
+                    cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64F);
+                    cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64F);
+                    
+                    cv::projectPoints(object_points, rvec, tvec, 
+                                     camera_matrix, dist_coeffs, 
+                                     image_points);
+                    
+                    cv::Point2f img_point = image_points[0];
+                    
+                    // 检查点是否在图像范围内
+                    if (img_point.x >= 0 && img_point.x < 1280 && 
+                        img_point.y >= 0 && img_point.y < 1024) {
+                        cv::circle(frame, img_point, 2, cv::Scalar(200, 200, 200), -1);
+                    }
+                }
+            }
+            
+            // 绘制坐标轴
+            cv::Point3f origin(0, 0, 0);
+            cv::Point3f x_axis(1000, 0, 0);
+            cv::Point3f y_axis(0, 1000, 0);
+            cv::Point3f z_axis(0, 0, 1000);
+            
+            // 将坐标轴点转换并投影
+            auto projectPoint = [&](const cv::Point3f& world_pt) -> cv::Point2f {
+                cv::Point3f cam_pt = rest_frame.worldToPnpP3f(world_pt);
+                std::vector<cv::Point3f> pts = {cam_pt};
+                std::vector<cv::Point2f> img_pts;
+                cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64F);
+                cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64F);
+                cv::projectPoints(pts, rvec, tvec, camera_matrix, dist_coeffs, img_pts);
+                return img_pts[0];
+            };
+            
+            cv::Point2f origin_img = projectPoint(origin);
+            cv::Point2f x_img = projectPoint(x_axis);
+            cv::Point2f y_img = projectPoint(y_axis);
+            cv::Point2f z_img = projectPoint(z_axis);
+            
+            // 绘制坐标轴
+            if (origin_img.x >= 0 && origin_img.x < 1280 && origin_img.y >= 0 && origin_img.y < 1024) {
+                if (x_img.x >= 0 && x_img.x < 1280 && x_img.y >= 0 && x_img.y < 1024) {
+                    cv::arrowedLine(frame, origin_img, x_img, cv::Scalar(0, 0, 255), 3);
+                    cv::putText(frame, "X", x_img, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 2);
+                }
+                if (y_img.x >= 0 && y_img.x < 1280 && y_img.y >= 0 && y_img.y < 1024) {
+                    cv::arrowedLine(frame, origin_img, y_img, cv::Scalar(0, 255, 0), 3);
+                    cv::putText(frame, "Y", y_img, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+                }
+                if (z_img.x >= 0 && z_img.x < 1280 && z_img.y >= 0 && z_img.y < 1024) {
+                    cv::arrowedLine(frame, origin_img, z_img, cv::Scalar(255, 0, 0), 3);
+                    cv::putText(frame, "Z", z_img, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 0, 0), 2);
+                }
+            }
+            
+            // 显示姿态信息
+            std::string info = "Yaw: " + std::to_string(static_cast<int>(yaw_deg)) + 
+                             " Pitch: " + std::to_string(static_cast<int>(pitch_deg)) + 
+                             " Roll: " + std::to_string(static_cast<int>(roll_deg));
+            cv::putText(frame, info, cv::Point(20, 40), 
+                       cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 255, 255), 2);
+            
+            // 显示图像
+            cv::imshow("IMU 3D Visualization", frame);
+        }
+        
+        // 检查按键
+        int key = cv::waitKey(1);
+        if (key == 27 || key == 'q') { // ESC 或 q 键退出
+            break;
+        }
+    }
+    
+    close(fd);
+    cv::destroyAllWindows();
+    return 0;
+}

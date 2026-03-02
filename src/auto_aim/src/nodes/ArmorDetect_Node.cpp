@@ -513,7 +513,8 @@ private:
             }
 
             bool auto_aim_switch = true;
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::Nearest, auto_aim_switch); // Todo
+            bool mcu_yaw_online = true;
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::Nearest, auto_aim_switch, mcu_yaw_online); // Todo
             cv::putText(frame, 
                 "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
                 cv::Point2f(0, 100), 

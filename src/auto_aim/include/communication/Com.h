@@ -27,6 +27,9 @@
 #include <rclcpp/rclcpp.hpp>
 #include <functional>
 #include <algorithm>
+#include <iostream>
+#include <libudev.h>
+#include <thread>
 
 
 struct SerialData {
@@ -80,10 +83,11 @@ private:
     std::chrono::steady_clock::time_point last_received_time;
     
     void initializeSerial();
-    std::string findAvailableSerialPort();
+    std::vector<std::string> findAvailableSerialPorts();
     void processFrame(const uint8_t* data);
     void processBuffer();
     void tryReconnect();
+    std::string getSerialProductInfo(const std::string& port);
 };
 
 #endif // COM_H2
