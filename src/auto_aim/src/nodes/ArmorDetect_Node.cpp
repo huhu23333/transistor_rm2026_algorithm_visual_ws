@@ -164,6 +164,13 @@ public:
 
         yaw_visualizer_ = std::make_shared<YawVisualizer>();
 
+        DelayInfos init_serial_infos;
+        init_serial_infos.last_pitch_rad_ = 0.0;
+        init_serial_infos.last_yaw_rad_ = 0.0;
+        init_serial_infos.total_yaw_rad_ = 0.0;
+        init_serial_infos.push_time = node_start_time;
+        serial_infos_delay_.push(init_serial_infos);
+
         // 初始化串口通信器
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
 
@@ -779,7 +786,7 @@ private:
         std::shared_ptr<HeadIMUSerialCommunicationClass> headIMU_communication_;
         std::thread headIMU_timer_thread_;
 
-        bool use_head_imu = true;
+        bool use_head_imu = false;
 
         float head_imu_yaw;
         float head_imu_pitch;
@@ -798,7 +805,7 @@ private:
         float to_mcu_delta_yaw;
         float to_mcu_delta_pitch;
 
-        bool last_auto_aim_switch = false; // 用于在开启自瞄时进行校准
+        bool last_auto_aim_switch = true; // 用于在开启自瞄时进行校准
     } headIMUInfos;
 
     std::shared_ptr<YawVisualizer> yaw_visualizer_;
