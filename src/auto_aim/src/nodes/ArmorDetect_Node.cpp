@@ -335,13 +335,13 @@ private:
     void serialDataCallback(const SerialData& msg) {
 
         
-        auto_aim_switch = msg.auto_aim_switch;
-
-
         SerialData processed_msg = msg;
 #ifdef FIX_ENEMY_COLOR
         processed_msg.color = FIX_ENEMY_COLOR;
 #endif
+
+
+        auto_aim_switch = processed_msg.auto_aim_switch;
 
 
         float current_pitch_;
@@ -411,7 +411,7 @@ private:
             serial_infos_delay_.push(now_serial_infos);
         }
 
-        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(msg.z_rotation_velocity) * (-5.0) / 660.0 * M_PI / 180.0); // 20.0
+        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(processed_msg.z_rotation_velocity) * (-5.0) / 660.0 * M_PI / 180.0); // 20.0
 
     }
 
