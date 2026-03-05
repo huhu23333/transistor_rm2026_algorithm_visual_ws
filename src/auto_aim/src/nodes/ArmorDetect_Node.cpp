@@ -86,7 +86,11 @@ public:
 
         // 初始化参数
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
+#ifdef FIX_ENEMY_COLOR
+        enemy_color_ = (FIX_ENEMY_COLOR == 0) ? "RED" : "BLUE";
+#else
         enemy_color_ = (*config_file_ptr)["init_enemy_color"].as<std::string>();
+#endif
 
         use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
 
@@ -334,13 +338,19 @@ private:
         auto_aim_switch = msg.auto_aim_switch;
 
 
+        SerialData processed_msg = msg;
+#ifdef FIX_ENEMY_COLOR
+        processed_msg.color = FIX_ENEMY_COLOR;
+#endif
+
+
         float current_pitch_;
         float current_yaw_;
 
 
-        bullet_velocity_ = msg.bullet_velocity;
-        current_pitch_ = ((float)(msg.bullet_angle)) * 30 / 1.8 * M_PI / 180; // 测定pitch轴传入数据1.8大约对应30°
-        current_yaw_ = ((float)(msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
+        bullet_velocity_ = processed_msg.bullet_velocity;
+        current_pitch_ = ((float)(processed_msg.bullet_angle)) * 30 / 1.8 * M_PI / 180; // 测定pitch轴传入数据1.8大约对应30°
+        current_yaw_ = ((float)(processed_msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
 
 
         headIMUInfos.mcu_yaw = current_yaw_;
@@ -362,17 +372,17 @@ private:
         while (current_yaw_ > M_PI) {
             current_yaw_ -= 2 * M_PI;
         }
-        enemy_color_ = (msg.color == 0) ? "RED" : "BLUE";
+        enemy_color_ = (processed_msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
         } else if (enemy_color_ == "BLUE") {
             params_.enemy_color = Params::BLUE;
         }
         if (light_detector_) {
-            light_detector_->setEnemyColor(msg.color == 0 ? Params::RED : Params::BLUE);
+            light_detector_->setEnemyColor(processed_msg.color == 0 ? Params::RED : Params::BLUE);
         }
         if (yolo_pose_armor_detector) {
-            yolo_pose_armor_detector->setEnemyColor(msg.color == 0 ? Params::RED : Params::BLUE);
+            yolo_pose_armor_detector->setEnemyColor(processed_msg.color == 0 ? Params::RED : Params::BLUE);
         }
 
         if (current_yaw_ < -M_PI/2 && last_yaw_rad_mcu_ > M_PI/2) {
@@ -685,6 +695,12 @@ private:
                 cv::Point(10, 60),
                 cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(0, 255, 0), 1);
+            
+            cv::putText(frame, 
+                "enemy_color: " + enemy_color_, 
+                cv::Point2f(20,840), 
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
 
             drawRestFrame(frame, rest_frame_, armor_solver_);
 
