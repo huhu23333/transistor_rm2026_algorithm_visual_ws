@@ -678,6 +678,12 @@ private:
                 cv::Point(10, 60),
                 cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(0, 255, 0), 1);
+            
+            cv::putText(frame, 
+                "enemy_color: " + enemy_color_, 
+                cv::Point2f(20,840), 
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
 
             drawRestFrame(frame, rest_frame_, armor_solver_);
 
