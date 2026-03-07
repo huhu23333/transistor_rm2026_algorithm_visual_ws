@@ -477,7 +477,7 @@ RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, Rotat
     }
     RMM_fire_control_data.last_target_yaw = chosen_armor.yaw;
 
-    if (armor_class != ArmorType::Outpost) {
+    if (true) { //(armor_class != ArmorType::Outpost) {
         if (fabs(RMM_state.vyaw) > RMM_fire_control_data.aim_center_vyaw_upper_threshold) {
             RMM_fire_control_data.aim_center_schmitt_trigger = true;
         } else if (fabs(RMM_state.vyaw) < RMM_fire_control_data.aim_center_vyaw_lower_threshold) {
