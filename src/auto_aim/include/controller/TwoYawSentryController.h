@@ -13,6 +13,7 @@ struct TwoYawGimbalControll_t {
     float target_pitch;
     float target_yaw_small;
     float target_yaw_big;
+    float fire_flag;
 };
 
 class TwoYawSentryController {
@@ -41,13 +42,15 @@ private:
     float last_small_yaw_target = 0.0;
 
     bool last_reset_state = true;
+    std::chrono::steady_clock::time_point last_reset_time;
+    float reset_ceasefire_ms;
 
 public:
     TwoYawSentryController(std::shared_ptr<YAML::Node> config_file_ptr);
 
     void update_gimbal_infos(float real_pitch_, float real_small_yaw_, float real_big_yaw_);
 
-    TwoYawGimbalControll_t step(bool reset, float pitch_target, float yaw_target);
+    TwoYawGimbalControll_t step(bool reset, float pitch_target, float yaw_target, bool fire_flag);
 };
 
 

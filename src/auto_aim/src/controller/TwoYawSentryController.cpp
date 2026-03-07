@@ -8,6 +8,8 @@ TwoYawSentryController::TwoYawSentryController(std::shared_ptr<YAML::Node> confi
     reset_behavior_infos.max_pitch = M_PI / 180.0 * (*config_file_ptr)["reset_max_pitch"].as<float>();
     reset_behavior_infos.reset_max_big_yaw_gap = M_PI / 180.0 * (*config_file_ptr)["reset_max_big_yaw_gap"].as<float>();
 
+    reset_ceasefire_ms = (*config_file_ptr)["reset_ceasefire_ms"].as<float>();
+
     last_step_time = std::chrono::steady_clock::now();
 
     big_yaw_smooth_factor = (*config_file_ptr)["big_yaw_smooth_factor"].as<float>();
@@ -21,11 +23,12 @@ void TwoYawSentryController::update_gimbal_infos(float real_pitch_, float real_s
 }
 
 
-TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_target, float yaw_target) {
+TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_target, float yaw_target, bool fire_flag) {
     std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
     float dt = static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(current_time - last_step_time).count()) / 1e6;
 
     TwoYawGimbalControll_t result;
+    result.fire_flag = false;
     if (reset) {
         if (!last_reset_state) {
             last_pitch_target = real_pitch;
@@ -53,6 +56,7 @@ TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_targ
                 result.target_yaw_big = real_big_yaw - reset_behavior_infos.reset_max_big_yaw_gap;
             }
         }
+        last_reset_time = current_time;
 
     } else {
         if (last_reset_state) {
@@ -66,6 +70,10 @@ TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_targ
         if (fabs(result.target_yaw_small) > small_yaw_to_big_boundary) {
             result.target_yaw_big = yaw_target;
             result.target_yaw_small = 0.0;
+        }
+
+        if (static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(current_time - last_reset_time).count()) / 1e3 > reset_ceasefire_ms) {
+            result.fire_flag = fire_flag;
         }
     }
 

@@ -532,11 +532,11 @@ private:
                 cv::Point2f(0, 100), 
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
-            TwoYawGimbalControll_t controller_result = two_yaw_sentry_controller -> step(predictor_result.reset, predictor_result.command_pitch, predictor_result.command_yaw);
+            TwoYawGimbalControll_t controller_result = two_yaw_sentry_controller -> step(predictor_result.reset, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             std::vector<float> big_yaw_frame_enemy_position = rest_frame_big_yaw_ -> getCamPositionFromWorld(predictor_result.enemy_position_x, predictor_result.enemy_position_y, 0.0);
             serial_communication_->sendData(predictor_result.reset, 
                 controller_result.target_pitch, controller_result.target_yaw_small, controller_result.target_yaw_big, 
-                predictor_result.fire_flag, big_yaw_frame_enemy_position[0], big_yaw_frame_enemy_position[1]);
+                controller_result.fire_flag, big_yaw_frame_enemy_position[0], big_yaw_frame_enemy_position[1]);
             
             // 显示当前参数状态
             cv::putText(frame, 

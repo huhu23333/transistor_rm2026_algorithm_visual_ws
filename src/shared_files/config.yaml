@@ -43,6 +43,7 @@ reset_max_pitch : 15.0            # 扫描目标时pitch轴最大值，单位为
 reset_max_big_yaw_gap : 120.0     # 扫描目标时大yaw目标值和实际值的最大差距，防止目标与实际差距超过半圈导致反转，单位为度
 big_yaw_smooth_factor : 0.03      # 大yaw将根据这个系数，以按时间指数衰减的方式靠近瞄准中心，值越大速度越快
 small_yaw_to_big_boundary : 30.0  # 小yaw超出这个角度后，将重新设置大yaw对准目标，单位为度
+reset_ceasefire_ms : 1000.0       # 开始识别到目标的这段时间内不开火
 
 
 # 控制PID参数
