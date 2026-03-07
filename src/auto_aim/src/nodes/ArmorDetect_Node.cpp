@@ -271,7 +271,7 @@ private:
     }
 
     void recalibrateHeadIMU() {
-        float start_yaw = last_yaw_rad_imu_;
+        float start_yaw = last_yaw_rad_imu_ + headIMUInfos.to_mcu_delta_yaw;
         float start_pitch = last_pitch_rad_delayed_;
 
         if (predictor_main_) {
