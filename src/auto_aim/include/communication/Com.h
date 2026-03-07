@@ -38,6 +38,8 @@ struct SerialData {
     float gimbal_yaw_small;       // 云台当前偏航角
     float gimbal_yaw_big;       // 云台当前偏航角
     uint8_t color;            // 敌方颜色(0:红色, 1:蓝色)
+
+    std::vector<uint8_t> all_car_rebirth_infos; // 用于判断是否在无敌时间内的变量
 };
 
 class SerialCommunicationClass {
@@ -60,6 +62,8 @@ private:
         uint8_t chassis_mode; // 底盘模式
         uint8_t lack_blood_son_mode; // 缺血回城子模式
         int16_t gimbal_yaw_big; // 大yaw当前角度(世界坐标系下)，单位rad
+
+        uint8_t all_car_rebirth_infos[4];
     };
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;

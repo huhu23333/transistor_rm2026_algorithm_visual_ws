@@ -92,6 +92,7 @@ add_library(armor_detector SHARED
     src/ba_solver/graph_optimizer.cpp
     src/ba_solver/utils.cpp
     src/controller/TwoYawSentryController.cpp
+    src/controller/RebirthTargetFilter.cpp
 )
 #add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp

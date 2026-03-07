@@ -38,6 +38,7 @@
 #include "visualizer/RestFrameDraw.h"
 #include "visualizer/YawVisualizer.h"
 #include "controller/TwoYawSentryController.h"
+#include "controller/RebirthTargetFilter.h"
 
 namespace fs = std::filesystem;
 
@@ -174,6 +175,7 @@ public:
         yaw_visualizer_ = std::make_shared<YawVisualizer>();
 
         two_yaw_sentry_controller = std::make_shared<TwoYawSentryController>(config_file_ptr);
+        rebirth_target_filter = std::make_shared<RebirthTargetFilter>();
 
         // 初始化串口通信器
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
@@ -235,6 +237,12 @@ private:
 #ifdef FIX_ENEMY_COLOR
         processed_msg.color = FIX_ENEMY_COLOR;
 #endif
+
+        // 暂时填充为正常值
+        processed_msg.all_car_rebirth_infos = {0xFF, 0xFF, 0xFF, 0xFF};
+        
+
+        rebirth_target_filter -> updateInfos(processed_msg.color, processed_msg.all_car_rebirth_infos);
 
 
         std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
@@ -526,7 +534,8 @@ private:
 
             bool auto_aim_switch = true;
             bool mcu_yaw_online = true;
-            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::Nearest, auto_aim_switch, mcu_yaw_online); // Todo
+            std::vector<bool> valid_target_mask = rebirth_target_filter -> getValidTargetMask();
+            PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::Nearest, auto_aim_switch, mcu_yaw_online, valid_target_mask); // Todo
             cv::putText(frame, 
                 "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
                 cv::Point2f(0, 100), 
@@ -661,6 +670,7 @@ private:
     std::shared_ptr<YawVisualizer> yaw_visualizer_;
 
     std::shared_ptr<TwoYawSentryController> two_yaw_sentry_controller;
+    std::shared_ptr<RebirthTargetFilter> rebirth_target_filter;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

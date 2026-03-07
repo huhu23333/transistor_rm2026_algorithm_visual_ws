@@ -40,7 +40,7 @@ public:
         command_yaw_integration_max_speed_degree = (*config_file_ptr)["command_yaw_integration_max_speed_degree"].as<float>();
     }
 
-    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor,  bool auto_aim_switch, bool mcu_yaw_online);
+    PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor,  bool auto_aim_switch, bool mcu_yaw_online, std::vector<bool> valid_target_mask);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
 
     void reset_yaw_integration();

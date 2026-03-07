@@ -11,7 +11,7 @@ void PredictorMain::update_serial_info(float bullet_velocity, float last_pitch_r
     }
 }
 
-PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor, bool auto_aim_switch, bool mcu_yaw_online) {
+PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor, bool auto_aim_switch, bool mcu_yaw_online, std::vector<bool> valid_target_mask) {
 
     PredictorResult chosen_result;
 
@@ -35,35 +35,44 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
             // RCLCPP_INFO(node->get_logger(), "%ld updating", all_predictors_index);
         }
     }
+    // 过滤无敌目标
+    std::vector<PredictorResult> filtered_classified_predictor_results;
+    for (PredictorResult predictor_result : classified_predictor_results) {
+        int target_class_index = static_cast<int>(predictor_result.armor_type);
+        if (valid_target_mask[target_class_index]) {
+            filtered_classified_predictor_results.push_back(predictor_result);
+        }
+    }
+
 
     if (priority_armor == ArmorType::Middle) {
-        if (!classified_predictor_results.empty()) {
+        if (!filtered_classified_predictor_results.empty()) {
             auto it = std::min_element(
-                classified_predictor_results.begin(), classified_predictor_results.end(),
+                filtered_classified_predictor_results.begin(), filtered_classified_predictor_results.end(),
                 [](const PredictorResult& a, const PredictorResult& b) {
                     return a.pixel_horizontal_center_distance < b.pixel_horizontal_center_distance;
                 }
             );
-            if (it != classified_predictor_results.end()) {
+            if (it != filtered_classified_predictor_results.end()) {
                 auto middle_result = *it;
                 chosen_result = middle_result;
             }
         }
     } else if (priority_armor == ArmorType::Nearest) {
-        if (!classified_predictor_results.empty()) {
+        if (!filtered_classified_predictor_results.empty()) {
             auto it = std::min_element(
-                classified_predictor_results.begin(), classified_predictor_results.end(),
+                filtered_classified_predictor_results.begin(), filtered_classified_predictor_results.end(),
                 [](const PredictorResult& a, const PredictorResult& b) {
                     return a.latest_armor_distance < b.latest_armor_distance;
                 }
             );
-            if (it != classified_predictor_results.end()) {
+            if (it != filtered_classified_predictor_results.end()) {
                 auto nearest_result = *it;
                 chosen_result = nearest_result;
             }
         }
     } else {
-        for (PredictorResult predictor_result : classified_predictor_results) {
+        for (PredictorResult predictor_result : filtered_classified_predictor_results) {
             if (predictor_result.armor_type == priority_armor && !predictor_result.reset) {
                 chosen_result = predictor_result;
             }

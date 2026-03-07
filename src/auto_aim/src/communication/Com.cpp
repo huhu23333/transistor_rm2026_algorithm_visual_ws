@@ -262,6 +262,7 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     memcpy(&frame.chassis_mode, &data[17], sizeof(uint8_t));
     memcpy(&frame.lack_blood_son_mode, &data[18], sizeof(uint8_t));
     memcpy(&frame.gimbal_yaw_big, &data[19], sizeof(int16_t));
+    memcpy(frame.all_car_rebirth_infos, &data[21], sizeof(uint8_t) * 4);
 
     // 格式化输出
     RCLCPP_INFO(node->get_logger(), 
@@ -296,6 +297,11 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     msg.gimbal_pitch = std::atan2(std::sin(msg.gimbal_pitch), std::cos(msg.gimbal_pitch));
     msg.gimbal_yaw_small = std::atan2(std::sin(msg.gimbal_yaw_small), std::cos(msg.gimbal_yaw_small));
     msg.gimbal_yaw_big = std::atan2(std::sin(msg.gimbal_yaw_big), std::cos(msg.gimbal_yaw_big));
+
+    msg.all_car_rebirth_infos.resize(4);
+    for (int i=0; i<4; i++) {
+        msg.all_car_rebirth_infos[i] = frame.all_car_rebirth_infos[i];
+    }
     
     serialDataCallback(msg);
 
