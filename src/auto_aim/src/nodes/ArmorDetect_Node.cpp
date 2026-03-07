@@ -271,17 +271,25 @@ private:
     }
 
     void recalibrateHeadIMU() {
+        float start_yaw = last_yaw_rad_imu_;
+        float start_pitch = last_pitch_rad_delayed_;
+
         if (predictor_main_) {
             predictor_main_ -> reset_yaw_integration();
         }
 
-        float reset_command_yaw = last_yaw_rad_delayed_;
         for (int i = 0; i < 60; i++) {
-            serial_communication_ -> sendData(0.0, reset_command_yaw, false);
+            serial_communication_ -> sendData(0.0, start_yaw, false);
             usleep(30*1000);
         }
 
-        headIMUInfos.to_mcu_delta_yaw = reset_command_yaw - last_yaw_rad_imu_;
+        float new_yaw = last_yaw_rad_imu_;
+
+        float delta_yaw = new_yaw - start_yaw;
+
+        headIMUInfos.to_mcu_delta_yaw = -delta_yaw;
+
+        serial_communication_ -> sendData(start_pitch, start_yaw + headIMUInfos.to_mcu_delta_yaw, false);
     }
 
     void headIMUSerialDataCallback(const HeadIMUSerialData& msg) {
