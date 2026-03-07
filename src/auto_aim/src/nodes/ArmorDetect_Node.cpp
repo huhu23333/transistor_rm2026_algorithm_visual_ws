@@ -278,7 +278,7 @@ private:
             predictor_main_ -> reset_yaw_integration();
         }
 
-        for (int i = 0; i < 60; i++) {
+        for (int i = 0; i < 20; i++) {
             serial_communication_ -> sendData(0.0, start_yaw, false);
             usleep(30*1000);
         }
