@@ -6,6 +6,7 @@
 #include <vector>
 #include <chrono>
 #include "macro/AutoAimMacro.h"
+#include <opencv2/opencv.hpp>
 
 
 class RebirthTargetFilter {
@@ -20,7 +21,7 @@ public:
     RebirthTargetFilter();
 
     void updateInfos(uint8_t enemy_color_, std::vector<uint8_t> all_car_rebirth_infos_bits);
-    std::vector<bool> getValidTargetMask();
+    std::vector<bool> getValidTargetMask(cv::Mat &frame);
 };
 
 

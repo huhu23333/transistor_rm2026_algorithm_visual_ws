@@ -31,7 +31,20 @@ void RebirthTargetFilter::updateInfos(uint8_t enemy_color_, std::vector<uint8_t>
     }
 }
 
-std::vector<bool> RebirthTargetFilter::getValidTargetMask() {
+std::string vector_bool_to_bitset_string(const std::vector<bool>& bits) {
+    std::string result;
+    result.reserve(bits.size());                 // 预分配空间
+    for (auto it = bits.rbegin(); it != bits.rend(); ++it) {
+        result += *it ? '1' : '0';
+    }
+    return result;
+}
+std::vector<bool> slice(const std::vector<bool>& v, size_t start, size_t end) {
+    if (start > end || end > v.size()) throw std::out_of_range("Invalid slice indices");
+    return std::vector<bool>(v.begin() + start, v.begin() + end);
+}
+
+std::vector<bool> RebirthTargetFilter::getValidTargetMask(cv::Mat &frame) {
     std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
     
     int index_shift = enemy_color * 8;
@@ -49,6 +62,38 @@ std::vector<bool> RebirthTargetFilter::getValidTargetMask() {
             }
         }
     }
+
+    cv::putText(frame, 
+        "Mask Infos:", 
+        cv::Point2f(1100,840),
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
+    cv::putText(frame, 
+        vector_bool_to_bitset_string(result), 
+        cv::Point2f(1100,870),
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
+
+    cv::putText(frame, 
+        vector_bool_to_bitset_string(slice(all_car_rebirth_infos, 0, 8)), 
+        cv::Point2f(1100,930),
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
+    cv::putText(frame, 
+        vector_bool_to_bitset_string(slice(all_car_rebirth_infos, 8, 16)), 
+        cv::Point2f(1100,960),
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
+    cv::putText(frame, 
+        vector_bool_to_bitset_string(slice(all_car_rebirth_infos, 16, 24)), 
+        cv::Point2f(1100,990),
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
+    cv::putText(frame, 
+        vector_bool_to_bitset_string(slice(all_car_rebirth_infos, 24, 32)), 
+        cv::Point2f(1100,1020),
+        cv::FONT_HERSHEY_COMPLEX, 0.7, 
+        cv::Scalar(0, 255, 0), 1, 8, false);
 
     return result;
 }

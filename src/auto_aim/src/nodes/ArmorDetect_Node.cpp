@@ -237,8 +237,7 @@ private:
 #ifdef FIX_ENEMY_COLOR
         processed_msg.color = FIX_ENEMY_COLOR;
 #endif
-
-        // 暂时填充为正常值
+        // FUCK!!!
         processed_msg.all_car_rebirth_infos = {0xFF, 0xFF, 0xFF, 0xFF};
         
 
@@ -534,7 +533,7 @@ private:
 
             bool auto_aim_switch = true;
             bool mcu_yaw_online = true;
-            std::vector<bool> valid_target_mask = rebirth_target_filter -> getValidTargetMask();
+            std::vector<bool> valid_target_mask = rebirth_target_filter -> getValidTargetMask(frame);
             PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::Nearest, auto_aim_switch, mcu_yaw_online, valid_target_mask); // Todo
             cv::putText(frame, 
                 "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
