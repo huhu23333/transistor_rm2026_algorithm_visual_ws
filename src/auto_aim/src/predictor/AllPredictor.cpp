@@ -339,6 +339,11 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Point2f(300,140), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "aim_center:"+std::to_string(RMM_fire_result.aim_center), 
+                    cv::Point2f(20,260), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
             }
             cv::line(RMM_visualize_frame, 
                 cv::Point2f(400, 400), 
