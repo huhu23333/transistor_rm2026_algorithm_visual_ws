@@ -35,10 +35,10 @@ pre_predict_time : 2000.0 # ms 在看到目标的这段时间内自瞄直接瞄�
 reset_predictor_time : 1000.0 # ms 超过这段时间未观测到某一类装甲板，将停止这一类装甲板的预测并重置预测器
 
 # 控制PID参数
-pitch_integration_max_degree : 60.0
-pitch_integration_min_degree : -60.0
-yaw_integration_max_degree : 60.0
-yaw_integration_min_degree : -60.0
+pitch_integration_max_degree : 20.0
+pitch_integration_min_degree : -20.0
+yaw_integration_max_degree : 20.0
+yaw_integration_min_degree : -20.0
 command_picth_kp: 1.0
 command_picth_integration_speed: 0.1
 command_picth_integration_max_speed_degree: 5.0     # 积分时超过这个角度的误差会被截断为这个大小进行积分
