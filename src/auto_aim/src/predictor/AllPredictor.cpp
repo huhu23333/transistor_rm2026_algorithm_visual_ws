@@ -258,9 +258,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                 auto chosen_armor = nearest_armor;
 
                 if (abs(RMM_state.vyaw) < RMM_fire_control_data.low_vyaw_threshold) {
-                    cv::Point2d yaw_vector_1 = {std::sin(nearest_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(nearest_armor.yaw + choose_armor_yaw_bias_with_direction)};
+                    cv::Point2d yaw_vector_1 = {std::sin(nearest_armor.yaw), -std::cos(nearest_armor.yaw)};
                     double yaw_bias_1 = acos(-unit_cam_to_center_vector.dot(yaw_vector_1));
-                    cv::Point2d yaw_vector_2 = {std::sin(second_nearest_armor.yaw + choose_armor_yaw_bias_with_direction), -std::cos(second_nearest_armor.yaw + choose_armor_yaw_bias_with_direction)};
+                    cv::Point2d yaw_vector_2 = {std::sin(second_nearest_armor.yaw), -std::cos(second_nearest_armor.yaw)};
                     double yaw_bias_2 = acos(-unit_cam_to_center_vector.dot(yaw_vector_2));
                     if (abs(yaw_bias_1 - yaw_bias_2) < RMM_fire_control_data.low_vyaw_change_target_delta_yaw_threshold) {
                         float delta_yaw_1 = nearest_armor.yaw - RMM_fire_control_data.last_target_yaw;
@@ -524,7 +524,9 @@ RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, Rotat
         float ceasefire_armor_yaw_dot_2 = cam_to_center_vector.dot(ceasefire_armor_yaw_vector_2);
 
         bool before_target_change_ceasefire_flag = false;
-        if (ceasefire_armor_yaw_dot_1 < ceasefire_armor_yaw_dot || ceasefire_armor_yaw_dot_2 < ceasefire_armor_yaw_dot) {
+        if (abs(RMM_state.vyaw) < RMM_fire_control_data.low_vyaw_threshold) {
+            before_target_change_ceasefire_flag = true;
+        } else if (ceasefire_armor_yaw_dot_1 < ceasefire_armor_yaw_dot || ceasefire_armor_yaw_dot_2 < ceasefire_armor_yaw_dot) {
             before_target_change_ceasefire_flag = true;
         }
 
