@@ -525,7 +525,7 @@ RMM_fire_result_t AllPredictor::RMM_fire_control(SimpleArmor chosen_armor, Rotat
 
         bool before_target_change_ceasefire_flag = false;
         if (abs(RMM_state.vyaw) < RMM_fire_control_data.low_vyaw_threshold) {
-            before_target_change_ceasefire_flag = true;
+            before_target_change_ceasefire_flag = false;
         } else if (ceasefire_armor_yaw_dot_1 < ceasefire_armor_yaw_dot || ceasefire_armor_yaw_dot_2 < ceasefire_armor_yaw_dot) {
             before_target_change_ceasefire_flag = true;
         }
