@@ -2,6 +2,9 @@
 
 
 RebirthTargetFilter::RebirthTargetFilter() {
+    last_dead_times.resize(16);
+    all_car_rebirth_infos.resize(32);
+    
     std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point init_time = current_time - std::chrono::milliseconds(static_cast<int>(invincible_time * 1e3));
     for (int i=0; i<16; i++) {
