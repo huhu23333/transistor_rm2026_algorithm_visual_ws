@@ -108,6 +108,13 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
             yaw_integration = 0.0;
         }
     }
+
+    // 哨兵特有reset时直接重置积分
+    if (chosen_result.reset) {
+        pitch_integration = 0.0;
+        yaw_integration = 0.0;
+    }
+
     chosen_result.command_pitch = last_pitch_rad_delayed_ + chosen_result.command_delta_pitch * command_picth_kp + pitch_integration; // PI控制
     chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * command_yaw_kp + yaw_integration + yaw_bias; // 缓解yaw轴输入数据掉线问题（并不能()）
 
