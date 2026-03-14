@@ -31,8 +31,21 @@
 
 namespace fyt::auto_aim {
 
-// BA algorithm based Optimizer for the armor pose estimation (Particularly for
-// the Yaw angle)
+      struct BaFrameInput {                // 新的solveBA传入参数
+    ArmorResult armor;                   // 装甲观测
+    Eigen::Vector3d t_camera_armor;      // 相机系下平移
+    Eigen::Matrix3d R_camera_armor;      // 相机系下旋转
+    Eigen::Matrix3d R_imu_camera;        // 相机姿态
+
+    BaFrameInput(const ArmorResult& armor_,
+                 const Eigen::Vector3d& t_camera_armor_,
+                 const Eigen::Matrix3d& R_camera_armor_,
+                 const Eigen::Matrix3d& R_imu_camera_) noexcept
+        : armor(armor_),
+          t_camera_armor(t_camera_armor_),
+          R_camera_armor(R_camera_armor_),
+          R_imu_camera(R_imu_camera_) {}   };
+
 // 基于BA算法的对于装甲板位姿估计（尤其是对于yaw轴角度）的优化
 class BaSolver {
 public:
@@ -41,13 +54,9 @@ public:
 
   // Solve the armor pose using the BA algorithm, return the optimized rotation
   // 用BA算法解算装甲板位姿，并返回优化后的矩阵
-  Eigen::Matrix3d solveBa(const ArmorResult &armor,       // 一个struct 在type里面
-                          const Eigen::Vector3d &t_camera_armor, // 相机系下的平移
-                          const Eigen::Matrix3d &R_camera_armor, // 相机系下的旋转
-                          const Eigen::Matrix3d &R_imu_camera) noexcept; //外参矩阵
-  
-   
 
+Eigen::Matrix3d solveBa(const std::vector<BaFrameInput>& frames) noexcept; //newBA11111111111111111111
+   
 // 将旋转矩阵转化为Roll、Yaw、Pitch。
 Eigen::Vector3d rotationMatrixToRPY(const Eigen::Matrix3d& R) {
   Eigen::Vector3d rpy;

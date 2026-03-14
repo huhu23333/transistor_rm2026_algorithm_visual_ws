@@ -111,7 +111,6 @@ double getYawFromRvec(const cv::Mat& rvec) {
     return yaw;
 }
 
-
 std::vector<double> getNormalYawPitchRollFromRvec(const cv::Mat& rvec) {
     std::vector<double> result = {0.0, 0.0, 0.0};
     if (rvec.empty()) return result;
@@ -134,6 +133,8 @@ std::vector<double> getNormalYawPitchRollFromRvec(const cv::Mat& rvec) {
     result = {yaw, pitch, roll};
     return result;
 }
+
+
 
 
 void ArmorSolver::initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node) {
@@ -211,7 +212,7 @@ cv::Point2f ArmorSolver::project3DToPixel(const cv::Point3f& world_point) const 
 }
 
 // 修改solveArmor函数实现
-AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_) const {
+AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_) {
     
     AimResult result;
     result.valid = false;
@@ -265,25 +266,33 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
 
             result.normal_euler_angles = getNormalYawPitchRollFromRvec(rvec);
             RCLCPP_DEBUG(logger_p, "NormalYawPitchRoll: (%.2f, %.2f, %.2f)", 
-                result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
+            result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
              
             //转化为ba需要的参数
             cv::Mat rmat;
             cv::Rodrigues(rvec, rmat);
             Eigen::Matrix3d R = fyt::utils::cvToEigen(rmat);
-
+            Eigen::Vector3d t = fyt::utils::cvToEigen(tvec);
+            // 向结构体里传入参数 并自行保留5帧参数
+            frames.emplace_back(
+                armor_result,
+                t,
+                R,
+                R_imu_camera
+                );
+            if (frames.size() > 5) {
+                frames.erase(frames.begin());
+            }
             // 现打印ba优化之前的参数
-            auto rpy_before = ba_ -> rotationMatrixToRPY(R);
-
-            RCLCPP_DEBUG(logger_p, "\nHUHU YPR PNP: (%.2f, %.2f, %.2f)" , result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
-            RCLCPP_DEBUG(logger_p, "\nYPR PNP: (%.2f, %.2f, %.2f)" , rpy_before[0], rpy_before[1], rpy_before[2]);
+            // auto rpy_before = ba_ -> rotationMatrixToRPY(R);
+            // RCLCPP_DEBUG(logger_p, "\nHUHU YPR PNP: (%.2f, %.2f, %.2f)" , result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2]);
+            // RCLCPP_DEBUG(logger_p, "\nYPR PNP: (%.2f, %.2f, %.2f)" , rpy_before[0], rpy_before[1], rpy_before[2]);
             // RCLCPP_DEBUG(logger_p, "pitch before ba: %.2f" , rpy_before[0]);
             // RCLCPP_DEBUG(logger_p, "yaw before ba: %.2f" , rpy_before[1]);
             // RCLCPP_DEBUG(logger_p, "roll before ba: %.2f" , rpy_before[2]);
 
-            Eigen::Vector3d t = fyt::utils::cvToEigen(tvec);
+            R = ba_-> solveBa(frames); //newBA接口11111111111111111111111111111111111111
 
-            R = ba_-> solveBa(armor_result, t, R, R_imu_camera);
             // 将优化后的旋转矩阵转化为RPY
             auto rpy = ba_ -> rotationMatrixToRPY(R);
 
@@ -295,10 +304,8 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             
             // 填充所有的result
             result.valid = true;
-            //result.yaw = rpy[2]; // <<--- 填充ba优化后的yaw
             result.position = cv::Point3f(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
-            result.rvec = rvec.clone(); // <<--- 填充rvec
-
+            result.rvec = rvec.clone(); 
             result.ba_global_ypr = {rpy[0], rpy[1], rpy[2]};
 
         } else {

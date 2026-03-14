@@ -27,7 +27,6 @@ double getYawFromRvec(const cv::Mat& rvec);
 
 std::vector<double> getNormalYawPitchRollFromRvec(const cv::Mat& rvec);
 
-
 class ArmorSolver {
     
 public:
@@ -36,19 +35,14 @@ public:
         // 初始化相机参数
         initCameraMatrix(config_file_ptr, node);
         initArmorPoints();
-
         delta_x_ = (*config_file_ptr)["delta_x_"].as<float>();
         delta_y_ = (*config_file_ptr)["delta_y_"].as<float>();
         delta_z_ = (*config_file_ptr)["delta_z_"].as<float>();
-
     }
     // 新增3D到像素坐标投影函数
     cv::Point2f project3DToPixel(const cv::Point3f& world_point) const;
 
-    AimResult solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_) const; // 增加number参数
-    
-    
- 
+    AimResult solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_); // 增加number参数
 
 private:
     // 相机参数
@@ -56,6 +50,8 @@ private:
     cv::Mat dist_coeffs;
     // 装甲板3D点(单位：mm)
     std::vector<cv::Point3f> armor_points_3d;
+
+    std::vector<fyt::auto_aim::BaFrameInput> frames;// newBA实际传vector
     
     void initCameraMatrix(std::shared_ptr<YAML::Node> config_file_ptr, rclcpp::Node* node);
     void initArmorPoints();

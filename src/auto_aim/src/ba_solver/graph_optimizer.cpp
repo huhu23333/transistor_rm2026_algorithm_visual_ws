@@ -35,12 +35,6 @@ void EdgeProjection::computeError() {
 
   // Get the observed 2D point
   Eigen::Vector2d obs(_measurement);
-
-//  // Project the 3D point to the 2D point  
-//  Eigen::Vector3d p_2d = R * p_3d + t_;
-//  p_2d = K_ * (p_2d / p_2d.z());
-//  Calculate the error
-//  error = obs - p_2d.head<2>();
    
   // 代替上面的 g2o 内部真正用到的“角点在相机系 3D 坐标” （角点可视化）
   Eigen::Vector3d p_cam = R * p_3d + t_;

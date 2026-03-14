@@ -41,10 +41,18 @@ BaSolver::BaSolver(const std::array<double, 9> &camera_matrix,
   lm_algorithm_->setUserLambdaInit(0.1);
 }
 
-Eigen::Matrix3d
-BaSolver::solveBa(const ArmorResult &armor, const Eigen::Vector3d &t_camera_armor,
-                  const Eigen::Matrix3d &R_camera_armor,
-                  const Eigen::Matrix3d &R_imu_camera) noexcept {
+Eigen::Matrix3d BaSolver::solveBa(const std::vector<BaFrameInput>& frames) noexcept {
+
+  if (frames.empty()) {
+        return Eigen::Matrix3d::Identity();
+    }
+    // 先只取最后一帧，保持当前仍然是“单帧 BA”
+    const auto& frame = frames.back();
+    const ArmorResult& armor = frame.armor;
+    const Eigen::Vector3d& t_camera_armor = frame.t_camera_armor;
+    const Eigen::Matrix3d& R_camera_armor = frame.R_camera_armor;
+    const Eigen::Matrix3d& R_imu_camera = frame.R_imu_camera;
+    
   // Reset optimizer
   optimizer_.clear();
 
