@@ -58,3 +58,11 @@ ret, K, dist_coef, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray
 # 输出内参和畸变系数
 print("内参矩阵 K:\n", K)
 print("畸变系数 dist_coef:\n", dist_coef)
+
+print("以下输出可直接复制入config.yaml")
+
+print(f"""camera_matrix: # 相机内参矩阵
+  - [{K[0][0]:.8e}, {K[0][1]:.8e}, {K[0][2]:.8e}]
+  - [{K[0][0]:.8e}, {K[0][1]:.8e}, {K[0][2]:.8e}]
+  - [{K[0][0]:.8e}, {K[0][1]:.8e}, {K[0][2]:.8e}]
+dist_coeffs: [{dist_coef[0][0]:.8f}, {dist_coef[0][1]:.8f}, {dist_coef[0][2]:.8f}, {dist_coef[0][3]:.8f}, {dist_coef[0][4]:.8f}] # 畸变系数""")
