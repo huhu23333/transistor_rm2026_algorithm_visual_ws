@@ -51,7 +51,11 @@ public:
     armor_solver_(armor_solver_), ballistic_solver_(ballistic_solver_),
     rest_frame_(rest_frame_), fps_counter(fps_counter), armor_class(armor_class) {
         // 初始化参数
+#ifdef FIX_BULLET_VELOCITY
+        bullet_velocity_ = FIX_BULLET_VELOCITY;
+#else
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
+#endif
         
         // yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
         // pitch_rad_to_y_pixel_ratio = (*config_file_ptr)["pitch_rad_to_y_pixel_ratio"].as<float>(); 

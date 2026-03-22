@@ -85,11 +85,16 @@ public:
 
 
         // 初始化参数
-        bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
+        
 #ifdef FIX_ENEMY_COLOR
         enemy_color_ = (FIX_ENEMY_COLOR == 0) ? "RED" : "BLUE";
 #else
         enemy_color_ = (*config_file_ptr)["init_enemy_color"].as<std::string>();
+#endif
+#ifdef FIX_BULLET_VELOCITY
+        bullet_velocity_ = FIX_BULLET_VELOCITY;
+#else
+        bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
 #endif
 
         use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
@@ -346,6 +351,9 @@ private:
         SerialData processed_msg = msg;
 #ifdef FIX_ENEMY_COLOR
         processed_msg.color = FIX_ENEMY_COLOR;
+#endif
+#ifdef FIX_BULLET_VELOCITY
+        processed_msg.bullet_velocity = FIX_BULLET_VELOCITY;
 #endif
 
 
