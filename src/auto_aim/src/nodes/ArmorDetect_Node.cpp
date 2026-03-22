@@ -429,7 +429,8 @@ private:
                      const std::vector<Light>& lights,
                      const std::vector<Armor>& armors,
                      const std::vector<ArmorResult>& classifyResults) {
-        cv::Mat result = image.clone();
+        // cv::Mat result = image.clone();
+        cv::Mat& result = image;
 
         // 0. 绘制平面地面系不动点（DEBUG）
         cv::circle(result, ground_stable_point, 10, cv::Scalar(0, 255, 0), 2);
@@ -536,11 +537,11 @@ private:
                         cv::Scalar(0, 255, 0), 1);
         }
 
-        // 在窗口中显示图像
-#ifdef SHOW_WINDOWS
-        cv::imshow("Armor Detection", result);
-        cv::waitKey(1);  // 确保窗口刷新
-#endif
+//         // 在窗口中显示图像
+// #ifdef SHOW_WINDOWS
+//         cv::imshow("Armor Detection", result);
+//         cv::waitKey(1);  // 确保窗口刷新
+// #endif
     }
 
     void processImage() {
@@ -716,7 +717,22 @@ private:
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
 
             yaw_visualizer_ -> update(last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0), mcu_command_yaw);
-            yaw_visualizer_ -> show();
+            // yaw_visualizer_ -> show();
+            cv::Mat yaw_visualizer_frame = yaw_visualizer_ -> getDisplay();
+
+#ifdef SHOW_WINDOWS
+            if (!predictor_result.info_images.RMM_visualize_frame.empty()) {
+                cv::imshow("RMM visualize", predictor_result.info_images.RMM_visualize_frame);
+            }
+            if (!predictor_result.info_images.common_debug_oscilloscope_frame.empty()) {
+                cv::imshow("Common Debug Oscilloscope", predictor_result.info_images.common_debug_oscilloscope_frame);
+            }
+            if (!yaw_visualizer_frame.empty()) {
+                cv::imshow("Yaw Visualizer", yaw_visualizer_frame);
+            }
+            cv::imshow("Armor Detection", frame);
+            cv::waitKey(1);  // 确保窗口刷新
+#endif
 
             //计算帧率
             fps_counter->tick();

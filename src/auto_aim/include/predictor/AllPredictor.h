@@ -32,6 +32,11 @@ struct PredictorResult {
     float pixel_horizontal_center_distance = 1e10;
     float latest_armor_distance = 1e10;
     bool integrating = false;
+
+    struct {
+        cv::Mat RMM_visualize_frame;
+        cv::Mat common_debug_oscilloscope_frame;
+    } info_images;
 };
 
 struct RMM_fire_result_t {
