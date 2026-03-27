@@ -275,6 +275,8 @@ private:
             now_serial_infos.last_yaw_rad_ = current_yaw_imu_;
             now_serial_infos.total_yaw_rad_ = total_yaw_rad_imu_;
             now_serial_infos.push_time = current_time;
+
+            now_serial_infos.last_bigyaw_rad_ = msg.euler_yaw;
             serial_infos_delay_.push(now_serial_infos);
         }
     }
@@ -370,6 +372,8 @@ private:
             now_serial_infos.last_yaw_rad_ = last_yaw_rad_;
             now_serial_infos.total_yaw_rad_ = total_yaw_rad_;
             now_serial_infos.push_time = current_time;
+
+            now_serial_infos.last_bigyaw_rad_ = delayed_once_yaw_big_;
             serial_infos_delay_.push(now_serial_infos);
         }
 
@@ -520,14 +524,15 @@ private:
         last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
         last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
         total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
+        last_bigyaw_rad_delayed_ = delayed_serial_infos.last_bigyaw_rad_;
 
         ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
 
         rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
         predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
-        two_yaw_sentry_controller -> update_gimbal_infos(current_pitch_, current_yaw_small_, delayed_once_yaw_big_);
-        rest_frame_big_yaw_ -> updateCamOrientation(delayed_once_yaw_big_, 0.0, 0.0);
+        two_yaw_sentry_controller -> update_gimbal_infos(current_pitch_, current_yaw_small_, last_bigyaw_rad_delayed_);
+        rest_frame_big_yaw_ -> updateCamOrientation(last_bigyaw_rad_delayed_, 0.0, 0.0);
 
         RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
 
@@ -736,10 +741,13 @@ private:
     float last_pitch_rad_delayed_ = 0;
     float last_yaw_rad_delayed_ = 0;
     float total_yaw_rad_delayed_ = 0;
+    float last_bigyaw_rad_delayed_ = 0.0;
     struct DelayInfos {
         float last_pitch_rad_;
         float last_yaw_rad_;
         float total_yaw_rad_;
+
+        float last_bigyaw_rad_;
         std::chrono::steady_clock::time_point push_time;
     };
     std::queue<DelayInfos> serial_infos_delay_;
