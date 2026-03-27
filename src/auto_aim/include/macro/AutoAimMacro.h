@@ -9,7 +9,7 @@
 
 // -!-!-!- 下面的宏定义在上场前都要注释掉再编译一遍；上面的视情况而定 -!-!-!-
 
-#define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
+// #define USE_VIDEO // 定义后使用视频而不是摄像头作为输入
 // #define USE_IMAGES // 定义后使用图片而不是摄像头作为输入
 // #define DEBUG_CODE // 定义后将在初始化结束后、装甲板识别代码前运行debug代码
 #define SHOW_WINDOWS // 显示可视化窗口，使用自启动时注释掉
