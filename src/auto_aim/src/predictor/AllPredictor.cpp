@@ -14,6 +14,9 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
     result.enemy_position_x = last_enemy_position_x;
     result.enemy_position_y = last_enemy_position_y;
     
+    result.command_delta_pitch = 0.0;
+    result.command_delta_yaw = 0.0;
+    
     bool ballistic_valid_flag = false;
     float total_delay = last_total_delay_;
     cv::Point3f predicted_armor_pos;
@@ -472,8 +475,10 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
         < pre_predict_time_not_aim) {
 
         result.fire_flag = false;
-        result.reset = true;
+        result.reset = false;
         result.integrating = false;
+        result.command_delta_pitch = 0.0;
+        result.command_delta_yaw = 0.0;
     }
 
     return result;
