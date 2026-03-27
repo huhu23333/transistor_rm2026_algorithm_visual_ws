@@ -487,7 +487,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
         < pre_predict_time_not_aim) {
 
         result.fire_flag = false;
-        result.reset = false;
+        result.reset = true;
         result.integrating = false;
         result.command_delta_pitch = 0.0;
         result.command_delta_yaw = 0.0;

@@ -652,7 +652,10 @@ private:
             }
             serial_communication_->sendData(predictor_result.reset, 
                 controller_result.target_pitch, controller_result.target_yaw_small, mcu_command_bigyaw, 
-                controller_result.fire_flag, big_yaw_frame_enemy_position[0], big_yaw_frame_enemy_position[1]);
+                controller_result.fire_flag, big_yaw_frame_enemy_position[0], big_yaw_frame_enemy_position[1]);            
+            // serial_communication_->sendData(true, 
+            //     last_pitch_rad_delayed_, last_smallyaw_rad_delayed_, last_bigyaw_rad_delayed_ + (bigyawIMUInfos.use_bigyaw_imu ? bigyawIMUInfos.to_mcu_delta_bigyaw : 0.0), 
+            //     false, 0.0, 0.0);
             bigyawIMUInfos.last_mcu_command_bigyaw = mcu_command_bigyaw;
             
             // 显示当前参数状态

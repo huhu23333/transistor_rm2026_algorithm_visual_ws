@@ -69,7 +69,6 @@ TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_targ
 
         if (fabs(result.target_yaw_small) > small_yaw_to_big_boundary) {
             result.target_yaw_big = yaw_target;
-            result.target_yaw_small = 0.0;
         }
 
         if (static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(current_time - last_reset_time).count()) / 1e3 > reset_ceasefire_ms) {

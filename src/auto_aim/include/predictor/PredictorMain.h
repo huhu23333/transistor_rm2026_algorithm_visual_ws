@@ -76,5 +76,5 @@ private:
     float command_yaw_integration_speed;
     float command_yaw_integration_max_speed_degree;
 
-    float yaw_bias = -12.5 * M_PI / 180.0;
+    float yaw_bias = 0.0 * M_PI / 180.0;
 };
