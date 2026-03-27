@@ -41,6 +41,8 @@ public:
     void update(float current_yaw, float target_yaw);
 
     void show();
+    
+    cv::Mat getDisplay();
 };
 
 

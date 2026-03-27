@@ -39,6 +39,7 @@
 #include "visualizer/YawVisualizer.h"
 #include "controller/TwoYawSentryController.h"
 #include "controller/RebirthTargetFilter.h"
+#include "communication/HeadIMU.h"
 
 namespace fs = std::filesystem;
 
@@ -86,11 +87,16 @@ public:
 
 
         // 初始化参数
-        bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
+        
 #ifdef FIX_ENEMY_COLOR
         enemy_color_ = (FIX_ENEMY_COLOR == 0) ? "RED" : "BLUE";
 #else
         enemy_color_ = (*config_file_ptr)["init_enemy_color"].as<std::string>();
+#endif
+#ifdef FIX_BULLET_VELOCITY
+        bullet_velocity_ = FIX_BULLET_VELOCITY;
+#else
+        bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
 #endif
 
         use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
@@ -183,6 +189,9 @@ public:
         com_timer_thread_ = std::thread(std::bind(&SerialCommunicationClass::timerThread, serial_communication_));
         // com_timer_thread_.detach();
 
+        bigyawIMUInfos.bigyawIMU_communication_ = std::make_shared<HeadIMUSerialCommunicationClass>(std::bind(&ArmorDetectNode::bigyawIMUSerialDataCallback, this, std::placeholders::_1));
+        bigyawIMUInfos.bigyawIMU_timer_thread_ = std::thread(std::bind(&HeadIMUSerialCommunicationClass::timerThread, bigyawIMUInfos.bigyawIMU_communication_));
+
         // 串口通信下位机初始化
         //serial_communication_->sendData(true, 0.0, 0.0, false);
 
@@ -230,12 +239,55 @@ private:
         }).detach();
     }
 
+    void bigyawIMUSerialDataCallback(const HeadIMUSerialData& msg) {
+
+
+        float current_yaw_imu_;
+        static float last_current_yaw_rad_imu_ = 0.0f;
+        static int current_yaw_circle_imu_ = 0;
+        float total_yaw_rad_imu_;
+
+
+        current_yaw_imu_ = msg.euler_yaw + bigyawIMUInfos.mcu_smallyaw;
+
+
+        bigyawIMUInfos.bigyaw_imu_yaw = msg.euler_yaw;
+
+        while (current_yaw_imu_ < -M_PI) {
+            current_yaw_imu_ += 2 * M_PI;
+        }
+        while (current_yaw_imu_ > M_PI) {
+            current_yaw_imu_ -= 2 * M_PI;
+        }
+        
+        if (current_yaw_imu_ < -M_PI/2 && last_current_yaw_rad_imu_ > M_PI/2) {
+            current_yaw_circle_imu_ += 1;
+        } else if (current_yaw_imu_ > M_PI/2 && last_current_yaw_rad_imu_ < -M_PI/2) {
+            current_yaw_circle_imu_ -= 1;
+        }
+
+        total_yaw_rad_imu_ = current_yaw_circle_imu_ * 2 * M_PI + current_yaw_imu_;
+
+        if (bigyawIMUInfos.use_bigyaw_imu) {
+            std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+            DelayInfos now_serial_infos;
+            now_serial_infos.last_pitch_rad_ = bigyawIMUInfos.mcu_pitch;
+            now_serial_infos.last_yaw_rad_ = current_yaw_imu_;
+            now_serial_infos.total_yaw_rad_ = total_yaw_rad_imu_;
+            now_serial_infos.push_time = current_time;
+            serial_infos_delay_.push(now_serial_infos);
+        }
+    }
+
     void serialDataCallback(const SerialData& msg) {
 
 
         SerialData processed_msg = msg;
 #ifdef FIX_ENEMY_COLOR
         processed_msg.color = FIX_ENEMY_COLOR;
+#endif
+#ifdef FIX_BULLET_VELOCITY
+        processed_msg.bullet_velocity = FIX_BULLET_VELOCITY;
 #endif
         // FUCK!!!
         processed_msg.all_car_rebirth_infos = {0xFF, 0xFF, 0xFF, 0xFF};
@@ -263,6 +315,25 @@ private:
         delayed_once_yaw_big_ = big_yaw_delay_.front().last_big_yaw_rad_;
 
         current_yaw_ = current_yaw_small_ + delayed_once_yaw_big_;
+
+
+
+
+
+        bigyawIMUInfos.mcu_bigyaw = delayed_once_yaw_big_;
+        if (bigyawIMUInfos.last_mcu_bigyaw != bigyawIMUInfos.mcu_bigyaw) {
+            bigyawIMUInfos.latest_bigyaw_imu_yaw_when_mcu_bigyaw_update = bigyawIMUInfos.bigyaw_imu_yaw;
+            bigyawIMUInfos.last_mcu_bigyaw = delayed_once_yaw_big_;
+            bigyawIMUInfos.last_mcu_bigyaw_update_time = std::chrono::steady_clock::now();
+            bigyawIMUInfos.mcu_bigyaw_online = true;
+            bigyawIMUInfos.latest_mcu_command_bigyaw_when_mcu_bigyaw_update = bigyawIMUInfos.last_mcu_command_bigyaw;
+            bigyawIMUInfos.to_mcu_delta_bigyaw = bigyawIMUInfos.mcu_bigyaw - bigyawIMUInfos.latest_bigyaw_imu_yaw_when_mcu_bigyaw_update;
+        }
+        bigyawIMUInfos.mcu_smallyaw = current_yaw_small_;
+        bigyawIMUInfos.mcu_pitch = current_pitch_;
+
+
+
 
         enemy_color_ = (processed_msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
@@ -293,30 +364,14 @@ private:
             yaw_circle_, total_yaw_rad_);
 
 
-        DelayInfos now_serial_infos;
-        now_serial_infos.last_pitch_rad_ = last_pitch_rad_;
-        now_serial_infos.last_yaw_rad_ = last_yaw_rad_;
-        now_serial_infos.total_yaw_rad_ = total_yaw_rad_;
-        now_serial_infos.push_time = current_time;
-        serial_infos_delay_.push(now_serial_infos);
-        while (serial_infos_delay_.size() > 1 && 
-               std::chrono::duration_cast<std::chrono::milliseconds>(current_time - serial_infos_delay_.front().push_time).count() > serial_delay_time + extra_info_delay_time_ms) {
-            serial_infos_delay_.pop();
+        if (!bigyawIMUInfos.use_bigyaw_imu) {
+            DelayInfos now_serial_infos;
+            now_serial_infos.last_pitch_rad_ = last_pitch_rad_;
+            now_serial_infos.last_yaw_rad_ = last_yaw_rad_;
+            now_serial_infos.total_yaw_rad_ = total_yaw_rad_;
+            now_serial_infos.push_time = current_time;
+            serial_infos_delay_.push(now_serial_infos);
         }
-        DelayInfos delayed_serial_infos = serial_infos_delay_.front();
-        last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
-        last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
-        total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
-
-        ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
-
-        rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
-        rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
-        predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
-        two_yaw_sentry_controller -> update_gimbal_infos(current_pitch_, current_yaw_small_, delayed_once_yaw_big_);
-        rest_frame_big_yaw_ -> updateCamOrientation(delayed_once_yaw_big_, 0.0, 0.0);
-
-        RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
 
     }
 
@@ -324,7 +379,8 @@ private:
                      const std::vector<Light>& lights,
                      const std::vector<Armor>& armors,
                      const std::vector<ArmorResult>& classifyResults) {
-        cv::Mat result = image.clone();
+        // cv::Mat result = image.clone();
+        cv::Mat& result = image;
 
         // 0. 绘制平面地面系不动点（DEBUG）
         cv::circle(result, ground_stable_point, 10, cv::Scalar(0, 255, 0), 2);
@@ -431,14 +487,54 @@ private:
                         cv::Scalar(0, 255, 0), 1);
         }
 
-        // 在窗口中显示图像
-#ifdef SHOW_WINDOWS
-        cv::imshow("Armor Detection", result);
-        cv::waitKey(1);  // 确保窗口刷新
-#endif
+//         // 在窗口中显示图像
+// #ifdef SHOW_WINDOWS
+//         cv::imshow("Armor Detection", result);
+//         cv::waitKey(1);  // 确保窗口刷新
+// #endif
     }
 
-    void processImage() {
+    void processImage() {        
+        
+        
+        
+
+
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - bigyawIMUInfos.last_mcu_bigyaw_update_time).count() > 3000
+        ) {
+            if (fabs(bigyawIMUInfos.last_mcu_command_bigyaw - bigyawIMUInfos.latest_mcu_command_bigyaw_when_mcu_bigyaw_update)
+                > 5.0 * M_PI / 180.0
+            ) {
+                bigyawIMUInfos.mcu_bigyaw_online = false;
+            }
+        }
+
+
+
+        while (serial_infos_delay_.size() > 1 && 
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - serial_infos_delay_.front().push_time).count() > serial_delay_time + extra_info_delay_time_ms) {
+            serial_infos_delay_.pop();
+        }
+        DelayInfos delayed_serial_infos = serial_infos_delay_.front();
+        last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
+        last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
+        total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
+
+        ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
+
+        rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
+        rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
+        predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
+        two_yaw_sentry_controller -> update_gimbal_infos(current_pitch_, current_yaw_small_, delayed_once_yaw_big_);
+        rest_frame_big_yaw_ -> updateCamOrientation(delayed_once_yaw_big_, 0.0, 0.0);
+
+        RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
+
+
+
+
+
         
         cv::Mat frame;
 #if defined(USE_VIDEO) || defined(USE_IMAGES) || defined(SYNC_CAMERA_FPS)
@@ -542,9 +638,14 @@ private:
                 cv::Scalar(0, 255, 0), 1, 8, false);
             TwoYawGimbalControll_t controller_result = two_yaw_sentry_controller -> step(predictor_result.reset, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             std::vector<float> big_yaw_frame_enemy_position = rest_frame_big_yaw_ -> getCamPositionFromWorld(predictor_result.enemy_position_x, predictor_result.enemy_position_y, 0.0);
+            float mcu_command_bigyaw = controller_result.target_yaw_big;
+            if (bigyawIMUInfos.use_bigyaw_imu) {
+                mcu_command_bigyaw = controller_result.target_yaw_big + bigyawIMUInfos.to_mcu_delta_bigyaw;
+            }
             serial_communication_->sendData(predictor_result.reset, 
-                controller_result.target_pitch, controller_result.target_yaw_small, controller_result.target_yaw_big, 
+                controller_result.target_pitch, controller_result.target_yaw_small, mcu_command_bigyaw, 
                 controller_result.fire_flag, big_yaw_frame_enemy_position[0], big_yaw_frame_enemy_position[1]);
+            bigyawIMUInfos.last_mcu_command_bigyaw = mcu_command_bigyaw;
             
             // 显示当前参数状态
             cv::putText(frame, 
@@ -564,8 +665,23 @@ private:
 
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
 
-            yaw_visualizer_ -> update(last_yaw_rad_delayed_, predictor_result.command_yaw);
-            yaw_visualizer_ -> show();
+            yaw_visualizer_ -> update(last_yaw_rad_delayed_ + (bigyawIMUInfos.use_bigyaw_imu ? bigyawIMUInfos.to_mcu_delta_bigyaw : 0.0), mcu_command_bigyaw);
+            // yaw_visualizer_ -> show();
+            cv::Mat yaw_visualizer_frame = yaw_visualizer_ -> getDisplay();
+
+#ifdef SHOW_WINDOWS
+            if (!predictor_result.info_images.RMM_visualize_frame.empty()) {
+                cv::imshow("RMM visualize", predictor_result.info_images.RMM_visualize_frame);
+            }
+            if (!predictor_result.info_images.common_debug_oscilloscope_frame.empty()) {
+                cv::imshow("Common Debug Oscilloscope", predictor_result.info_images.common_debug_oscilloscope_frame);
+            }
+            if (!yaw_visualizer_frame.empty()) {
+                cv::imshow("Yaw Visualizer", yaw_visualizer_frame);
+            }
+            cv::imshow("Armor Detection", frame);
+            cv::waitKey(1);  // 确保窗口刷新
+#endif
 
             //计算帧率
             fps_counter->tick();
@@ -605,6 +721,7 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> node_start_time;
     
     float bullet_velocity_;
+
     float current_pitch_ = 0.0;
     float current_yaw_ = 0.0;
 
@@ -665,6 +782,28 @@ private:
 
     std::shared_ptr<WatchdogClient> watchdog_client;
     std::chrono::steady_clock::time_point last_feed_dog_time;
+
+    struct {
+        std::shared_ptr<HeadIMUSerialCommunicationClass> bigyawIMU_communication_;
+        std::thread bigyawIMU_timer_thread_;
+
+        bool use_bigyaw_imu = true;
+
+        float bigyaw_imu_yaw;
+
+        float mcu_bigyaw;
+        float mcu_smallyaw;
+        float mcu_pitch;
+        
+        float last_mcu_bigyaw;
+        float latest_bigyaw_imu_yaw_when_mcu_bigyaw_update;
+        std::chrono::steady_clock::time_point last_mcu_bigyaw_update_time;
+        bool mcu_bigyaw_online = true;
+        float last_mcu_command_bigyaw;
+        float latest_mcu_command_bigyaw_when_mcu_bigyaw_update;
+
+        float to_mcu_delta_bigyaw;
+    } bigyawIMUInfos;
 
     std::shared_ptr<YawVisualizer> yaw_visualizer_;
 

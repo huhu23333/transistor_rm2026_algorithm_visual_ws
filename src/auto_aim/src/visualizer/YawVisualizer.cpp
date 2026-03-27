@@ -110,3 +110,7 @@ void YawVisualizer::show() {
     cv::waitKey(1);
 #endif
 }
+
+cv::Mat YawVisualizer::getDisplay() {
+    return display;
+}
