@@ -678,11 +678,6 @@ private:
             PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, 
                                                                        PredictorType::AutoSwitch, ArmorType::Middle, 
                                                                        auto_aim_switch, headIMUInfos.mcu_yaw_online); // Todo
-            cv::putText(frame, 
-                "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
-                cv::Point2f(0, 100), 
-                cv::FONT_HERSHEY_COMPLEX, 0.7, 
-                cv::Scalar(0, 255, 0), 1, 8, false);
             float mcu_command_pitch = predictor_result.command_pitch;
             float mcu_command_yaw = predictor_result.command_yaw;
             if (headIMUInfos.use_head_imu) {
@@ -702,13 +697,17 @@ private:
             cv::putText(frame, 
                 cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
                     bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_),
-                cv::Point(10, 60),
-                cv::FONT_HERSHEY_SIMPLEX, 0.7,
-                cv::Scalar(0, 255, 0), 1);
-            
+                cv::Point(20, 50),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
             cv::putText(frame, 
                 "enemy_color: " + enemy_color_, 
-                cv::Point2f(20,840), 
+                cv::Point2f(20,80), 
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(frame, 
+                "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
+                cv::Point2f(20, 110), 
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
 
@@ -719,6 +718,31 @@ private:
             yaw_visualizer_ -> update(last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0), mcu_command_yaw);
             // yaw_visualizer_ -> show();
             cv::Mat yaw_visualizer_frame = yaw_visualizer_ -> getDisplay();
+
+            //计算帧率
+            fps_counter->tick();
+
+            cv::putText(frame, 
+                cv::format("frame rate: %.1f fps", fps_counter->fps()), 
+                cv::Point(20, 140),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(frame, 
+                cv::format("since start: %.4f s", static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - node_start_time).count()) / 1000.0f), 
+                cv::Point(20, 170),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            auto system_clock_now = std::chrono::system_clock::now();
+            std::time_t system_clock_now_t = std::chrono::system_clock::to_time_t(system_clock_now);
+            std::tm* system_clock_now_tm = std::localtime(&system_clock_now_t);
+            char system_clock_now_str_buffer[80];
+            std::strftime(system_clock_now_str_buffer, sizeof(system_clock_now_str_buffer), "%Y-%m-%d %H:%M:%S", system_clock_now_tm);
+            cv::putText(frame, 
+                cv::format("system_clock: %s", system_clock_now_str_buffer), 
+                cv::Point(20, 200),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+
 
 #ifdef SHOW_WINDOWS
             if (!predictor_result.info_images.RMM_visualize_frame.empty()) {
@@ -734,8 +758,6 @@ private:
             cv::waitKey(1);  // 确保窗口刷新
 #endif
 
-            //计算帧率
-            fps_counter->tick();
 
             if (std::chrono::steady_clock::now() - last_feed_dog_time >= std::chrono::seconds(3)) {
                 watchdog_client -> feed();
