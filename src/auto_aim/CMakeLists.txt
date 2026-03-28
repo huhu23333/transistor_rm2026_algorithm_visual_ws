@@ -91,6 +91,8 @@ add_library(armor_detector SHARED
     src/ba_solver/ba_solver.cpp
     src/ba_solver/graph_optimizer.cpp
     src/ba_solver/utils.cpp
+    src/logger/TwoVideoLogger.cpp
+    src/logger/MkvWriter.cpp
 )
 #add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp
