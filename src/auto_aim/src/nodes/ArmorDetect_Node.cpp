@@ -684,7 +684,10 @@ private:
             headIMUInfos.last_mcu_command_yaw = mcu_command_yaw;
             if (predictor_result.reset) {
                 // RCLCPP_DEBUG(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
-                serial_communication_->sendData(0.0, 0.0, false);
+                // serial_communication_->sendData(0.0, 0.0, false);
+                serial_communication_->sendData(last_pitch_rad_delayed_, 
+                    last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0), 
+                    false);
             } else {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(mcu_command_pitch, mcu_command_yaw, predictor_result.fire_flag);
