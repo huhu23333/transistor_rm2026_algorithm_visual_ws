@@ -296,6 +296,8 @@ private:
         processed_msg.all_car_rebirth_infos = {0xFF, 0xFF, 0xFF, 0xFF};
         
 
+        
+
         rebirth_target_filter -> updateInfos(processed_msg.color, processed_msg.all_car_rebirth_infos);
 
 
