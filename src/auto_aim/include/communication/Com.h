@@ -30,8 +30,18 @@
 #include <libudev.h>
 #include <thread>
 
+struct MCUDataFrame {
+    float bullet_velocity;
+    float bullet_angle;
+    int16_t gimbal_yaw;
+    uint16_t mark;
+    uint8_t color;
+    int16_t z_rotation_velocity;
+    uint8_t auto_aim_switch;
+};
 
 struct SerialData {
+    MCUDataFrame origin_data_frame;
     float bullet_velocity;  // 子弹速度
     float bullet_angle;    // 子弹角度
     int16_t gimbal_yaw;       // 云台当前偏航角
@@ -49,15 +59,6 @@ public:
     void timerThread();
     
 private:
-    struct DataFrame {
-        float bullet_velocity;
-        float bullet_angle;
-        int16_t gimbal_yaw;
-        uint16_t mark;
-        uint8_t color;
-        int16_t z_rotation_velocity;
-        uint8_t auto_aim_switch;
-    };
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;
     static constexpr uint8_t FRAME_HEADER2 = 0x52;

@@ -38,6 +38,7 @@
 #include "visualizer/RestFrameDraw.h"
 #include "communication/HeadIMU.h"
 #include "visualizer/YawVisualizer.h"
+#include "logger/TwoVideoLogger.h"
 
 namespace fs = std::filesystem;
 
@@ -85,11 +86,16 @@ public:
 
 
         // 初始化参数
-        bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
+        
 #ifdef FIX_ENEMY_COLOR
         enemy_color_ = (FIX_ENEMY_COLOR == 0) ? "RED" : "BLUE";
 #else
         enemy_color_ = (*config_file_ptr)["init_enemy_color"].as<std::string>();
+#endif
+#ifdef FIX_BULLET_VELOCITY
+        bullet_velocity_ = FIX_BULLET_VELOCITY;
+#else
+        bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
 #endif
 
         use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
@@ -167,6 +173,9 @@ public:
         }
 
         yaw_visualizer_ = std::make_shared<YawVisualizer>();
+
+        com_data_visualize_frame = cv::Mat::zeros(480, 640, CV_8UC3);
+        two_video_logger = std::make_shared<TwoVideoLogger>(ws_dir_path / "VideoLog");
 
         DelayInfos init_serial_infos;
         init_serial_infos.last_pitch_rad_ = 0.0;
@@ -271,17 +280,25 @@ private:
     }
 
     void recalibrateHeadIMU() {
+        float start_yaw = last_yaw_rad_imu_ + headIMUInfos.to_mcu_delta_yaw;
+        float start_pitch = last_pitch_rad_delayed_;
+
         if (predictor_main_) {
             predictor_main_ -> reset_yaw_integration();
         }
 
-        float reset_command_yaw = last_yaw_rad_delayed_;
-        for (int i = 0; i < 60; i++) {
-            serial_communication_ -> sendData(0.0, reset_command_yaw, false);
+        for (int i = 0; i < 20; i++) {
+            serial_communication_ -> sendData(0.0, start_yaw, false);
             usleep(30*1000);
         }
 
-        headIMUInfos.to_mcu_delta_yaw = reset_command_yaw - last_yaw_rad_imu_;
+        float new_yaw = last_yaw_rad_imu_;
+
+        float delta_yaw = new_yaw - start_yaw;
+
+        headIMUInfos.to_mcu_delta_yaw = -delta_yaw;
+
+        serial_communication_ -> sendData(start_pitch, start_yaw + headIMUInfos.to_mcu_delta_yaw, false);
     }
 
     void headIMUSerialDataCallback(const HeadIMUSerialData& msg) {
@@ -333,11 +350,54 @@ private:
     }
 
     void serialDataCallback(const SerialData& msg) {
+        if (com_data_visualize_frame_used) {
+            const MCUDataFrame& odf = msg.origin_data_frame;
+            com_data_visualize_frame.setTo(cv::Scalar(0, 0, 0));
+            cv::putText(com_data_visualize_frame, 
+                cv::format("bullet_velocity: %.6f", odf.bullet_velocity), 
+                cv::Point(20, 20),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("bullet_angle: %.6f", odf.bullet_angle), 
+                cv::Point(20, 50),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("gimbal_yaw: %d", odf.gimbal_yaw), 
+                cv::Point(20, 80),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("mark: %u", odf.mark), 
+                cv::Point(20, 110),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("color: %u", odf.color), 
+                cv::Point(20, 140),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("z_rotation_velocity: %d", odf.z_rotation_velocity), 
+                cv::Point(20, 170),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("auto_aim_switch: %u", odf.auto_aim_switch), 
+                cv::Point(20, 200),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            com_data_visualize_frame_used = false;
+        }
 
         
         SerialData processed_msg = msg;
 #ifdef FIX_ENEMY_COLOR
         processed_msg.color = FIX_ENEMY_COLOR;
+#endif
+#ifdef FIX_BULLET_VELOCITY
+        processed_msg.bullet_velocity = FIX_BULLET_VELOCITY;
 #endif
 
 
@@ -419,7 +479,8 @@ private:
                      const std::vector<Light>& lights,
                      const std::vector<Armor>& armors,
                      const std::vector<ArmorResult>& classifyResults) {
-        cv::Mat result = image.clone();
+        // cv::Mat result = image.clone();
+        cv::Mat& result = image;
 
         // 0. 绘制平面地面系不动点（DEBUG）
         cv::circle(result, ground_stable_point, 10, cv::Scalar(0, 255, 0), 2);
@@ -526,11 +587,11 @@ private:
                         cv::Scalar(0, 255, 0), 1);
         }
 
-        // 在窗口中显示图像
-#ifdef SHOW_WINDOWS
-        cv::imshow("Armor Detection", result);
-        cv::waitKey(1);  // 确保窗口刷新
-#endif
+//         // 在窗口中显示图像
+// #ifdef SHOW_WINDOWS
+//         cv::imshow("Armor Detection", result);
+//         cv::waitKey(1);  // 确保窗口刷新
+// #endif
     }
 
     void processImage() {
@@ -594,6 +655,9 @@ private:
                 cv::imwrite(filename.str(), frame);
             }
 #endif
+
+            two_video_logger -> updateOriginFrame(frame);
+
             //cv::resize(frame, frame, cv::Size(768, 512), 0, 0, cv::INTER_LINEAR);
 
             //cv::flip(frame, frame, -1);  // 翻转图像（上下翻转）
@@ -667,11 +731,6 @@ private:
             PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, 
                                                                        PredictorType::AutoSwitch, ArmorType::Middle, 
                                                                        auto_aim_switch, headIMUInfos.mcu_yaw_online); // Todo
-            cv::putText(frame, 
-                "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
-                cv::Point2f(0, 100), 
-                cv::FONT_HERSHEY_COMPLEX, 0.7, 
-                cv::Scalar(0, 255, 0), 1, 8, false);
             float mcu_command_pitch = predictor_result.command_pitch;
             float mcu_command_yaw = predictor_result.command_yaw;
             if (headIMUInfos.use_head_imu) {
@@ -692,13 +751,17 @@ private:
             cv::putText(frame, 
                 cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
                     bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_),
-                cv::Point(10, 60),
-                cv::FONT_HERSHEY_SIMPLEX, 0.7,
-                cv::Scalar(0, 255, 0), 1);
-            
+                cv::Point(20, 50),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
             cv::putText(frame, 
                 "enemy_color: " + enemy_color_, 
-                cv::Point2f(20,840), 
+                cv::Point2f(20,80), 
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(frame, 
+                "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
+                cv::Point2f(20, 110), 
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
 
@@ -707,10 +770,55 @@ private:
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
 
             yaw_visualizer_ -> update(last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0), mcu_command_yaw);
-            yaw_visualizer_ -> show();
+            // yaw_visualizer_ -> show();
+            cv::Mat yaw_visualizer_frame = yaw_visualizer_ -> getDisplay();
 
             //计算帧率
             fps_counter->tick();
+
+            cv::putText(frame, 
+                cv::format("frame rate: %.1f fps", fps_counter->fps()), 
+                cv::Point(20, 140),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(frame, 
+                cv::format("since start: %.4f s", static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - node_start_time).count()) / 1000.0f), 
+                cv::Point(20, 170),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            auto system_clock_now = std::chrono::system_clock::now();
+            std::time_t system_clock_now_t = std::chrono::system_clock::to_time_t(system_clock_now);
+            std::tm* system_clock_now_tm = std::localtime(&system_clock_now_t);
+            char system_clock_now_str_buffer[80];
+            std::strftime(system_clock_now_str_buffer, sizeof(system_clock_now_str_buffer), "%Y-%m-%d %H:%M:%S", system_clock_now_tm);
+            cv::putText(frame, 
+                cv::format("system_clock: %s", system_clock_now_str_buffer), 
+                cv::Point(20, 200),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+
+            two_video_logger -> updateDrewFrame(frame);
+            two_video_logger -> updateRMMFrame(predictor_result.info_images.RMM_visualize_frame);
+            two_video_logger -> updateCDOFrame(predictor_result.info_images.common_debug_oscilloscope_frame);
+            two_video_logger -> updateYawFrame(yaw_visualizer_frame);
+            two_video_logger -> updateComFrame(com_data_visualize_frame);
+            com_data_visualize_frame_used = true;
+            two_video_logger -> writeTwoFrame();
+                
+#ifdef SHOW_WINDOWS
+            if (!predictor_result.info_images.RMM_visualize_frame.empty()) {
+                cv::imshow("RMM visualize", predictor_result.info_images.RMM_visualize_frame);
+            }
+            if (!predictor_result.info_images.common_debug_oscilloscope_frame.empty()) {
+                cv::imshow("Common Debug Oscilloscope", predictor_result.info_images.common_debug_oscilloscope_frame);
+            }
+            if (!yaw_visualizer_frame.empty()) {
+                cv::imshow("Yaw Visualizer", yaw_visualizer_frame);
+            }
+            cv::imshow("Armor Detection", frame);
+            cv::waitKey(1);  // 确保窗口刷新
+#endif
+
 
             if (std::chrono::steady_clock::now() - last_feed_dog_time >= std::chrono::seconds(3)) {
                 watchdog_client -> feed();
@@ -831,6 +939,10 @@ private:
     } headIMUInfos;
 
     std::shared_ptr<YawVisualizer> yaw_visualizer_;
+
+    std::shared_ptr<TwoVideoLogger> two_video_logger;
+    cv::Mat com_data_visualize_frame;
+    bool com_data_visualize_frame_used = true;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

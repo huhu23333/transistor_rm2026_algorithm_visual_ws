@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <deque>
 #include <algorithm>
 #include <numeric>
 #include "macro/AutoAimMacro.h"
@@ -33,6 +34,12 @@ private:
 
     bool raise_direction = true;
 
+    void adjustScaleOffset();
+
+
+    std::deque<float> total_current_yaw_history_for_adjust_scale_offset;
+    std::deque<float> total_target_yaw_history_for_adjust_scale_offset;
+
 public:
     // 构造函数
     YawVisualizer();
@@ -41,6 +48,8 @@ public:
     void update(float current_yaw, float target_yaw);
 
     void show();
+    
+    cv::Mat getDisplay();
 };
 
 
