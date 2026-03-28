@@ -355,8 +355,8 @@ private:
 
         auto_aim_switch = processed_msg.auto_aim_switch;
         bullet_velocity_ = processed_msg.bullet_velocity;
-        current_pitch_ = ((float)(processed_msg.bullet_angle)) * 30 / 1.8 * M_PI / 180 * 1.18 + 0.25; // 测定pitch轴传入数据1.8大约对应30°
-        current_yaw_ = - ((float)(processed_msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
+        current_pitch_ = (((float)(processed_msg.bullet_angle)) - 4.4) / (10.1 - 4.0) * 26.0 * M_PI / 180.0;
+        current_yaw_ = ((float)(processed_msg.gimbal_yaw)) * M_PI / 32768.0;  // 一圈对应[-32768, 32767]
 
 
         headIMUInfos.mcu_yaw = current_yaw_;
@@ -372,12 +372,7 @@ private:
         headIMUInfos.to_mcu_delta_pitch = headIMUInfos.mcu_pitch - headIMUInfos.head_imu_pitch;
 
 
-        while (current_yaw_ < -M_PI) {
-            current_yaw_ += 2 * M_PI;
-        }
-        while (current_yaw_ > M_PI) {
-            current_yaw_ -= 2 * M_PI;
-        }
+        current_yaw_ = std::atan2(std::sin(current_yaw_), std::cos(current_yaw_));
         enemy_color_ = (processed_msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -689,6 +684,7 @@ private:
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(mcu_command_pitch, mcu_command_yaw, predictor_result.fire_flag);
             }
+            // serial_communication_->sendData(last_pitch_rad_delayed_, last_yaw_rad_delayed_, false);
             
             // 显示当前参数状态
             cv::putText(frame, 
@@ -810,7 +806,7 @@ private:
         std::shared_ptr<HeadIMUSerialCommunicationClass> headIMU_communication_;
         std::thread headIMU_timer_thread_;
 
-        bool use_head_imu = true;
+        bool use_head_imu = false;
 
         float head_imu_yaw;
         float head_imu_pitch;
