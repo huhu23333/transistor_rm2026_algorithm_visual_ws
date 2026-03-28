@@ -40,6 +40,7 @@
 #include "controller/TwoYawSentryController.h"
 #include "controller/RebirthTargetFilter.h"
 #include "communication/HeadIMU.h"
+#include "logger/TwoVideoLogger.h"
 
 namespace fs = std::filesystem;
 
@@ -183,6 +184,16 @@ public:
         two_yaw_sentry_controller = std::make_shared<TwoYawSentryController>(config_file_ptr);
         rebirth_target_filter = std::make_shared<RebirthTargetFilter>();
 
+        com_data_visualize_frame = cv::Mat::zeros(480, 640, CV_8UC3);
+        two_video_logger = std::make_shared<TwoVideoLogger>(ws_dir_path / "VideoLog");
+
+        DelayInfos init_serial_infos;
+        init_serial_infos.last_pitch_rad_ = 0.0;
+        init_serial_infos.last_yaw_rad_ = 0.0;
+        init_serial_infos.total_yaw_rad_ = 0.0;
+        init_serial_infos.push_time = node_start_time;
+        serial_infos_delay_.push(init_serial_infos);
+
         // 初始化串口通信器
         serial_communication_ = std::make_shared<SerialCommunicationClass>(this, std::bind(&ArmorDetectNode::serialDataCallback, this, std::placeholders::_1));
 
@@ -234,7 +245,29 @@ private:
         // while (true) {
         // }
         std::thread([&]() {
+            double debug_time_count = 0.0;
             while (true) {
+                auto start = std::chrono::steady_clock::now();
+
+                SerialData fakeSerialData;
+                fakeSerialData.bullet_velocity = 25.0;  // 子弹速度
+                fakeSerialData.gimbal_pitch = std::sin(debug_time_count * 0.5 * (2*M_PI)) * 1.8 / 30 * 15;    // 子弹角度
+                fakeSerialData.gimbal_yaw_big =  
+                    // static_cast<int16_t>(60.0 * 4095.0 / 180.0);
+                    // static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 2 * M_PI), std::cos(debug_time_count * 2 * M_PI)) * 4095.0 / M_PI / 12); 
+                    // static_cast<int16_t>(static_cast<float>((std::atan2(std::sin(debug_time_count * 1.0), std::cos(debug_time_count * 1.0)) > 0) - 0.5) * 4095); 
+                    static_cast<int16_t>(std::atan2(std::sin(debug_time_count * 0.3), std::cos(debug_time_count * 0.3)) * 4095.0 / M_PI);
+                    // static_cast<int16_t>(std::cos(debug_time_count * 0.5 * (2*M_PI)) * 4095 / 180 * 15);       // 云台当前偏航角
+                fakeSerialData.color = 1;            // 敌方颜色(0:红色, 1:蓝色)
+
+                fakeSerialData.origin_data_frame.all_car_rebirth_infos[0] = 0xFF;
+                fakeSerialData.origin_data_frame.all_car_rebirth_infos[1] = 0x77;
+                fakeSerialData.origin_data_frame.all_car_rebirth_infos[2] = 0x12;
+                fakeSerialData.origin_data_frame.all_car_rebirth_infos[3] = 0x01;
+                serialDataCallback(fakeSerialData);
+
+                std::this_thread::sleep_until(start + std::chrono::microseconds(10000));  // 大约10ms周期
+                debug_time_count += 0.01;
             }
         }).detach();
     }
@@ -283,6 +316,61 @@ private:
     }
 
     void serialDataCallback(const SerialData& msg) {
+        if (com_data_visualize_frame_used) {
+            const MCUDataFrame& odf = msg.origin_data_frame;
+            com_data_visualize_frame.setTo(cv::Scalar(0, 0, 0));
+            cv::putText(com_data_visualize_frame, 
+                cv::format("bullet_velocity: %.6f", odf.bullet_velocity), 
+                cv::Point(20, 20),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("gimbal_pitch: %u", odf.gimbal_pitch), 
+                cv::Point(20, 50),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("gimbal_yaw_small: %u", odf.gimbal_yaw_small), 
+                cv::Point(20, 80),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("mark: %u", odf.mark), 
+                cv::Point(20, 110),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("color: %u", odf.color), 
+                cv::Point(20, 140),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("z_rotation_velocity: %d", odf.z_rotation_velocity), 
+                cv::Point(20, 170),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("chassis_mode: %u", odf.chassis_mode), 
+                cv::Point(20, 200),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("lack_blood_son_mode: %u", odf.lack_blood_son_mode), 
+                cv::Point(20, 230),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("gimbal_yaw_big: %d", odf.gimbal_yaw_big), 
+                cv::Point(20, 260),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("all_car_rebirth_infos: %08X", *((uint32_t*)(odf.all_car_rebirth_infos))),
+                cv::Point(20, 290),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            com_data_visualize_frame_used = false;
+        }
 
 
         SerialData processed_msg = msg;
@@ -574,6 +662,9 @@ private:
                 cv::imwrite(filename.str(), frame);
             }
 #endif
+
+            two_video_logger -> updateOriginFrame(frame);
+
             //cv::resize(frame, frame, cv::Size(768, 512), 0, 0, cv::INTER_LINEAR);
 
             //cv::flip(frame, frame, -1);  // 翻转图像（上下翻转）
@@ -641,11 +732,6 @@ private:
             bool mcu_yaw_online = true;
             std::vector<bool> valid_target_mask = rebirth_target_filter -> getValidTargetMask(frame);
             PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, PredictorType::AutoSwitch, ArmorType::Nearest, auto_aim_switch, mcu_yaw_online, valid_target_mask); // Todo
-            cv::putText(frame, 
-                "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
-                cv::Point2f(0, 100), 
-                cv::FONT_HERSHEY_COMPLEX, 0.7, 
-                cv::Scalar(0, 255, 0), 1, 8, false);
             TwoYawGimbalControll_t controller_result = two_yaw_sentry_controller -> step(predictor_result.reset, predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
             std::vector<float> big_yaw_frame_enemy_position = rest_frame_big_yaw_ -> getCamPositionFromWorld(predictor_result.enemy_position_x, predictor_result.enemy_position_y, 0.0);
             float mcu_command_bigyaw = controller_result.target_yaw_big;
@@ -664,13 +750,17 @@ private:
             cv::putText(frame, 
                 cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
                     bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_),
-                cv::Point(10, 60),
-                cv::FONT_HERSHEY_SIMPLEX, 0.7,
-                cv::Scalar(0, 255, 0), 1);
-            
+                cv::Point(20, 50),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
             cv::putText(frame, 
                 "enemy_color: " + enemy_color_, 
-                cv::Point2f(20,840), 
+                cv::Point2f(20,80), 
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(frame, 
+                "aiming "+ArmorType::ArmorTypeStrings[predictor_result.armor_type]+": "+PredictorType::PredictorTypeStrings[predictor_result.predictor_type], 
+                cv::Point2f(20, 110), 
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
 
@@ -682,6 +772,38 @@ private:
             // yaw_visualizer_ -> show();
             cv::Mat yaw_visualizer_frame = yaw_visualizer_ -> getDisplay();
 
+            //计算帧率
+            fps_counter->tick();
+
+            cv::putText(frame, 
+                cv::format("frame rate: %.1f fps", fps_counter->fps()), 
+                cv::Point(20, 140),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(frame, 
+                cv::format("since start: %.4f s", static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - node_start_time).count()) / 1000.0f), 
+                cv::Point(20, 170),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            auto system_clock_now = std::chrono::system_clock::now();
+            std::time_t system_clock_now_t = std::chrono::system_clock::to_time_t(system_clock_now);
+            std::tm* system_clock_now_tm = std::localtime(&system_clock_now_t);
+            char system_clock_now_str_buffer[80];
+            std::strftime(system_clock_now_str_buffer, sizeof(system_clock_now_str_buffer), "%Y-%m-%d %H:%M:%S", system_clock_now_tm);
+            cv::putText(frame, 
+                cv::format("system_clock: %s", system_clock_now_str_buffer), 
+                cv::Point(20, 200),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+
+            two_video_logger -> updateDrewFrame(frame);
+            two_video_logger -> updateRMMFrame(predictor_result.info_images.RMM_visualize_frame);
+            two_video_logger -> updateCDOFrame(predictor_result.info_images.common_debug_oscilloscope_frame);
+            two_video_logger -> updateYawFrame(yaw_visualizer_frame);
+            two_video_logger -> updateComFrame(com_data_visualize_frame);
+            com_data_visualize_frame_used = true;
+            two_video_logger -> writeTwoFrame();
+                
 #ifdef SHOW_WINDOWS
             if (!predictor_result.info_images.RMM_visualize_frame.empty()) {
                 cv::imshow("RMM visualize", predictor_result.info_images.RMM_visualize_frame);
@@ -696,8 +818,6 @@ private:
             cv::waitKey(1);  // 确保窗口刷新
 #endif
 
-            //计算帧率
-            fps_counter->tick();
 
             if (std::chrono::steady_clock::now() - last_feed_dog_time >= std::chrono::seconds(3)) {
                 watchdog_client -> feed();
@@ -828,6 +948,10 @@ private:
 
     std::shared_ptr<TwoYawSentryController> two_yaw_sentry_controller;
     std::shared_ptr<RebirthTargetFilter> rebirth_target_filter;
+
+    std::shared_ptr<TwoVideoLogger> two_video_logger;
+    cv::Mat com_data_visualize_frame;
+    bool com_data_visualize_frame_used = true;
 };
 
 std::shared_ptr<ArmorDetectNode> node;

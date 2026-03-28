@@ -31,8 +31,23 @@
 #include <libudev.h>
 #include <thread>
 
+struct MCUDataFrame {
+    float bullet_velocity;
+    uint16_t gimbal_pitch;
+    uint16_t gimbal_yaw_small; // 小yaw相对大yaw角度
+    uint16_t mark;
+    uint8_t color;
+    int16_t z_rotation_velocity;
+    // 哨兵新增
+    uint8_t chassis_mode; // 底盘模式
+    uint8_t lack_blood_son_mode; // 缺血回城子模式
+    int16_t gimbal_yaw_big; // 大yaw当前角度(世界坐标系下)，单位rad
+
+    uint8_t all_car_rebirth_infos[4];
+};
 
 struct SerialData {
+    MCUDataFrame origin_data_frame;
     float bullet_velocity;  // 子弹速度
     float gimbal_pitch;    // 子弹角度
     float gimbal_yaw_small;       // 云台当前偏航角
@@ -51,20 +66,6 @@ public:
     void timerThread();
     
 private:
-    struct DataFrame {
-        float bullet_velocity;
-        uint16_t gimbal_pitch;
-        uint16_t gimbal_yaw_small; // 小yaw相对大yaw角度
-        uint16_t mark;
-        uint8_t color;
-        int16_t z_rotation_velocity;
-        // 哨兵新增
-        uint8_t chassis_mode; // 底盘模式
-        uint8_t lack_blood_son_mode; // 缺血回城子模式
-        int16_t gimbal_yaw_big; // 大yaw当前角度(世界坐标系下)，单位rad
-
-        uint8_t all_car_rebirth_infos[4];
-    };
     static constexpr size_t BUFFER_SIZE = 1024;
     static constexpr uint8_t FRAME_HEADER1 = 0x42;
     static constexpr uint8_t FRAME_HEADER2 = 0x52;

@@ -93,6 +93,8 @@ add_library(armor_detector SHARED
     src/ba_solver/utils.cpp
     src/controller/TwoYawSentryController.cpp
     src/controller/RebirthTargetFilter.cpp
+    src/logger/TwoVideoLogger.cpp
+    src/logger/MkvWriter.cpp
 )
 #add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp

@@ -251,7 +251,7 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float sm
 }
 
 void SerialCommunicationClass::processFrame(const uint8_t* data) {
-    DataFrame frame{};
+    MCUDataFrame frame{};
 
     memcpy(&frame.bullet_velocity, &data[4], sizeof(float));
     memcpy(&frame.gimbal_pitch, &data[8], sizeof(uint16_t));
@@ -303,6 +303,8 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     for (int i=0; i<4; i++) {
         msg.all_car_rebirth_infos[i] = frame.all_car_rebirth_infos[i];
     }
+    
+    msg.origin_data_frame = frame;
     
     serialDataCallback(msg);
 

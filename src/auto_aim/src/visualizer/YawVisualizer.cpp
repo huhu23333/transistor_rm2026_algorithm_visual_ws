@@ -1,11 +1,46 @@
 #include "visualizer/YawVisualizer.h"
 
+struct ScaleOffset
+{
+    float scale;
+    float offset;
+};
+
+ScaleOffset getScaleOffsetFromMinMax(float min_value, float max_value) {
+    float mid_value = (min_value + max_value) / 2.0f;
+    float range = max_value - min_value;
+    ScaleOffset result;
+    result.scale = 2.0f / range;
+    result.offset = - mid_value * result.scale;
+    return result;
+}
+
+void YawVisualizer::adjustScaleOffset() {
+    float min_value = std::min(
+        *std::min_element(total_current_yaw_history_for_adjust_scale_offset.begin() ,total_current_yaw_history_for_adjust_scale_offset.end()),
+        *std::min_element(total_target_yaw_history_for_adjust_scale_offset.begin() ,total_target_yaw_history_for_adjust_scale_offset.end())
+    );
+    float max_value = std::max(
+        *std::max_element(total_current_yaw_history_for_adjust_scale_offset.begin() ,total_current_yaw_history_for_adjust_scale_offset.end()),
+        *std::max_element(total_target_yaw_history_for_adjust_scale_offset.begin() ,total_target_yaw_history_for_adjust_scale_offset.end())
+    );
+
+    ScaleOffset scale_offset = getScaleOffsetFromMinMax(min_value, max_value);
+
+    yaw_oscilloscope -> setScale(scale_offset.scale);
+    yaw_oscilloscope -> setOffset(scale_offset.offset);
+}
+
+
 YawVisualizer::YawVisualizer() {
     yaw_oscilloscope = std::make_shared<Oscilloscope>(800, 800, "yaw_oscilloscope", 2, cv::Scalar(0, 0, 0), cv::Scalar(0, 255, 0));
     yaw_oscilloscope -> setScale(0.5);
     yaw_oscilloscope -> setOffset(0.0);
     yaw_oscilloscope -> setRollingSpeed(5);
     yaw_oscilloscope -> setLayerColor(1, cv::Scalar(0, 0, 255));
+
+    total_current_yaw_history_for_adjust_scale_offset.push_back(0.0f);
+    total_target_yaw_history_for_adjust_scale_offset.push_back(0.0f);
 }
 
 void YawVisualizer::update(float current_yaw, float target_yaw) {
@@ -30,6 +65,13 @@ void YawVisualizer::update(float current_yaw, float target_yaw) {
     float total_current_yaw = current_yaw + 2 * M_PI * current_yaw_circle;
     float total_target_yaw = target_yaw + 2 * M_PI * target_yaw_circle;
 
+    total_current_yaw_history_for_adjust_scale_offset.push_back(total_current_yaw);
+    total_target_yaw_history_for_adjust_scale_offset.push_back(total_target_yaw);
+    if (total_current_yaw_history_for_adjust_scale_offset.size() > 160) {
+        total_current_yaw_history_for_adjust_scale_offset.pop_front();
+        total_target_yaw_history_for_adjust_scale_offset.pop_front();
+    }
+    adjustScaleOffset();
 
 
     bool now_total_target_yaw_raise_cross_mid = false;
