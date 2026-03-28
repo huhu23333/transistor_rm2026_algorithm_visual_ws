@@ -369,17 +369,17 @@ private:
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
             cv::putText(com_data_visualize_frame, 
-                cv::format("gimbal_yaw: %u", odf.mark), 
+                cv::format("mark: %u", odf.mark), 
                 cv::Point(20, 110),
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
             cv::putText(com_data_visualize_frame, 
-                cv::format("gimbal_yaw: %u", odf.color), 
+                cv::format("color: %u", odf.color), 
                 cv::Point(20, 140),
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
             cv::putText(com_data_visualize_frame, 
-                cv::format("gimbal_yaw: %.6f", odf.z_rotation_velocity), 
+                cv::format("z_rotation_velocity: %.6f", odf.z_rotation_velocity), 
                 cv::Point(20, 170),
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
