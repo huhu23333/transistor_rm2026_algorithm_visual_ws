@@ -28,7 +28,7 @@ RMM_visualize_zoom_out_factor : 10.0 # 平面可视化缩放系数，该值越�
 
 frame_rate : 30.0   # fps
 serial_delay_time : 30.0 # ms           电控传来的信息相对相机画面快的时间，将对电控信息再延迟这个时间以同步两者
-extra_predict_time : 0.150 # s          除了弹丸飞行时间以外的需要预测器补偿的总时间
+extra_predict_time : 0.100 # s          除了弹丸飞行时间以外的需要预测器补偿的总时间
 
 pre_predict_time_not_aim : 500.0 # ms 在看到目标的这段时间内不启动自瞄，防止因电控云台角度信息延迟而震荡
 pre_predict_time : 2000.0 # ms 在看到目标的这段时间内自瞄直接瞄准当前装甲板位置，不使用预测器预测的位置，待有足够观测值后再使用预测值
@@ -42,7 +42,7 @@ yaw_integration_min_degree : -20.0
 command_picth_kp: 1.0
 command_picth_integration_speed: 0.1
 command_picth_integration_max_speed_degree: 5.0     # 积分时超过这个角度的误差会被截断为这个大小进行积分
-command_yaw_kp: 0.3
+command_yaw_kp: 1.0 # 0.3
 command_yaw_integration_speed: 0.02
 command_yaw_integration_max_speed_degree: 5.0
 

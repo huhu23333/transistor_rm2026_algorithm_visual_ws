@@ -355,7 +355,7 @@ private:
 
         auto_aim_switch = processed_msg.auto_aim_switch;
         bullet_velocity_ = processed_msg.bullet_velocity;
-        current_pitch_ = ((float)(processed_msg.bullet_angle)) * 30 / 1.8 * M_PI / 180 * 1.18 + 0.25; // 测定pitch轴传入数据1.8大约对应30°
+        current_pitch_ = ((float)(processed_msg.bullet_angle)) * 0.275 + 0.13; // 测定pitch轴传入数据1.8大约对应30°
         current_yaw_ = - ((float)(processed_msg.gimbal_yaw)) * M_PI / 4096.0;  // 一圈对应[-4096, 4095]
 
 
@@ -689,11 +689,12 @@ private:
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(mcu_command_pitch, mcu_command_yaw, predictor_result.fire_flag);
             }
+            // serial_communication_->sendData(last_pitch_rad_delayed_, last_yaw_rad_delayed_ + headIMUInfos.to_mcu_delta_yaw, false);
             
             // 显示当前参数状态
             cv::putText(frame, 
-                cv::format("V: %.1f m/s, P: %.1f, Y: %.1f", 
-                    bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_),
+                cv::format("V: %.3f m/s, P: %.3f, Y: %.3f, mcuY: %.3f", 
+                    bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, last_yaw_rad_mcu_),
                 cv::Point(10, 60),
                 cv::FONT_HERSHEY_SIMPLEX, 0.7,
                 cv::Scalar(0, 255, 0), 1);

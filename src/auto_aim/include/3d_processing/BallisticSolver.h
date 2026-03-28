@@ -101,7 +101,7 @@ private:
         RefineInfo refine_info;
     };
 
-    float extra_delta_pitch = 1.0 * M_PI / 180.0f;
+    float extra_delta_pitch = -4.0 * M_PI / 180.0f;
 };
 
 #endif // BALLISTIC_SOLVER_H

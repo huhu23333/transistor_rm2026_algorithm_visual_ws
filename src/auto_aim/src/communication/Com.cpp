@@ -170,11 +170,12 @@ bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target, bo
         tx_data[3] = 0x07;  // 数据长度为7（4字节pitch_target + 2字节yaw_target + 1字节fire）
         
         // 处理pitch_target (4字节)
-        pitch_target = (pitch_target - 0.25) *180/M_PI * 0.01/45.0;
+        pitch_target = (pitch_target - 0.005524) / (0.2606085 - 0.005524) * 0.004;
         memcpy(&tx_data[4], &pitch_target, sizeof(float));  // 4字节float
         
         // 处理yaw_target (2字节)
-        yaw_target = -yaw_target;
+        yaw_target = 0.475 - (yaw_target - (-0.495));
+        yaw_target = std::atan2(std::sin(yaw_target), std::cos(yaw_target));
         int16_t yaw_int16 = static_cast<int16_t>(yaw_target * 4096 / M_PI);  // 将float转换为定点数
         while (yaw_int16 > 4095) {
             yaw_int16 -= 8192;
@@ -229,10 +230,10 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     memcpy(&frame.auto_aim_switch, &data[offset], sizeof(uint8_t));
 
     // 格式化输出
-    RCLCPP_DEBUG(node->get_logger(), 
+    RCLCPP_INFO(node->get_logger(), 
         "\033[1;34m[Received Data]\033[0m\n"
         "\033[1;32mBullet Velocity:\033[0m %.2f m/s\n"
-        "\033[1;32mBullet Angle:\033[0m %.2f\n"
+        "\033[1;32mBullet Angle:\033[0m %.5f\n"
         "\033[1;33mGimbal Yaw:\033[0m %d (%.2f°)\n"
         "\033[1;36mMark:\033[0m %d\n"
         "\033[1;31mColor:\033[0m %d\n"
