@@ -54,10 +54,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/huhu233/otherProject/imu_visualization
+CMAKE_SOURCE_DIR = /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/huhu233/otherProject/imu_visualization
+CMAKE_BINARY_DIR = /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization
 
 #=============================================================================
 # Directory level rules for the build root directory
@@ -81,14 +81,14 @@ clean: CMakeFiles/imu_visualization.dir/clean
 CMakeFiles/imu_visualization.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/imu_visualization.dir/build.make CMakeFiles/imu_visualization.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/imu_visualization.dir/build.make CMakeFiles/imu_visualization.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/huhu233/otherProject/imu_visualization/CMakeFiles --progress-num=1,2 "Built target imu_visualization"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization/CMakeFiles --progress-num=1,2 "Built target imu_visualization"
 .PHONY : CMakeFiles/imu_visualization.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/imu_visualization.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/huhu233/otherProject/imu_visualization/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization/CMakeFiles 2
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/imu_visualization.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/huhu233/otherProject/imu_visualization/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization/CMakeFiles 0
 .PHONY : CMakeFiles/imu_visualization.dir/rule
 
 # Convenience name for target.

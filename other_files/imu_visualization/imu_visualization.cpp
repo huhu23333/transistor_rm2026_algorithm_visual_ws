@@ -26,6 +26,45 @@
 #include <libudev.h>
 #include <thread>
 
+
+
+std::string getSerialProductInfo(const std::string& port) {
+    struct udev *udev;
+    struct udev_device *dev;
+    std::string result = "";
+    
+    // 创建udev对象
+    udev = udev_new();
+    if (!udev) {
+        return "Failed to create udev";
+    }
+    
+    // 根据设备路径获取设备信息
+    dev = udev_device_new_from_subsystem_sysname(udev, "tty", port.c_str());
+    if (!dev) {
+        udev_unref(udev);
+        return "Device not found";
+    }
+    
+    // 获取父设备（USB设备）
+    struct udev_device *parent = udev_device_get_parent_with_subsystem_devtype(
+        dev, "usb", "usb_device");
+    
+    if (parent) {
+        // 获取产品信息
+        const char *product = udev_device_get_sysattr_value(parent, "product");
+        
+        if (product) {
+            result += std::string(product);
+        }
+    }
+    
+    udev_device_unref(dev);
+    udev_unref(udev);
+    return result;
+}
+
+
 std::string getSerialPortInfo(const std::string& port) {
     struct udev *udev;
     struct udev_device *dev;
@@ -169,7 +208,21 @@ void SerialCommunicationClass::initializeSerial() {
         printf("No available serial port found!\n");
         return;
     }
-    std::string port = ports[0];
+    std::string port;
+    for (auto test_port : ports) {
+        try {
+            if(getSerialProductInfo(test_port.substr(5)) == std::string("STM32 Virtual ComPort MyIMU")) {
+                port = test_port;
+                break;
+            };
+        } catch (...) {
+
+        }
+    }
+    if (port.empty()) {
+        printf("Target serial port Not found!\n");
+        return;
+    }
 
     fd_ = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd_ < 0) {
@@ -216,10 +269,9 @@ void SerialCommunicationClass::initializeSerial() {
 
     tcflush(fd_, TCIOFLUSH);
     printf("Serial initialized: %s\n", port.c_str());
-    printf("%s\n", getSerialPortInfo(port.substr(5)).c_str());
 }
 
-    // 查找可用的串口
+// 查找可用的串口
 std::vector<std::string> SerialCommunicationClass::findAvailableSerialPorts() {
     struct dirent *entry;
     DIR *dp = opendir("/dev/");
@@ -236,7 +288,7 @@ std::vector<std::string> SerialCommunicationClass::findAvailableSerialPorts() {
             if (fd >= 0) {
                 close(fd);  // 串口可用，返回串口名称
                 ports.push_back(candidate_port);
-                break;
+                // break;
             }
         }
     }

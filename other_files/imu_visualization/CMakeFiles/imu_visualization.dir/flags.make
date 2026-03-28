@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/usr/include/eigen3 -I/home/huhu233/otherProject/imu_visualization -isystem /usr/include/opencv4
+CXX_INCLUDES = -I/usr/include/eigen3 -I/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization -isystem /usr/include/opencv4
 
 CXX_FLAGS =  -Wall -Wextra -O2 -std=gnu++17
 

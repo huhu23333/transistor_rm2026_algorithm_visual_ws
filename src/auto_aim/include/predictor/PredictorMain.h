@@ -42,7 +42,7 @@ public:
 
     PredictorResult step(std::vector<ArmorResult>& classifyResults, cv::Mat& frame, PredictorType::PredictorType predictor_type, ArmorType::ArmorType priority_armor,  bool auto_aim_switch, bool mcu_yaw_online);
     void update_serial_info(float bullet_velocity, float last_pitch_rad_delayed, float last_yaw_rad_delayed, float total_yaw_rad_delayed);
-    void set_extra_delta_yaw(float extra_delta_yaw_);
+    void set_extra_Z_vel(float Z_vel_);
 
     void reset_yaw_integration();
 
@@ -78,4 +78,6 @@ private:
     float command_yaw_integration_max_speed_degree;
     
     float extra_delta_yaw = 0.0;
+    float Z_vel = 0.0;
+    float yaw_bias = 0.0 * M_PI / 180.0; // 0.33
 };

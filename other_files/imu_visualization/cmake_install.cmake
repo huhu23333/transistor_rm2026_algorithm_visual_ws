@@ -1,4 +1,4 @@
-# Install script for directory: /home/huhu233/otherProject/imu_visualization
+# Install script for directory: /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -50,5 +50,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/huhu233/otherProject/imu_visualization/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

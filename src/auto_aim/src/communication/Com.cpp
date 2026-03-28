@@ -182,7 +182,7 @@ bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target, bo
             yaw_int16 += 8192;
         }
 
-        //yaw_int16 = 1234;
+        // yaw_int16 = 1234;
 
         memcpy(&tx_data[8], &yaw_int16, sizeof(int16_t));  // 2字节
 

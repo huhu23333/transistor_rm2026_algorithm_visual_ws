@@ -411,8 +411,8 @@ private:
             serial_infos_delay_.push(now_serial_infos);
         }
 
-        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(processed_msg.z_rotation_velocity) * (-5.0) / 660.0 * M_PI / 180.0); // 20.0
-
+        predictor_main_ -> set_extra_Z_vel(static_cast<float>(processed_msg.z_rotation_velocity));
+    
     }
 
     void drawResults(cv::Mat& image, 
@@ -808,7 +808,7 @@ private:
         std::shared_ptr<HeadIMUSerialCommunicationClass> headIMU_communication_;
         std::thread headIMU_timer_thread_;
 
-        bool use_head_imu = false;
+        bool use_head_imu = true;
 
         float head_imu_yaw;
         float head_imu_pitch;

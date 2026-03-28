@@ -57,10 +57,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/huhu233/otherProject/imu_visualization
+CMAKE_SOURCE_DIR = /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/huhu233/otherProject/imu_visualization
+CMAKE_BINARY_DIR = /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -87,9 +87,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/huhu233/otherProject/imu_visualization/CMakeFiles /home/huhu233/otherProject/imu_visualization//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization/CMakeFiles /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/huhu233/otherProject/imu_visualization/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws/other_files/imu_visualization/CMakeFiles 0
 .PHONY : all
 
 # The main clean target

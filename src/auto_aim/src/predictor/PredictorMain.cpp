@@ -70,6 +70,21 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
         }
     }
 
+    float yaw_integration_gain = 1.0;
+    // static bool last_is_bigger_yaw_integration_gain = false;
+    // static float yaw_integration_before_bigger_gain = 0.0;
+    // if (abs(Z_vel) > 100.0) {
+    //     yaw_integration_gain = 10.0;
+    //     if (!last_is_bigger_yaw_integration_gain) {
+    //         yaw_integration_before_bigger_gain = yaw_integration;
+    //     }
+    //     last_is_bigger_yaw_integration_gain = true;
+    // } else {
+    //     if (last_is_bigger_yaw_integration_gain) {
+    //         // yaw_integration = yaw_integration_before_bigger_gain;
+    //     }
+    //     last_is_bigger_yaw_integration_gain = false;
+    // }
     if (auto_aim_switch) { // 仅在电控自瞄开关打开时进行积分
         if (chosen_result.integrating) {
             pitch_integration += std::min(std::max(chosen_result.command_delta_pitch,
@@ -77,7 +92,7 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
                                     command_picth_integration_max_speed_degree) * command_picth_integration_speed;
             yaw_integration += std::min(std::max(chosen_result.command_delta_yaw,
                                     -command_yaw_integration_max_speed_degree),
-                                    command_yaw_integration_max_speed_degree) * command_yaw_integration_speed;
+                                    command_yaw_integration_max_speed_degree) * command_yaw_integration_speed * yaw_integration_gain;
         }
         if (pitch_integration > pitch_integration_max_degree * M_PI / 180.0) {
             pitch_integration = pitch_integration_max_degree * M_PI / 180.0;
@@ -100,7 +115,7 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
         }
     }
     chosen_result.command_pitch = last_pitch_rad_delayed_ + chosen_result.command_delta_pitch * command_picth_kp + pitch_integration; // PI控制
-    chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * command_yaw_kp + yaw_integration + extra_delta_yaw; // 缓解yaw轴输入数据掉线问题（并不能()）
+    chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * command_yaw_kp + yaw_integration + extra_delta_yaw + yaw_bias; // 缓解yaw轴输入数据掉线问题（并不能()）
 
 
     cv::putText(frame, 
@@ -128,8 +143,9 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
     return chosen_result;
 }
 
-void PredictorMain::set_extra_delta_yaw(float extra_delta_yaw_) {
-    extra_delta_yaw = extra_delta_yaw_;
+void PredictorMain::set_extra_Z_vel(float Z_vel_) {
+    extra_delta_yaw = Z_vel_ * (-10.0) / 660.0 * M_PI / 180.0; // 20.0 // (-5.0)
+    Z_vel = Z_vel_;
 }
 
 void PredictorMain::reset_yaw_integration() {
