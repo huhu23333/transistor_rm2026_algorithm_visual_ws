@@ -210,7 +210,7 @@ bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target, bo
 }
 
 void SerialCommunicationClass::processFrame(const uint8_t* data) {
-    DataFrame frame{};
+    MCUDataFrame frame{};
     size_t offset = 4;
 
     memcpy(&frame.bullet_velocity, &data[offset], sizeof(float));
@@ -247,6 +247,8 @@ void SerialCommunicationClass::processFrame(const uint8_t* data) {
     msg.bullet_angle = frame.bullet_angle;
     msg.gimbal_yaw = frame.gimbal_yaw;
     msg.color = frame.color;
+
+    msg.origin_data_frame = frame;
     
     serialDataCallback(msg);
 

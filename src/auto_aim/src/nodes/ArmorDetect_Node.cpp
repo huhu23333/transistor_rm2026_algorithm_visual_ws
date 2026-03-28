@@ -38,6 +38,7 @@
 #include "visualizer/RestFrameDraw.h"
 #include "communication/HeadIMU.h"
 #include "visualizer/YawVisualizer.h"
+#include "logger/TwoVideoLogger.h"
 
 namespace fs = std::filesystem;
 
@@ -172,6 +173,9 @@ public:
         }
 
         yaw_visualizer_ = std::make_shared<YawVisualizer>();
+
+        com_data_visualize_frame = cv::Mat::zeros(480, 640, CV_8UC3);
+        two_video_logger = std::make_shared<TwoVideoLogger>(ws_dir_path / "VideoLog");
 
         DelayInfos init_serial_infos;
         init_serial_infos.last_pitch_rad_ = 0.0;
@@ -346,6 +350,41 @@ private:
     }
 
     void serialDataCallback(const SerialData& msg) {
+        if (com_data_visualize_frame_used) {
+            const MCUDataFrame& odf = msg.origin_data_frame;
+            com_data_visualize_frame.setTo(cv::Scalar(0, 0, 0));
+            cv::putText(com_data_visualize_frame, 
+                cv::format("bullet_velocity: %.6f", odf.bullet_velocity), 
+                cv::Point(20, 20),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("bullet_angle: %.6f", odf.bullet_angle), 
+                cv::Point(20, 50),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("gimbal_yaw: %d", odf.gimbal_yaw), 
+                cv::Point(20, 80),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("gimbal_yaw: %u", odf.mark), 
+                cv::Point(20, 110),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("gimbal_yaw: %u", odf.color), 
+                cv::Point(20, 140),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            cv::putText(com_data_visualize_frame, 
+                cv::format("gimbal_yaw: %.6f", odf.z_rotation_velocity), 
+                cv::Point(20, 170),
+                cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                cv::Scalar(0, 255, 0), 1, 8, false);
+            com_data_visualize_frame_used = false;
+        }
 
 
         SerialData processed_msg = msg;
@@ -605,6 +644,9 @@ private:
                 cv::imwrite(filename.str(), frame);
             }
 #endif
+
+            two_video_logger -> updateOriginFrame(frame);
+
             //cv::resize(frame, frame, cv::Size(768, 512), 0, 0, cv::INTER_LINEAR);
 
             //cv::flip(frame, frame, -1);  // 翻转图像（上下翻转）
@@ -743,7 +785,14 @@ private:
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
 
-
+            two_video_logger -> updateDrewFrame(frame);
+            two_video_logger -> updateRMMFrame(predictor_result.info_images.RMM_visualize_frame);
+            two_video_logger -> updateCDOFrame(predictor_result.info_images.common_debug_oscilloscope_frame);
+            two_video_logger -> updateYawFrame(yaw_visualizer_frame);
+            two_video_logger -> updateComFrame(com_data_visualize_frame);
+            com_data_visualize_frame_used = true;
+            two_video_logger -> writeTwoFrame();
+                
 #ifdef SHOW_WINDOWS
             if (!predictor_result.info_images.RMM_visualize_frame.empty()) {
                 cv::imshow("RMM visualize", predictor_result.info_images.RMM_visualize_frame);
@@ -876,6 +925,10 @@ private:
     } headIMUInfos;
 
     std::shared_ptr<YawVisualizer> yaw_visualizer_;
+
+    std::shared_ptr<TwoVideoLogger> two_video_logger;
+    cv::Mat com_data_visualize_frame;
+    bool com_data_visualize_frame_used = true;
 };
 
 std::shared_ptr<ArmorDetectNode> node;
