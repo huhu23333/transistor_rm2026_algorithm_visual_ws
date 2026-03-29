@@ -592,7 +592,10 @@ private:
 
     void processImage() {        
         
-        
+        auto without_delay_info = serial_infos_delay_.back();
+        float last_pitch_rad_without_delay = without_delay_info.last_pitch_rad_;
+        float last_smallyaw_rad_without_delay = without_delay_info.last_smallyaw_rad_;
+        float last_bigyaw_rad_without_delay = without_delay_info.last_bigyaw_rad_;
         
 
 
@@ -624,7 +627,7 @@ private:
         rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
         predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
-        two_yaw_sentry_controller -> update_gimbal_infos(last_pitch_rad_delayed_, last_smallyaw_rad_delayed_, last_bigyaw_rad_delayed_);
+        two_yaw_sentry_controller -> update_gimbal_infos(last_pitch_rad_without_delay, last_smallyaw_rad_without_delay, last_bigyaw_rad_without_delay);
         rest_frame_big_yaw_ -> updateCamOrientation(last_bigyaw_rad_delayed_, 0.0, 0.0);
 
         RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
