@@ -8,6 +8,7 @@
 #include <chrono>
 #include <yaml-cpp/yaml.h>
 #include <algorithm>
+#include "utils/SimpleDataFilter.h"
 #include "macro/AutoAimMacro.h"
 
 struct TwoYawGimbalControll_t {
@@ -43,6 +44,7 @@ private:
     float last_small_yaw_target = 0.0;
 
     float last_smallyaw_error = 0.0;
+    std::shared_ptr<SimpleDataFilter> smallyaw_error_d_filter;
 
     bool last_reset_state = true;
     std::chrono::steady_clock::time_point last_reset_time;
