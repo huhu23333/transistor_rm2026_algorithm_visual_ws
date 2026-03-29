@@ -13,6 +13,7 @@ pip install ultralytics openvino
 pip install onnxruntime onnxscript openvino-dev
 pip install nncf==2.14.0
 
+sudo apt update
 sudo apt install libceres-dev
 
 intel gpu:
