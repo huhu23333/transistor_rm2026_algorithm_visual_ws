@@ -13,6 +13,7 @@ pip install ultralytics openvino
 pip install onnxruntime onnxscript openvino-dev
 pip install nncf==2.14.0
 
+sudo apt update
 sudo apt install libceres-dev
 
 intel gpu:
@@ -68,3 +69,8 @@ option(BUILD_SOPHUS_TESTS "Build tests." OFF)
       添加一行
       /usr/local/lib
     sudo ldconfig
+
+
+视频日志查看查看工具：
+sudo apt install vlc
+

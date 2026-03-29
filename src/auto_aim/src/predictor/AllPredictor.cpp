@@ -96,6 +96,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             if (!chosen_armor.is_tracked_now) {
                 result.command_delta_pitch = 0.0;
                 result.command_delta_yaw = 0.0;
+                predicted_armor_pos = last_rest_frame_pos;
+                predicted_aim_pos = last_rest_frame_pos;
             }
         }
     } else {
@@ -127,6 +129,8 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             result.command_delta_pitch = 0.0;
             result.command_delta_yaw = 0.0;
             result.fire_flag = false;
+            predicted_armor_pos = last_rest_frame_pos;
+            predicted_aim_pos = last_rest_frame_pos;
         }
     }
 
