@@ -11,3 +11,4 @@ pin.log
 src/.vscode/
 src/auto_aim/src/3d_processing/ypr_log.txt
 other_files/camera_calibration/chessboard/*
+VideoLog/

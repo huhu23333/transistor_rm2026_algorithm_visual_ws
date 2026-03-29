@@ -74,6 +74,7 @@ public:
     void setLayerColor(size_t layer_index, cv::Scalar color);
 
     void setRollingSpeed(uint32_t speed);
+
 };
 
 
