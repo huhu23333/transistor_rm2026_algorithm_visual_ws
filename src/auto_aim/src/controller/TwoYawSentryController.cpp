@@ -29,6 +29,7 @@ TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_targ
 
     TwoYawGimbalControll_t result;
     result.fire_flag = false;
+    float smallyaw_error = 0.0;
     if (reset) {
         if (!last_reset_state) {
             last_pitch_target = real_pitch;
@@ -65,7 +66,11 @@ TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_targ
 
         result.target_pitch = pitch_target;
         result.target_yaw_big = big_yaw_smooth_factor * yaw_target + (1.0 - big_yaw_smooth_factor) * last_big_yaw_target;
-        result.target_yaw_small = yaw_target - real_big_yaw;
+
+        float target_yaw_small = yaw_target - real_big_yaw;
+        smallyaw_error = target_yaw_small - real_small_yaw;
+        float smallyaw_error_d = (smallyaw_error - last_smallyaw_error) / std::max(dt, 1e-3f) * 0.01;
+        result.target_yaw_small = real_small_yaw + smallyaw_error + smallyaw_error_d;
 
         if (fabs(result.target_yaw_small) > small_yaw_to_big_boundary) {
             result.target_yaw_big = yaw_target;
@@ -82,6 +87,8 @@ TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_targ
     last_big_yaw_target = result.target_yaw_big;
     last_reset_state = reset;
     last_step_time = current_time;
+
+    last_smallyaw_error = smallyaw_error;
 
     return result;
 }

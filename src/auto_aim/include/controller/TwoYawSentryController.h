@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <chrono>
 #include <yaml-cpp/yaml.h>
+#include <algorithm>
 #include "macro/AutoAimMacro.h"
 
 struct TwoYawGimbalControll_t {
@@ -40,6 +41,8 @@ private:
     float last_pitch_target = 0.0;
     float last_big_yaw_target = 0.0;
     float last_small_yaw_target = 0.0;
+
+    float last_smallyaw_error = 0.0;
 
     bool last_reset_state = true;
     std::chrono::steady_clock::time_point last_reset_time;
