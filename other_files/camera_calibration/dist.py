@@ -3,8 +3,8 @@ import cv2
 import glob
 
 # 棋盘格参数
-chessboard_size = (12, 8)  # 棋盘格角点数目
-square_size = 2.35  # 棋盘格每个小方块的边长（厘米）
+chessboard_size = (11, 8) # (12, 8)  # 棋盘格角点数目
+square_size = 3.00 # 2.35  # 棋盘格每个小方块的边长（厘米）
 
 # 准备棋盘格角点坐标
 objpoints = []  # 世界坐标系中的三维点
@@ -58,3 +58,11 @@ ret, K, dist_coef, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray
 # 输出内参和畸变系数
 print("内参矩阵 K:\n", K)
 print("畸变系数 dist_coef:\n", dist_coef)
+
+print("以下输出可直接复制入config.yaml")
+
+print(f"""camera_matrix: # 相机内参矩阵
+  - [{K[0][0]:.8e}, {K[0][1]:.8e}, {K[0][2]:.8e}]
+  - [{K[1][0]:.8e}, {K[1][1]:.8e}, {K[1][2]:.8e}]
+  - [{K[2][0]:.8e}, {K[2][1]:.8e}, {K[2][2]:.8e}]
+dist_coeffs: [{dist_coef[0][0]:.8f}, {dist_coef[0][1]:.8f}, {dist_coef[0][2]:.8f}, {dist_coef[0][3]:.8f}, {dist_coef[0][4]:.8f}] # 畸变系数""")

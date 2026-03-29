@@ -9,7 +9,7 @@ Oscilloscope::Oscilloscope(int w, int h,
                            cv::Scalar wf_color)
     : width(w), height(h), scale(1.0f), offset(0.0f), 
       window_name(name), background_color(bg_color),
-      layer_num(init_layer_num)  // 修正：初始化layer_num为init_layer_num
+      layer_num(init_layer_num) // 修正：初始化layer_num为init_layer_num
 {
     // 初始化显示图像
     data_displays.resize(layer_num);
@@ -40,49 +40,52 @@ void Oscilloscope::addDataPoint(float value, size_t layer_index, int point_size)
     }
 }
 
-// 更新显示
+
+// 重写 update 函数，完全基于 datas 中的原始数据点重新绘制每个图层
 void Oscilloscope::update() {
     display.setTo(background_color);
-    for (size_t layer_index = 0; layer_index < layer_num; layer_index += 1) {
-        cv::Mat& data_display = data_displays[layer_index];
-        std::deque<data_point_t>& data = datas[layer_index];
-        cv::Scalar& waveform_color = waveform_colors[layer_index];
 
-        // 将显示图像向左滚动n个像素
-        cv::Mat rolled = data_display(cv::Rect(rolling_speed, 0, width - rolling_speed, height));
-        rolled.copyTo(data_display(cv::Rect(0, 0, width - rolling_speed, height)));
-        
-        // 清除最右侧的列
-        for (uint32_t i = 0; i < rolling_speed; i++) {
-            data_display.col(width - 1 - i).setTo(cv::Scalar(0, 0, 0));
-        }
-        
-        // 如果有数据点，绘制最新的数据点
-        if (!data.empty()) {
-            data_point_t latest_point = data.back();
-            float latest_value = latest_point.value;
-            
-            // 计算归一化坐标 (0到1范围)
-            float normalized = (latest_value * scale + offset + 1.0f) / 2.0f;
-            
-            // 计算像素坐标
-            int y = height - static_cast<int>(normalized * height);
-            y = std::max(0, std::min(height - 1, y));
-            
-            // 绘制最新的数据点
-            cv::circle(data_display, cv::Point(width - 1, y), latest_point.point_size, waveform_color, -1);
-            
-            // 如果数据点足够多，绘制连线
-            if (data.size() > 1) {
-                float prev_value = data[data.size() - 2].value;
-                float prev_normalized = (prev_value * scale + offset + 1.0f) / 2.0f;
-                int prev_y = height - static_cast<int>(prev_normalized * height);
-                prev_y = std::max(0, std::min(height - 1, prev_y));
-                
-                cv::line(data_display, cv::Point(width - 1 - rolling_speed, prev_y), 
-                        cv::Point(width - 1, y), waveform_color, 1);
+    // 2. 重新绘制所有图层
+    for (size_t layer_index = 0; layer_index < layer_num; ++layer_index) {
+        cv::Mat& data_display = data_displays[layer_index];
+        const std::deque<data_point_t>& data = datas[layer_index];
+        const cv::Scalar& color = waveform_colors[layer_index];
+
+        data_display.setTo(cv::Scalar(0, 0, 0));  // 清空当前图层
+
+        size_t data_size = data.size();
+        if (data_size == 0) continue;
+
+        // 从右向左绘制：最新点位于 x = width-1，最旧点位于 x = width - data_size
+        int start_x = width - static_cast<int>(data_size) * rolling_speed;
+
+        for (size_t i = 0; i < data_size; ++i) {
+            const data_point_t& point = data[i];
+            int x = start_x + static_cast<int>(i) * rolling_speed;
+
+            // 只绘制窗口内的点
+            if (x >= 0 && x < width) {
+                // 计算 y 坐标，应用缩放和偏移
+                float normalized = (point.value * scale + offset + 1.0f) / 2.0f;
+                normalized = std::max(0.0f, std::min(1.0f, normalized));
+                int y = static_cast<int>((1.0f - normalized) * (height - 1));
+
+                cv::circle(data_display, cv::Point(x, y), point.point_size, color, -1);
+
+                // 与前一个点连线
+                if (i > 0) {
+                    int prev_x = start_x + static_cast<int>(i - 1) * rolling_speed;
+                    if (prev_x >= 0 && prev_x < width) {
+                        const data_point_t& prev_point = data[i - 1];
+                        float prev_normalized = (prev_point.value * scale + offset + 1.0f) / 2.0f;
+                        prev_normalized = std::max(0.0f, std::min(1.0f, prev_normalized));
+                        int prev_y = static_cast<int>((1.0f - prev_normalized) * (height - 1));
+                        cv::line(data_display, cv::Point(prev_x, prev_y), cv::Point(x, y), color, 1);
+                    }
+                }
             }
         }
+
         cv::add(display, data_display, display);
     }
 }
@@ -95,14 +98,16 @@ void Oscilloscope::show() {
 #endif
 }
 
-// 设置垂直缩放
+// 修改 setScale，更新缩放因子后立即重绘
 void Oscilloscope::setScale(float s) {
     scale = s;
+    update();  // 重绘所有图层，应用新的缩放因子
 }
 
-// 设置垂直偏移
+// 修改 setOffset，更新偏移量后立即重绘
 void Oscilloscope::setOffset(float o) {
     offset = o;
+    update();  // 重绘所有图层，应用新的偏移量
 }
 
 // 清除所有数据
