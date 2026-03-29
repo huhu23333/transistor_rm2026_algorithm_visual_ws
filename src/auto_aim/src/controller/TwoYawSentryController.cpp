@@ -15,7 +15,7 @@ TwoYawSentryController::TwoYawSentryController(std::shared_ptr<YAML::Node> confi
     big_yaw_smooth_factor = (*config_file_ptr)["big_yaw_smooth_factor"].as<float>();
     small_yaw_to_big_boundary = M_PI / 180.0 * (*config_file_ptr)["small_yaw_to_big_boundary"].as<float>();
 
-    smallyaw_error_d_filter = std::make_shared<SimpleDataFilter>(10);
+    smallyaw_error_d_filter = std::make_shared<SimpleDataFilter>(3);
 }
 
 void TwoYawSentryController::update_gimbal_infos(float real_pitch_, float real_small_yaw_, float real_big_yaw_) {
@@ -36,6 +36,7 @@ TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_targ
         if (!last_reset_state) {
             last_pitch_target = real_pitch;
             last_big_yaw_target = real_big_yaw;
+            smallyaw_error_d_filter -> clearHistory();
         }
 
         result.target_pitch = last_pitch_target + reset_behavior_infos.v_pitch * dt * reset_behavior_infos.v_pitch_direction;
@@ -73,8 +74,8 @@ TwoYawGimbalControll_t TwoYawSentryController::step(bool reset, float pitch_targ
         smallyaw_error = target_yaw_small - real_small_yaw;
         float smallyaw_error_d = (smallyaw_error - last_smallyaw_error) / std::max(dt, 1e-3f);
         smallyaw_error_d_filter -> addPoint(smallyaw_error_d);
-        float filtered_smallyaw_error_d = smallyaw_error_d_filter -> meanFilter(10);
-        result.target_yaw_small = real_small_yaw + smallyaw_error * 0.3 + filtered_smallyaw_error_d * 0.05;
+        float filtered_smallyaw_error_d = smallyaw_error_d_filter -> meanFilter(3);
+        result.target_yaw_small = real_small_yaw + smallyaw_error * 1.0 + filtered_smallyaw_error_d * 0.1;
 
         if (fabs(result.target_yaw_small) > small_yaw_to_big_boundary) {
             result.target_yaw_big = yaw_target;
