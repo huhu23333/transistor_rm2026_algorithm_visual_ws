@@ -1,6 +1,19 @@
 #include "logger/TwoVideoLogger.h"
+#include <sys/statvfs.h>
 
 namespace fs = std::filesystem;
+
+
+// 获取指定路径所在文件系统的可用空间（字节）
+long long get_available_space(const std::string& path) {
+    struct statvfs stat;
+    if (statvfs(path.c_str(), &stat) != 0) {
+        std::cerr << "statvfs failed: " << std::strerror(errno) << std::endl;
+        return -1;
+    }
+    // 可用块数 * 块大小 = 可用字节数
+    return static_cast<long long>(stat.f_bavail) * stat.f_frsize;
+}
 
 TwoVideoLogger::TwoVideoLogger(const std::string& log_folder_str) {
 
@@ -53,8 +66,6 @@ void TwoVideoLogger::updateComFrame(const cv::Mat& frame) {
 void TwoVideoLogger::writeTwoFrame() {
     frame_count += 1;
 
-    origin_video_writer -> writeFrame(frames.origin_frame);
-
     cv::Mat info_frame = cv::Mat::zeros(800*2, 1280+800, CV_8UC3);
 
     cv::Mat drew_roi = info_frame(cv::Rect(0, 0, 1280, 1024));
@@ -81,5 +92,11 @@ void TwoVideoLogger::writeTwoFrame() {
         cv::FONT_HERSHEY_COMPLEX, 0.7, 
         cv::Scalar(0, 255, 0), 1, 8, false);
 
-    info_video_writer -> writeFrame(info_frame);
+
+    long long max_left_size = 16ll * 1024ll*1024ll*1024ll; // 最少留下16G，防止系统无法启动
+    if (get_available_space(this_log_folder_path.string()) > max_left_size)
+    {
+        origin_video_writer -> writeFrame(frames.origin_frame);
+        info_video_writer -> writeFrame(info_frame);
+    }
 }
