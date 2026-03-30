@@ -472,7 +472,7 @@ private:
             serial_infos_delay_.push(now_serial_infos);
         }
 
-        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(processed_msg.z_rotation_velocity) * (-25.0) / 660.0 * M_PI / 180.0); // 20.0
+        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(processed_msg.z_rotation_velocity) * (3.9) / 800.0 * M_PI / 180.0); // 20.0
     }
 
     void drawResults(cv::Mat& image, 
@@ -740,8 +740,10 @@ private:
             headIMUInfos.last_mcu_command_yaw = mcu_command_yaw;
             if (predictor_result.reset) {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
-                serial_communication_->sendData(0.0, 0.0, false);
-                //serial_communication_->sendData(last_pitch_rad_delayed_, last_yaw_rad_delayed_, false);
+                // serial_communication_->sendData(0.0, 0.0, false);
+                serial_communication_->sendData(last_pitch_rad_delayed_, 
+                    last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0), 
+                    false);
             } else {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
                 serial_communication_->sendData(mcu_command_pitch, mcu_command_yaw, predictor_result.fire_flag);
