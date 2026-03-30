@@ -31,12 +31,12 @@ serial_delay_time : 30.0 # ms           电控传来的信息相对相机画面�
 big_yaw_extra_delay_time : 100.0 # ms   由于电控传来的大yaw编码器角度明显超前于实际角度，需额外延迟这个时间
 extra_predict_time : 0.170 # s          除了弹丸飞行时间以外的需要预测器补偿的总时间
 
-pre_predict_time_not_aim : 200.0 # ms 在看到目标的这段时间内不启动自瞄，防止因电控云台角度信息延迟而震荡
+pre_predict_time_not_aim : 0.0 # ms 在看到目标的这段时间内不启动自瞄，防止因电控云台角度信息延迟而震荡
 pre_predict_time : 2000.0 # ms 在看到目标的这段时间内自瞄直接瞄准当前装甲板位置，不使用预测器预测的位置，待有足够观测值后再使用预测值
 reset_predictor_time : 1000.0 # ms 超过这段时间未观测到某一类装甲板，将停止这一类装甲板的预测并重置预测器
 
 # 哨兵控制参数
-reset_vyaw : 100.0                # 扫描目标时yaw轴角速度，单位为度每秒
+reset_vyaw : 50.0                # 扫描目标时yaw轴角速度，单位为度每秒
 reset_vpitch : 100.0              # 扫描目标时pitch轴角速度，单位度每秒
 reset_min_pitch : -30.0           # 扫描目标时pitch轴最小值，单位为度
 reset_max_pitch : 0.0            # 扫描目标时pitch轴最大值，单位为度
