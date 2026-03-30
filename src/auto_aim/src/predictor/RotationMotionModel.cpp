@@ -40,7 +40,7 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     jump_rad = M_PI * 2.0 / n_armors;
 
     // 遗忘因子，值越大遗忘越快
-    lambda_ = is_outpost ? -std::log(0.97) / 0.033 : -std::log(0.88) / 0.033;
+    lambda_ = is_outpost ? -std::log(0.97) / 0.033 : -std::log(0.93) / 0.033;
 
     // 初始化指数衰减最小二乘
     resetExponentialLS();

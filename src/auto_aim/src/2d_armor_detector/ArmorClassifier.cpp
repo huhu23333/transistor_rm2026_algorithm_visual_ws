@@ -132,7 +132,7 @@ std::vector<ArmorResult> ArmorClassifier::classify(
         //is_large_probability = 0.0;
         //not_screen_probability = 1.0;
         //not_slant_probability = 1.0;
-        current_number = 1;
+        //current_number = 1;
         //classify_confidence = 1.0;
 
         bool is_ture_armor = (is_armor_probability >= IS_ARMOR_THRESHOLD) &&
