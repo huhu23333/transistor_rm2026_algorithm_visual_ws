@@ -4,7 +4,7 @@
 // #define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define SYNC_CAMERA_FPS // 定义后主循环帧数将不会超过摄像头实际捕获帧数
 
-// #define FIX_ENEMY_COLOR 1 // 定义后将覆盖config.yaml及电控传来的敌方颜色，0为红色，1为蓝色
+#define FIX_ENEMY_COLOR 1 // 定义后将覆盖config.yaml及电控传来的敌方颜色，0为红色，1为蓝色
 // #define FIX_BULLET_VELOCITY 12.0 // 定义后将覆盖config.yaml及电控传来的发弹初速度
 
 // -!-!-!- 下面的宏定义在上场前都要注释掉再编译一遍；上面的视情况而定 -!-!-!-
