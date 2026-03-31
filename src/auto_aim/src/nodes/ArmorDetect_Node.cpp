@@ -771,7 +771,8 @@ private:
 
             drawResults(frame, lights, armors, classifyResults_withSolveArmorResult);
 
-            yaw_visualizer_ -> update(last_yaw_rad_delayed_ + (bigyawIMUInfos.use_bigyaw_imu ? bigyawIMUInfos.to_mcu_delta_bigyaw : 0.0), mcu_command_bigyaw);
+            yaw_visualizer_ -> update(last_yaw_rad_delayed_ + (bigyawIMUInfos.use_bigyaw_imu ? bigyawIMUInfos.to_mcu_delta_bigyaw : 0.0), 
+                                      mcu_command_bigyaw + controller_result.target_yaw_small);
             // yaw_visualizer_ -> show();
             cv::Mat yaw_visualizer_frame = yaw_visualizer_ -> getDisplay();
 
