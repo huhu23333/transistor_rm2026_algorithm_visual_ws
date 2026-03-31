@@ -738,11 +738,17 @@ private:
                 mcu_command_yaw = predictor_result.command_yaw + headIMUInfos.to_mcu_delta_yaw;
             }
             headIMUInfos.last_mcu_command_yaw = mcu_command_yaw;
+            static float last_reset_pitch_when_auto_aim_switch_off = 0.0;
+            static float last_reset_yaw_when_auto_aim_switch_off = 0.0;
+            if (!auto_aim_switch) {
+                last_reset_pitch_when_auto_aim_switch_off = last_pitch_rad_delayed_;
+                last_reset_yaw_when_auto_aim_switch_off = last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0);
+            }
             if (predictor_result.reset) {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", 0.0, 0.0, false);
                 // serial_communication_->sendData(0.0, 0.0, false);
-                serial_communication_->sendData(last_pitch_rad_delayed_, 
-                    last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0), 
+                serial_communication_->sendData(last_reset_pitch_when_auto_aim_switch_off, 
+                    last_reset_yaw_when_auto_aim_switch_off, 
                     false);
             } else {
                 // RCLCPP_INFO(this->get_logger(), "send data: yaw[%.2f] pitch[%.2f] fire[%d]", predictor_result.command_pitch, predictor_result.command_yaw, predictor_result.fire_flag);
