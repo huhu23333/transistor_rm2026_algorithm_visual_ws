@@ -1,7 +1,7 @@
 #ifndef AUTO_AIM_MACRO_H
 #define AUTO_AIM_MACRO_H
 
-#define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
+// #define SAVE_IMG_FREQ 30 // 定义后将每n帧保存一次相机图片
 #define SYNC_CAMERA_FPS // 定义后主循环帧数将不会超过摄像头实际捕获帧数
 
 #define FIX_ENEMY_COLOR 0 // 定义后将覆盖config.yaml及电控传来的敌方颜色，0为红色，1为蓝色
