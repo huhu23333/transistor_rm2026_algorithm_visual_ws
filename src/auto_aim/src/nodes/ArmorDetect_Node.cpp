@@ -109,8 +109,8 @@ public:
         yaw_rad_to_x_pixel_ratio = camera_matrix_Node[0][0].as<float>(); 
         pitch_rad_to_y_pixel_ratio = camera_matrix_Node[1][1].as<float>(); 
 
-
         max_armor_position_height = (*config_file_ptr)["max_armor_position_height"].as<float>(); 
+        max_armor_position_distance = (*config_file_ptr)["max_armor_position_distance"].as<float>(); 
         
         params_.min_light_height = (*config_file_ptr)["min_light_height"].as<int>();
         params_.light_min_area = (*config_file_ptr)["light_min_area"].as<int>();
@@ -725,7 +725,7 @@ private:
             for (ArmorResult &classify_result : classifyResults) {
                 AimResult solve_armor_result = armor_solver_->solveArmor(classify_result, last_pitch_rad_delayed_, last_yaw_rad_delayed_);
                 cv::Point3f rest_frame_pos = rest_frame_ -> pnpToWorldP3f(solve_armor_result.position);
-                if (rest_frame_pos.z < max_armor_position_height && solve_armor_result.valid) { // 高度高于一定值视为无效
+                if (rest_frame_pos.z < max_armor_position_height && solve_armor_result.valid && cv::norm(rest_frame_pos) < max_armor_position_distance) { // 高度or distance高于一定值视为无效
                     classifyResults_withSolveArmorResult.emplace_back(classify_result);
                     classifyResults_withSolveArmorResult.back().solve_armor_result = solve_armor_result;
                 }
@@ -922,6 +922,7 @@ private:
     float extra_info_delay_time_ms = 0.0;
 
     float max_armor_position_height;
+    float max_armor_position_distance;
 
     std::shared_ptr<WatchdogClient> watchdog_client;
     std::chrono::steady_clock::time_point last_feed_dog_time;

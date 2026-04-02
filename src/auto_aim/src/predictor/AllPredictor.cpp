@@ -353,6 +353,21 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     cv::Point2f(20,290), 
                     cv::FONT_HERSHEY_COMPLEX, 0.7, 
                     cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "center_x:"+std::to_string(RMM_pred_aim_data.center_x), 
+                    cv::Point2f(20,320), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "center_y:"+std::to_string(RMM_pred_aim_data.center_y), 
+                    cv::Point2f(20,350), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
+                cv::putText(RMM_visualize_frame, 
+                    "center_z:"+std::to_string(RMM_pred_aim_data.center_z), 
+                    cv::Point2f(20,380), 
+                    cv::FONT_HERSHEY_COMPLEX, 0.7, 
+                    cv::Scalar(0, 255, 0), 1, 8, false);
             }
             cv::line(RMM_visualize_frame, 
                 cv::Point2f(400, 400), 

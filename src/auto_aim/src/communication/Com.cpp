@@ -213,9 +213,10 @@ bool SerialCommunicationClass::sendData(bool reset, float pitch_target, float sm
         memcpy(&tx_data[12], &big_yaw_enemy_position_y_int16, sizeof(int16_t));
         
         // 处理big_yaw_target (2字节)
-        big_yaw_target += - M_PI * 45.0 / 180.0;
         big_yaw_target = -std::atan2(std::sin(big_yaw_target), std::cos(big_yaw_target));
+        big_yaw_target += 0;
         int16_t big_yaw_int16 = static_cast<int16_t>(big_yaw_target * 4096 / M_PI);
+        // big_yaw_int16 = -2171;
         memcpy(&tx_data[14], &big_yaw_int16, sizeof(int16_t));
 
 
