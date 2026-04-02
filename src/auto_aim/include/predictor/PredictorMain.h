@@ -45,6 +45,8 @@ public:
 
     void reset_yaw_integration();
 
+    void set_extra_delta_yaw(float extra_delta_yaw_);
+
 private:
     std::shared_ptr<YAML::Node> config_file_ptr; 
     rclcpp::Node* node;
@@ -75,4 +77,6 @@ private:
     float command_yaw_kp;
     float command_yaw_integration_speed;
     float command_yaw_integration_max_speed_degree;
+
+    float extra_delta_yaw = 0.0;
 };

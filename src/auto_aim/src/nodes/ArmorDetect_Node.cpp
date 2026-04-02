@@ -468,6 +468,8 @@ private:
             now_serial_infos.push_time = current_time;
             serial_infos_delay_.push(now_serial_infos);
         }
+
+        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(processed_msg.z_rotation_velocity) * (0.0) / 800.0 * M_PI / 180.0);
     }
 
     void drawResults(cv::Mat& image, 
@@ -735,7 +737,7 @@ private:
             headIMUInfos.last_mcu_command_yaw = mcu_command_yaw;
             static float last_reset_pitch_when_auto_aim_switch_off = 0.0;
             static float last_reset_yaw_when_auto_aim_switch_off = 0.0;
-            if (!auto_aim_switch) {
+            if ((!auto_aim_switch) || (!predictor_result.reset)) {
                 last_reset_pitch_when_auto_aim_switch_off = last_pitch_rad_delayed_;
                 last_reset_yaw_when_auto_aim_switch_off = last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0);
             }

@@ -100,7 +100,7 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
         }
     }
     chosen_result.command_pitch = last_pitch_rad_delayed_ + chosen_result.command_delta_pitch * command_picth_kp + pitch_integration; // PI控制
-    chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * command_yaw_kp + yaw_integration; // 缓解yaw轴输入数据掉线问题（并不能()）
+    chosen_result.command_yaw = last_yaw_rad_delayed_ + chosen_result.command_delta_yaw * command_yaw_kp + yaw_integration + extra_delta_yaw; // 缓解yaw轴输入数据掉线问题（并不能()）
 
 
     cv::putText(frame, 
@@ -130,4 +130,8 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
 
 void PredictorMain::reset_yaw_integration() {
     yaw_integration = 0.0;
+}
+
+void PredictorMain::set_extra_delta_yaw(float extra_delta_yaw_) {
+    extra_delta_yaw = extra_delta_yaw_;
 }
