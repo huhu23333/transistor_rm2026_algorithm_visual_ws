@@ -144,7 +144,7 @@ PredictorResult PredictorMain::step(std::vector<ArmorResult>& classifyResults, c
 }
 
 void PredictorMain::set_extra_Z_vel(float Z_vel_) {
-    extra_delta_yaw = Z_vel_ * (-10.0) / 660.0 * M_PI / 180.0; // 20.0 // (-5.0)
+    extra_delta_yaw = Z_vel_ * (-10.0) / 660.0 * M_PI / 180.0; // 20.0 // (-5.0) // -10.0
     Z_vel = Z_vel_;
 }
 
