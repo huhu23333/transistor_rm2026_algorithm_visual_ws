@@ -527,27 +527,26 @@ cv::RotatedRect LightBarDetector::rectExpand(const cv::RotatedRect& rect, float 
 }
 
 float LightBarDetector::calculateMeanInRotatedRect(const cv::Mat& grayImage, const cv::RotatedRect& rect) {
-    // 1. 创建与图像同尺寸的掩码（全黑）
-    cv::Mat mask = cv::Mat::zeros(grayImage.size(), CV_8UC1);
-    
-    // 2. 获取旋转矩形的四个顶点（浮点坐标）
-    cv::Point2f vertices2f[4];
-    rect.points(vertices2f);
-    
-    // 3. 将浮点顶点转换为整数顶点
-    std::vector<cv::Point> vertices;
-    for (int i = 0; i < 4; i++) {
-        vertices.push_back(cv::Point(static_cast<int>(vertices2f[i].x), 
-                                   static_cast<int>(vertices2f[i].y)));
+    cv::Rect boundingBox = rect.boundingRect();
+    boundingBox &= cv::Rect(0, 0, grayImage.cols, grayImage.rows);
+    if (boundingBox.width <= 0 || boundingBox.height <= 0) return 0.0f;
+
+    // 创建与 boundingBox 等大的掩码
+    cv::Mat mask(boundingBox.size(), CV_8UC1, cv::Scalar(0));
+
+    // 获取旋转矩形的顶点并平移到掩码坐标系
+    cv::Point2f vertices[4];
+    rect.points(vertices);
+    std::vector<cv::Point> intVertices(4);
+    for (int i = 0; i < 4; ++i) {
+        intVertices[i] = cv::Point(static_cast<int>(vertices[i].x - boundingBox.x),
+                                   static_cast<int>(vertices[i].y - boundingBox.y));
     }
-    
-    // 4. 将旋转矩形区域填充为白色（255）
-    cv::fillConvexPoly(mask, vertices, cv::Scalar(255));
-    
-    // 5. 计算掩码区域的均值
-    cv::Scalar meanValue = cv::mean(grayImage, mask);
-    
-    return meanValue[0];  // 灰度图像只有一个通道
+    cv::fillConvexPoly(mask, intVertices, cv::Scalar(255));
+
+    // 对 ROI 和掩码求均值
+    cv::Scalar meanVal = cv::mean(grayImage(boundingBox), mask);
+    return meanVal[0];
 }
 
 cv::Mat LightBarDetector::extractColorChannelDiff(const cv::Mat& img) {
