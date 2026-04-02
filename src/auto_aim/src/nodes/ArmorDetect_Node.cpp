@@ -497,40 +497,40 @@ private:
         cv::Point2f test_point_pos_pixel = armor_solver_ -> project3DToPixel(test_point_pos);
         cv::circle(result, test_point_pos_pixel, 8, cv::Scalar(255, 0, 255), 2);
 
-        // // 1. 绘制灯条（绿色）
-        // for (const auto& light : lights) {
-        //     cv::Point2f vertices[4];
-        //     light.el.points(vertices);
-        //     for (int i = 0; i < 4; i++) {
-        //         cv::line(result, vertices[i], vertices[(i + 1) % 4], 
-        //                 cv::Scalar(0, 255, 0), 2);
-        //     }
-        // }
+        // 1. 绘制灯条（绿色）
+        for (const auto& light : lights) {
+            cv::Point2f vertices[4];
+            light.el.points(vertices);
+            for (int i = 0; i < 4; i++) {
+                cv::line(result, vertices[i], vertices[(i + 1) % 4], 
+                        cv::Scalar(0, 255, 0), 2);
+            }
+        }
 
-        // // 2. 绘制装甲板候选区域（黄色）
-        // for (const auto& armor : armors) {
-        //     for (size_t i = 0; i < armor.corners.size() && i < 4; i++) {
-        //         cv::line(result, armor.corners[i], 
-        //                 armor.corners[(i+1)%4], 
-        //                 cv::Scalar(0, 255, 255), 2);
-        //     }
+        // 2. 绘制装甲板候选区域（黄色）
+        for (const auto& armor : armors) {
+            for (size_t i = 0; i < armor.corners.size() && i < 4; i++) {
+                cv::line(result, armor.corners[i], 
+                        armor.corners[(i+1)%4], 
+                        cv::Scalar(0, 255, 255), 2);
+            }
 
-        //     // 显示装甲板置信度
-        //     if (!armor.corners.empty()) {
-        //         std::string conf_str = cv::format("conf: %.2f", armor.confidence);
-        //         cv::Point text_pos(armor.corners[0].x, armor.corners[0].y - 10);
-        //         cv::putText(result, conf_str, text_pos,
-        //                 cv::FONT_HERSHEY_SIMPLEX, 0.5, 
-        //                 cv::Scalar(0, 255, 255), 1);
-        //     }
+            // 显示装甲板置信度
+            if (!armor.corners.empty()) {
+                std::string conf_str = cv::format("conf: %.2f", armor.confidence);
+                cv::Point text_pos(armor.corners[0].x, armor.corners[0].y - 10);
+                cv::putText(result, conf_str, text_pos,
+                        cv::FONT_HERSHEY_SIMPLEX, 0.5, 
+                        cv::Scalar(0, 255, 255), 1);
+            }
 
-        //     // 绘制灯条顶点
-        //     for (size_t i = 0; i < armor.light_bar_corners.size() && i < 4; i++) {
-        //         cv::line(result, armor.light_bar_corners[i], 
-        //                 armor.light_bar_corners[(i+1)%4], 
-        //                 cv::Scalar(255, 0, 0), 2);
-        //     }
-        // }
+            // 绘制灯条顶点
+            for (size_t i = 0; i < armor.light_bar_corners.size() && i < 4; i++) {
+                cv::line(result, armor.light_bar_corners[i], 
+                        armor.light_bar_corners[(i+1)%4], 
+                        cv::Scalar(255, 0, 0), 2);
+            }
+        }
 
         // 3. 绘制最终识别结果（红色）和跟踪信息
         for (const auto& res : classifyResults) {
@@ -740,7 +740,7 @@ private:
             headIMUInfos.last_mcu_command_yaw = mcu_command_yaw;
             static float last_reset_pitch_when_auto_aim_switch_off = 0.0;
             static float last_reset_yaw_when_auto_aim_switch_off = 0.0;
-            if (!auto_aim_switch) {
+            if ((!auto_aim_switch) || (!predictor_result.reset)) {
                 last_reset_pitch_when_auto_aim_switch_off = last_pitch_rad_delayed_;
                 last_reset_yaw_when_auto_aim_switch_off = last_yaw_rad_delayed_ + (headIMUInfos.use_head_imu ? headIMUInfos.to_mcu_delta_yaw : 0.0);
             }
