@@ -40,12 +40,15 @@ public:
     /**
      * @brief 修正在拟合旋转矩形时造成的长度和宽度误差
      */
-    void correctLengthAndWidth(const cv::Mat& binary_img);
+    void correctLengthAndWidth(const cv::Mat& gray_img, const cv::Mat& subtract_gray_img);
 
-    // /**
-    //  * @brief 高效计算旋转矩形内白色像素面积的辅助函数
-    //  */
-    // float computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& binary_img);
+    /**
+     * @brief 高效计算旋转矩形内白色像素面积的辅助函数
+     */
+    float computeRotatedRectSum(const cv::RotatedRect& rect, const cv::Mat& binary_img);
+
+    void correctWidth(const cv::Mat& binary_img);
+    void correctLength(const cv::Mat& binary_img);
 };
 
 #endif // LIGHTBAR_H

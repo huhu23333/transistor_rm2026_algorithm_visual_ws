@@ -41,7 +41,7 @@ namespace ArmorConstants {
     constexpr float SMALL_DISTANCE_RATIO = SMALL_ARMOR_WIDTH / LIGHT_HEIGHT;
 
     // 新增用于pnp的灯条顶点参数
-    constexpr float PNP_LIGHT_HEIGHT = 45.0f;       // pnp用灯条高度 // 待修正
+    constexpr float PNP_LIGHT_HEIGHT = 50.0f;       // pnp用灯条高度 // 待修正
     constexpr float SMALL_ARMOR_LIGHT_DISTANCE = 130.0f; // 待修正
     constexpr float LARGE_ARMOR_LIGHT_DISTANCE = 225.0f; // 待修正
 }
