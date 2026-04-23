@@ -168,7 +168,7 @@ std::vector<float> RestFrame::rotationMatrixToEuler(const std::vector<std::vecto
     float yaw, pitch, roll;
     
     // 计算pitch from M21
-    pitch = std::asin(M21);
+    pitch = std::asin(std::clamp(M21, -1.0f, 1.0f));
     
     // 检查万向节死锁（cos(pitch)是否接近零）
     const float epsilon = 1e-6;
