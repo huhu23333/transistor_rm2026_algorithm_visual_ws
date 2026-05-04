@@ -30,7 +30,7 @@ private:
         bool reserved3;         // 备用标志3
         
         float results[100][12]; // 结果存储区 (100x12 float)
-        unsigned char image_data[100][64*48*3]; // 图像存储区 (100张64x48 RGB图像)
+        unsigned char image_data[100][256*192*3]; // 图像存储区 (100张256x192 RGB图像)
     };
     #pragma pack(pop)
     

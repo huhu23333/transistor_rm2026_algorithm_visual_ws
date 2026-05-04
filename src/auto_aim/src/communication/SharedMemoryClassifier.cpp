@@ -51,12 +51,12 @@ std::vector<std::vector<float>> SharedMemoryClassifier::processImages(const std:
     // 2. 复制图像数据到共享内存
     for (int i = 0; i < num_images; ++i) {
         // 验证图像格式和尺寸
-        if (images[i].cols != 64 || images[i].rows != 48 || images[i].channels() != 3) {
-            throw std::invalid_argument("Invalid image format. Expected 64x48 RGB");
+        if (images[i].cols != 256 || images[i].rows != 192 || images[i].channels() != 3) {
+            throw std::invalid_argument("Invalid image format. Expected 256x192 RGB");
         }
         
         // 复制连续的内存块
-        size_t data_size = 64 * 48 * 3;
+        size_t data_size = 256 * 192 * 3;
         if (images[i].isContinuous()) {
             std::memcpy(shared_data_->image_data[i], images[i].data, data_size);
         } else {

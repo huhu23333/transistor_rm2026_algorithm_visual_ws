@@ -26,7 +26,7 @@ images_relative_path : "InputImages"                    # 使用图片输入时�
 
 RMM_visualize_zoom_out_factor : 10.0 # 平面可视化缩放系数，该值越大视野范围越大
 
-frame_rate : 30.0   # fps
+frame_rate : 1.0   # fps
 serial_delay_time : 30.0 # ms           电控传来的信息相对相机画面快的时间，将对电控信息再延迟这个时间以同步两者
 extra_predict_time : 0.170 # s          除了弹丸飞行时间以外的需要预测器补偿的总时间
 
@@ -108,8 +108,10 @@ classify_classes : 8
 IS_ARMOR_THRESHOLD : 0.5
 IS_LARGE_THRESHOLD : 0.5
 CLASSIFY_THRESHOLD : 0.5
-INPUT_HEIGHT : 48
-INPUT_WIDTH : 64
+SHM_INPUT_HEIGHT : 192
+SHM_INPUT_WIDTH : 256
+CLASSIFY_INPUT_HEIGHT : 48
+CLASSIFY_INPUT_WIDTH : 64
 MAX_TRACKING_AGE_MS : 100  # 最大跟踪时间100ms // DEBUG // 100 // 300
 MIN_TRACKING_COUNT : 2     # 最小连续跟踪次数           // 2
 IS_NEAR_MAX_DIST_RATIO : 1.5     # 50.0

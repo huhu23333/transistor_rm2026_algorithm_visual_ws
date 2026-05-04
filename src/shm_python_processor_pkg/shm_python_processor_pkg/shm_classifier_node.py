@@ -103,6 +103,10 @@ class ShmPytorchProcessorNode(Node):
 
         self.CLASSIFIER_SHM_KEY = int(config_data["CLASSIFIER_SHM_KEY"])
         classifier_model_relative_path = config_data["classifier_model_relative_path"]
+        self.SHM_INPUT_HEIGHT = int(config_data["SHM_INPUT_HEIGHT"])
+        self.SHM_INPUT_WIDTH = int(config_data["SHM_INPUT_WIDTH"])
+        self.CLASSIFY_INPUT_HEIGHT = int(config_data["CLASSIFY_INPUT_HEIGHT"])
+        self.CLASSIFY_INPUT_WIDTH = int(config_data["CLASSIFY_INPUT_WIDTH"])
         model_path = os.path.join(ws_dir_path, classifier_model_relative_path)
         
         # 定义与C++完全一致的内存结构
@@ -144,7 +148,7 @@ class ShmPytorchProcessorNode(Node):
                 4  # num_images (int32)
                 + 4  # is_processed + reserved (4*bool=4字节)
                 + 100 * 12 * 4  # results (100*12*float32)
-                + 100 * 64 * 48 * 3  # images (100*64*48*3 uint8)
+                + 100 * self.SHM_INPUT_WIDTH * self.SHM_INPUT_HEIGHT * 3  # images (100*256*192*3 uint8)
             )
             self.shm = SharedMemory(self.CLASSIFIER_SHM_KEY, IPC_CREAT, size=shm_size)
         self.shm.write(bytearray([0]), offset=5) # 确保初始时不会自动显示窗口
@@ -167,28 +171,29 @@ class ShmPytorchProcessorNode(Node):
                 # 2. 读取图像数据
                 img_offset = 8 + 100*12*4  # 控制信息+结果区
                 img_data = self.shm.read(
-                    num_images * 64*48*3, 
+                    num_images * self.SHM_INPUT_WIDTH * self.SHM_INPUT_HEIGHT * 3, 
                     offset=img_offset
                 )
                 images = np.frombuffer(img_data, dtype=np.uint8)
 
                 # 初始化图像列表
                 image_list = []
-
+                classify_image_list = []
                 
                 
                 # 处理每张图像
                 for i in range(num_images):
-                    # 提取当前图像数据 (64宽x48高x3通道)
-                    img_start = i * 64 * 48 * 3
-                    img_end = img_start + 64 * 48 * 3
+                    # 提取当前图像数据 (256宽x192高x3通道)
+                    img_start = i * self.SHM_INPUT_WIDTH * self.SHM_INPUT_HEIGHT * 3
+                    img_end = img_start + self.SHM_INPUT_WIDTH * self.SHM_INPUT_HEIGHT * 3
                     img_flat = images[img_start:img_end]
                     
                     # 转换为OpenCV图像格式 (高度, 宽度, 通道)
-                    img_np = img_flat.reshape((48, 64, 3))  # 注意: 高度48，宽度64 #(48, 64, 3)
+                    img_np = img_flat.reshape((self.SHM_INPUT_HEIGHT, self.SHM_INPUT_WIDTH, 3))  # 注意: 高度48，宽度64 #(48, 64, 3)
 
                     # 将图像加入图像列表
                     image_list.append(img_np)
+                    classify_image_list.append(cv2.resize(img_np, (self.CLASSIFY_INPUT_WIDTH, self.CLASSIFY_INPUT_HEIGHT)))
 
 
                 # ============== 可视化部分 ==============
@@ -196,7 +201,7 @@ class ShmPytorchProcessorNode(Node):
                 # 创建窗口用于显示图像
                 if np.frombuffer(self.shm.read(1, offset=5), dtype=np.uint8)[0] == 1:
                     cv2.namedWindow("Shared Memory Image", cv2.WINDOW_NORMAL)
-                    cv2.resizeWindow("Shared Memory Image", 320, 240)  # 放大显示
+                    cv2.resizeWindow("Shared Memory Image", 1000, 750)  # 放大显示
                     cv2.imshow("Shared Memory Image", image_list[0])  # 显示图像
                     key = cv2.waitKey(1)  # 图像显示1ms  # 等待按键或短暂延迟
 
@@ -204,19 +209,19 @@ class ShmPytorchProcessorNode(Node):
                 t_1 = time.time()
 
                 # 将所有图像叠加为一个tensor，并行处理
-                images_np = np.stack(image_list, axis=0)
-                #images_tensor = torch.from_numpy(images_np).float().to(self.device)
+                classify_images_np = np.stack(classify_image_list, axis=0)
+                #images_tensor = torch.from_numpy(classify_images_np).float().to(self.device)
                 #images_tensor = images_tensor.permute(0, 3, 1, 2) # 调整维度顺序 (N, H, W, C) → (N, C, H, W)
                 #images_tensor = (images_tensor / 127.5) - 1.0 # 归一化到[-1, 1]
-                images_np = np.transpose(images_np, (0, 3, 1, 2)) # 调整维度顺序 (N, H, W, C) → (N, C, H, W)
-                images_np = (images_np / 127.5) - 1.0 # 归一化到[-1, 1]
+                classify_images_np = np.transpose(classify_images_np, (0, 3, 1, 2)) # 调整维度顺序 (N, H, W, C) → (N, C, H, W)
+                classify_images_np = (classify_images_np / 127.5) - 1.0 # 归一化到[-1, 1]
 
                 t_2 = time.time()
                 
                 # 使用PyTorch处理
                 #results_tuple = self.model(images_tensor)
-                #results_tuple = self.onnx_model.run(None,{self.onnx_model.get_inputs()[0].name: images_np.astype(np.float32)})
-                results_tuple = self.ov_compiled_model(images_np)
+                #results_tuple = self.onnx_model.run(None,{self.onnx_model.get_inputs()[0].name: classify_images_np.astype(np.float32)})
+                results_tuple = self.ov_compiled_model(classify_images_np)
                 #self.get_logger().info(f"{results_tuple}")
 
                 t_3 = time.time()

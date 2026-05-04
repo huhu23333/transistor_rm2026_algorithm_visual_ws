@@ -14,8 +14,8 @@ ArmorClassifier::ArmorClassifier(std::shared_ptr<YAML::Node> config_file_ptr, rc
     IS_ARMOR_THRESHOLD = (*config_file_ptr)["IS_ARMOR_THRESHOLD"].as<float>();
     IS_LARGE_THRESHOLD = (*config_file_ptr)["IS_LARGE_THRESHOLD"].as<float>();
     CLASSIFY_THRESHOLD = (*config_file_ptr)["CLASSIFY_THRESHOLD"].as<float>();
-    INPUT_HEIGHT = (*config_file_ptr)["INPUT_HEIGHT"].as<int>();
-    INPUT_WIDTH = (*config_file_ptr)["INPUT_WIDTH"].as<int>();
+    SHM_INPUT_HEIGHT = (*config_file_ptr)["SHM_INPUT_HEIGHT"].as<int>();
+    SHM_INPUT_WIDTH = (*config_file_ptr)["SHM_INPUT_WIDTH"].as<int>();
 
     shm_python_classifier = std::make_shared<SharedMemoryClassifier>(config_file_ptr);
     armor_tracker = std::make_shared<ArmorTracker>(config_file_ptr, node);
@@ -28,17 +28,18 @@ cv::Mat ArmorClassifier::preprocessROI(const cv::Mat& img, const Armor& armor) {
     cv::Mat roi_img = UnwarpUtils::unwarpQuadrilateral(img, armor.corners_expanded);
     
     
-    // 图像预处理
-    cv::Mat blurred;
-    cv::GaussianBlur(roi_img, blurred, cv::Size(3, 3), 0);
+    // // 图像预处理
+    // cv::Mat blurred;
+    // cv::GaussianBlur(roi_img, blurred, cv::Size(3, 3), 0);
     
-    cv::Mat padded;
-    int padding = 2;
-    cv::copyMakeBorder(blurred, padded, padding, padding, padding, padding, 
-                      cv::BORDER_REPLICATE);
+    // cv::Mat padded;
+    // int padding = 2;
+    // cv::copyMakeBorder(blurred, padded, padding, padding, padding, padding, 
+    //                   cv::BORDER_REPLICATE);
 
     cv::Mat resized;
-    cv::resize(padded, resized, cv::Size(INPUT_WIDTH, INPUT_HEIGHT));
+    // cv::resize(padded, resized, cv::Size(SHM_INPUT_WIDTH, SHM_INPUT_HEIGHT));roi_img
+    cv::resize(roi_img, resized, cv::Size(SHM_INPUT_WIDTH, SHM_INPUT_HEIGHT));
     
     // cv::imshow("Classifier DEBUG", resized);
     // 如果已经保存了1000张图片，直接返回处理后的图像而不保存

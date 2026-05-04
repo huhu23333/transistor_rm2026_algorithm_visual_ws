@@ -42,8 +42,8 @@ private:
     float IS_ARMOR_THRESHOLD;
     float IS_LARGE_THRESHOLD;
     float CLASSIFY_THRESHOLD;
-    int INPUT_HEIGHT;
-    int INPUT_WIDTH;
+    int SHM_INPUT_HEIGHT;
+    int SHM_INPUT_WIDTH;
 
     fs::path ws_dir_path; // 用于保存图片路径
     
