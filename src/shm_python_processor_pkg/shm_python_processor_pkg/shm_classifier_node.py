@@ -4,6 +4,7 @@ from rclpy.node import Node
 #import torch.nn as nn
 import numpy as np
 from sysv_ipc import SharedMemory, IPC_CREAT
+import posix_ipc  # 引入 POSIX 信号量库
 import time
 import cv2
 import os
@@ -129,11 +130,21 @@ class ShmPytorchProcessorNode(Node):
         self.ov_compiled_model = ov_runtime_core.compile_model(ov_model, self.openvino_device)
         self.get_logger().info(f"rm2026 model loaded successfully to openvino-{self.openvino_device}")
 
+        # 初始化 POSIX 信号量
+        # 0 表示初始值，posix_ipc 默认不使用 O_EXCL，如果存在就直接打开
+        self.sem_data_ready = posix_ipc.Semaphore("/shm_classifier_data", flags=posix_ipc.O_CREAT, initial_value=0)
+        self.sem_result_ready = posix_ipc.Semaphore("/shm_classifier_result", flags=posix_ipc.O_CREAT, initial_value=0)
+
+        self.get_logger().info("POSIX Semaphores initialized.")
         self.run()
     
     def __del__(self):
         if self.shm:
             self.shm.detach()
+        if hasattr(self, 'sem_data_ready'):
+            self.sem_data_ready.close()
+        if hasattr(self, 'sem_result_ready'):
+            self.sem_result_ready.close()
     
     def attach_shared_memory(self):
         try:
@@ -150,15 +161,17 @@ class ShmPytorchProcessorNode(Node):
         self.shm.write(bytearray([0]), offset=5) # 确保初始时不会自动显示窗口
 
     def run(self):
-        """持续监控共享内存并处理图像，添加可视化功能"""
         #with torch.no_grad():
+        """使用信号量进行严格同步的循环"""
         while True:
+            # 1. 【关键】阻塞等待 C++ 端写入图像数据
+            # 此时 Python 进程完全休眠，0 CPU 占用
+            self.sem_data_ready.acquire()
             # 读取控制信息
             control_data = self.shm.read(8, offset=0)
             num_images = np.frombuffer(control_data[:4], dtype=np.int32)[0]
-            is_processed = control_data[4]  # 第5字节是is_processed
             
-            if not is_processed and num_images > 0:
+            if num_images > 0:
                 t_start = time.time()
 
                 # 1. 准备数据
@@ -252,16 +265,13 @@ class ShmPytorchProcessorNode(Node):
                 # 4. 写入结果
                 results_bytes = results_np.astype(np.float32).tobytes()
                 self.shm.write(results_bytes, offset=8)  # 控制信息后紧跟结果区
-                
-                # 5. 设置处理完成标志
-                processed_flag = bytearray([1])
-                self.shm.write(processed_flag, offset=4)
 
                 t_5 = time.time()
 
                 self.get_logger().debug(f"python process time: {(time.time()-t_start)*1000:.2f}ms\n{(t_1-t_start)*1000:.2f} | {(t_2-t_1)*1000:.2f} | {(t_3-t_2)*1000:.2f} | {(t_4-t_3)*1000:.2f} | {(t_5-t_4)*1000:.2f}")
 
-            time.sleep(0.001)  # 减少CPU占用
+            # 6. 【关键】结果写入完毕，释放内存屏障，通知 C++ 端可以读取了
+            self.sem_result_ready.release()
             
 
 def main(args=None):

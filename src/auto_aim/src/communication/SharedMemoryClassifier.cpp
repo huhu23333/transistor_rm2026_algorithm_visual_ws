@@ -3,6 +3,19 @@
 
 SharedMemoryClassifier::SharedMemoryClassifier(std::shared_ptr<YAML::Node> config_file_ptr) {
     CLASSIFIER_SHM_KEY = (*config_file_ptr)["CLASSIFIER_SHM_KEY"].as<int>();
+
+    // 1. 初始化信号量 (使用 O_EXCL 确保只有第一个进程创建并初始化值，后续进程直接打开)
+    // 初始值设为 0，表示一开始没有数据
+    sem_data_ready_ = sem_open("/shm_classifier_data", O_CREAT | O_EXCL, 0666, 0);
+    if (sem_data_ready_ == SEM_FAILED) {
+        sem_data_ready_ = sem_open("/shm_classifier_data", 0); // 已存在，直接打开
+    }
+    
+    sem_result_ready_ = sem_open("/shm_classifier_result", O_CREAT | O_EXCL, 0666, 0);
+    if (sem_result_ready_ == SEM_FAILED) {
+        sem_result_ready_ = sem_open("/shm_classifier_result", 0);
+    }
+
     // 创建或附加共享内存
     size_t shm_size = sizeof(SharedData);
     shm_id_ = shmget(CLASSIFIER_SHM_KEY, shm_size, IPC_CREAT | 0666);
@@ -13,7 +26,7 @@ SharedMemoryClassifier::SharedMemoryClassifier(std::shared_ptr<YAML::Node> confi
     attachSharedMemory();    
     
     // 初始化共享内存
-    shared_data_->is_processed = true;  // 初始状态为已处理
+    shared_data_->reserved0 = false; // is_processed 废弃
     shared_data_->show_windows = false;
     shared_data_->reserved2 = false;
     shared_data_->reserved3 = false;
@@ -22,6 +35,9 @@ SharedMemoryClassifier::SharedMemoryClassifier(std::shared_ptr<YAML::Node> confi
 
 SharedMemoryClassifier::~SharedMemoryClassifier() {
     detachSharedMemory();
+    // 关闭信号量 (注意：通常不在这里 unlink，防止影响其他正在运行的实例)
+    sem_close(sem_data_ready_);
+    sem_close(sem_result_ready_);
 }
 
 void SharedMemoryClassifier::attachSharedMemory() {
@@ -34,12 +50,6 @@ void SharedMemoryClassifier::attachSharedMemory() {
 void SharedMemoryClassifier::detachSharedMemory() {
     if (shmdt(shared_data_) == -1) {
         // 处理错误但不抛出异常，防止在析构中产生问题
-    }
-}
-
-void SharedMemoryClassifier::waitForProcessing() {
-    while (!shared_data_->is_processed) {
-        usleep(1000); // 1ms休眠减少CPU占用
     }
 }
 
@@ -71,13 +81,25 @@ std::vector<std::vector<float>> SharedMemoryClassifier::processImages(const std:
     shared_data_ -> show_windows = false;
 #endif
     
-    // 3. 通知Python端开始处理
-    shared_data_->is_processed = false;
+
+    // 2. 【关键】数据写入完毕，释放内存屏障，通知 Python 端
+    sem_post(sem_data_ready_);
+
+    // 3. 【关键】阻塞等待 Python 端处理完成并通知
+    // 此时 C++ 线程休眠，不消耗 CPU
+    sem_wait(sem_result_ready_);
+
+    // // 等待 1000 毫秒，如果 Python 没醒，就认为它挂了，走降级逻辑
+    // struct timespec ts;
+    // clock_gettime(CLOCK_REALTIME, &ts);
+    // ts.tv_nsec += 1000LL*1000LL*1000LL; // 1000ms
+    // if (sem_timedwait(sem_result_ready_, &ts) == -1) {
+    //     if (errno == ETIMEDOUT) {
+    //         // 处理超时逻辑
+    //     }
+    // }
     
-    // 4. 等待处理完成
-    waitForProcessing();
-    
-    // 5. 读取处理结果
+    // 4. 读取处理结果
     std::vector<std::vector<float>> results;
     for (int i = 0; i < num_images; ++i) {
         results.emplace_back(

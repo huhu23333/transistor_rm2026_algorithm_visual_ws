@@ -8,6 +8,8 @@
 #include <sys/shm.h>
 #include <unistd.h>
 #include <cstring>
+#include <fcntl.h>           // for O_CREAT, O_EXCL
+#include <semaphore.h>       // POSIX 信号量头文件
 #include <yaml-cpp/yaml.h>
 #include "macro/AutoAimMacro.h"
 
@@ -24,7 +26,7 @@ private:
     #pragma pack(push, 1)
     struct SharedData {
         int num_images;         // 当前批次图像数量
-        bool is_processed;      // 处理状态标志
+        bool reserved0; // 原来的 is_processed 可以废弃不用了，但为了兼容内存结构保留
         bool show_windows;      // 显示图像
         bool reserved2;         // 备用标志2
         bool reserved3;         // 备用标志3
@@ -38,10 +40,13 @@ private:
     SharedData* shared_data_;
     const size_t MAX_IMAGES = 100;
     int CLASSIFIER_SHM_KEY; // 共享内存键值
+
+    // 新增：POSIX 信号量
+    sem_t* sem_data_ready_;  
+    sem_t* sem_result_ready_; 
     
     void attachSharedMemory();
     void detachSharedMemory();
-    void waitForProcessing();
 };
 
 #endif // SHARED_MEMORY_CLASSIFIER_H

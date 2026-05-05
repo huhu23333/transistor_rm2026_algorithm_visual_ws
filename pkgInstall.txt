@@ -6,12 +6,12 @@ KERNEL=="ttyACM0", MODE="0666"
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
-
 pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
 pip install numpy sysv-ipc opencv-python pyyaml
 pip install ultralytics openvino
 pip install onnxruntime onnxscript openvino-dev
 pip install nncf==2.14.0
+pip install posix_ipc
 
 sudo apt update
 sudo apt install libceres-dev
