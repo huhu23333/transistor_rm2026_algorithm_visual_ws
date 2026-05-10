@@ -40,10 +40,13 @@ else:
             user_name = may_user_name
             break
     else:
-        sys.exit()
+        user_name = input("请输入用户名：")
 
 auto_launch_dir = os.path.dirname(__file__)
-changed_service_file_content = original_service_file_content.replace("rm1", user_name)
+ws_dir = auto_launch_dir.replace("/auto_launch", "")
+changed_service_file_content = original_service_file_content\
+    .replace("/home/rm1/rm2026/transistor_rm2026_algorithm_visual_ws", ws_dir)\
+    .replace("User=rm1", f"User={user_name}")
 temp_file_name = os.path.join(auto_launch_dir, "auto_aim_auto_launch.service")
 with open(temp_file_name, mode="w", encoding="utf-8") as temp_file:
     temp_file.write(changed_service_file_content)
