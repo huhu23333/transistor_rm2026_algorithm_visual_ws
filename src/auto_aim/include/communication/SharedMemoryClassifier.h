@@ -47,6 +47,7 @@ private:
     
     void attachSharedMemory();
     void detachSharedMemory();
+    void resetSemaphore(sem_t* sem);
 };
 
 #endif // SHARED_MEMORY_CLASSIFIER_H

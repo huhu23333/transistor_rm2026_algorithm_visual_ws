@@ -1,5 +1,27 @@
 // SharedMemoryClassifier.cpp
 #include "communication/SharedMemoryClassifier.h"
+#include <errno.h>  // 必须包含这个，用于检查 EAGAIN
+
+// 提取一个私有方法用于安全清零信号量
+void SharedMemoryClassifier::resetSemaphore(sem_t* sem) {
+    // 循环尝试将信号量减 1
+    while (true) {
+        if (sem_trywait(sem) == 0) {
+            // 成功减 1，说明消耗了一个残留的信号，继续循环尝试
+            continue;
+        } else {
+            // 返回 -1，检查错误码
+            if (errno == EAGAIN) {
+                // 错误码是 EAGAIN，说明信号量已经是 0 了，清零完成，退出循环
+                break; 
+            } else {
+                // 其他错误（比如信号量被意外删除等），打印日志并退出
+                perror("sem_trywait failed during reset");
+                break;
+            }
+        }
+    }
+}
 
 SharedMemoryClassifier::SharedMemoryClassifier(std::shared_ptr<YAML::Node> config_file_ptr) {
     CLASSIFIER_SHM_KEY = (*config_file_ptr)["CLASSIFIER_SHM_KEY"].as<int>();
@@ -15,6 +37,10 @@ SharedMemoryClassifier::SharedMemoryClassifier(std::shared_ptr<YAML::Node> confi
     if (sem_result_ready_ == SEM_FAILED) {
         sem_result_ready_ = sem_open("/shm_classifier_result", 0);
     }
+
+    // 2. 【新增】初始化时强制清零，消除上次崩溃残留的脏状态
+    resetSemaphore(sem_data_ready_);
+    resetSemaphore(sem_result_ready_);
 
     // 创建或附加共享内存
     size_t shm_size = sizeof(SharedData);
