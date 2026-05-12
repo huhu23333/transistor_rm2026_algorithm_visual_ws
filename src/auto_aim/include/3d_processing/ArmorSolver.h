@@ -48,7 +48,13 @@ public:
     AimResult solveArmor(const ArmorResult& armor_result, const double last_pitch_rad_, const double last_yaw_rad_) const; // 增加number参数
     
     
- 
+     /**
+     * @brief 根据图像分辨率计算最大视场角（弧度）
+     * @param width  图像宽度（像素）
+     * @param height 图像高度（像素）
+     * @return 最大夹角（弧度），若计算失败返回 -1.0
+     */
+    double getMaxFOVAngle(int width, int height) const;
 
 private:
     // 相机参数
@@ -69,6 +75,14 @@ private:
     float delta_x_;
     float delta_y_;
     float delta_z_;
+
+    // 用于缓存分辨率与对应最大夹角的映射（mutable 以便在 const 成员函数中修改）
+    mutable std::unordered_map<std::string, double> fov_cache_;
+
+    // 辅助函数：生成分辨率字符串键
+    static std::string makeCacheKey(int width, int height) {
+        return std::to_string(width) + "x" + std::to_string(height);
+    }
 };
 
 #endif // ARMOR_SOLVER_H

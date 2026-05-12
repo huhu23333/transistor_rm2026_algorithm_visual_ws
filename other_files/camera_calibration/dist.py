@@ -36,7 +36,7 @@ for fname in images:
         # 绘制检测到的角点以便查看
         img = cv2.drawChessboardCorners(img, chessboard_size, corners, ret)
         cv2.imshow('Detected Corners', img)
-        cv2.waitKey(500)  # 显示图像一段时间，单位为毫秒
+        cv2.waitKey(50)  # 显示图像一段时间，单位为毫秒
 
     else:
         print(f"未能在图像 {fname} 中找到棋盘格角点。")

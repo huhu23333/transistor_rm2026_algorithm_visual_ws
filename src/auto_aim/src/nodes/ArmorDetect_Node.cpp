@@ -306,6 +306,7 @@ private:
 
         float current_pitch_;
         float current_yaw_;
+        float current_roll_;
         float last_pitch_rad_;
         float last_yaw_rad_;
         float total_yaw_rad_;
@@ -313,7 +314,7 @@ private:
 
         current_pitch_ = msg.euler_pitch;
         current_yaw_ = msg.euler_yaw;
-
+        current_roll_ = msg.euler_roll;
 
         headIMUInfos.head_imu_yaw = msg.euler_yaw;
         headIMUInfos.head_imu_pitch = msg.euler_pitch;
@@ -336,12 +337,14 @@ private:
         total_yaw_rad_imu_ = current_yaw_circle_imu_ * 2 * M_PI + current_yaw_;
         last_pitch_rad_imu_ = current_pitch_;
         last_yaw_rad_imu_ = current_yaw_;
+        last_roll_rad_imu_ = current_roll_;
 
         if (headIMUInfos.use_head_imu) {
             std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
             DelayInfos now_serial_infos;
-            // now_serial_infos.last_pitch_rad_ = last_pitch_rad_imu_;
-            now_serial_infos.last_pitch_rad_ = last_pitch_rad_mcu_;
+            now_serial_infos.last_pitch_rad_ = last_pitch_rad_imu_;
+            now_serial_infos.last_pitch_rad_ = last_pitch_rad_imu_; // last_pitch_rad_mcu_
+            now_serial_infos.last_roll_rad_ = last_roll_rad_imu_;
             now_serial_infos.last_yaw_rad_ = last_yaw_rad_imu_;
             now_serial_infos.total_yaw_rad_ = total_yaw_rad_imu_;
             now_serial_infos.push_time = current_time;
@@ -458,6 +461,7 @@ private:
             DelayInfos now_serial_infos;
             now_serial_infos.last_pitch_rad_ = last_pitch_rad_mcu_;
             now_serial_infos.last_yaw_rad_ = last_yaw_rad_mcu_;
+            now_serial_infos.last_roll_rad_ = 0.0;
             now_serial_infos.total_yaw_rad_ = total_yaw_rad_mcu_;
             now_serial_infos.push_time = current_time;
             serial_infos_delay_.push(now_serial_infos);
@@ -606,8 +610,9 @@ private:
         last_pitch_rad_delayed_ = delayed_serial_infos.last_pitch_rad_;
         last_yaw_rad_delayed_ = delayed_serial_infos.last_yaw_rad_;
         total_yaw_rad_delayed_ = delayed_serial_infos.total_yaw_rad_;
+        last_roll_rad_delayed_ = delayed_serial_infos.last_roll_rad_;
         ground_stable_point = cv::Point2f(500+total_yaw_rad_delayed_*yaw_rad_to_x_pixel_ratio, 500+last_pitch_rad_delayed_*pitch_rad_to_y_pixel_ratio);
-        rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, 0);
+        rest_frame_ -> updateCamOrientation(last_yaw_rad_delayed_, last_pitch_rad_delayed_, last_roll_rad_delayed_);
         rest_frame_ -> updateCamPosition(0, 0, 0); // 预留位置接口
         predictor_main_ -> update_serial_info(bullet_velocity_, last_pitch_rad_delayed_, last_yaw_rad_delayed_, total_yaw_rad_delayed_);
         RCLCPP_DEBUG(this->get_logger(), "ground_stable_point: %.2f %.2f", ground_stable_point.x, ground_stable_point.y);
@@ -852,14 +857,17 @@ private:
     float last_pitch_rad_imu_;
     float last_yaw_rad_imu_;
     float total_yaw_rad_imu_;
+    float last_roll_rad_imu_;
     int current_yaw_circle_imu_ = 0;
 
     float last_pitch_rad_delayed_ = 0;
     float last_yaw_rad_delayed_ = 0;
     float total_yaw_rad_delayed_ = 0;
+    float last_roll_rad_delayed_ = 0;
     struct DelayInfos {
         float last_pitch_rad_;
         float last_yaw_rad_;
+        float last_roll_rad_;
         float total_yaw_rad_;
         std::chrono::steady_clock::time_point push_time;
     };
@@ -902,7 +910,7 @@ private:
         std::shared_ptr<HeadIMUSerialCommunicationClass> headIMU_communication_;
         std::thread headIMU_timer_thread_;
 
-        bool use_head_imu = false;
+        bool use_head_imu = true;
 
         float head_imu_yaw;
         float head_imu_pitch;

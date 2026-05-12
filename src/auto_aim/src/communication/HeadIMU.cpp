@@ -69,7 +69,7 @@ void HeadIMUSerialCommunicationClass::initializeSerial() {
     std::string port;
     for (auto test_port : ports) {
         try {
-            if(getSerialProductInfo(test_port.substr(5)) == std::string("STM32 Virtual ComPort MyIMU")) {
+            if(getSerialProductInfo(test_port.substr(5)) == std::string("AutoAim_IMU_Com")) {
                 port = test_port;
                 break;
             };
@@ -162,27 +162,29 @@ void HeadIMUSerialCommunicationClass::processFrame(const uint8_t* data) {
     memcpy(&frame.header2, &data[1], sizeof(uint8_t));
     memcpy(&frame.header3, &data[2], sizeof(uint8_t));
     memcpy(&frame.data_len, &data[3], sizeof(uint8_t));
-    memcpy(&frame.rectified_avx_multiply_8, &data[4], sizeof(int32_t));
-    memcpy(&frame.rectified_avy_multiply_8, &data[8], sizeof(int32_t));
-    memcpy(&frame.rectified_avz_multiply_8, &data[12], sizeof(int32_t));
-    memcpy(&frame.received_ax, &data[16], sizeof(short));
-    memcpy(&frame.received_ay, &data[18], sizeof(short));
-    memcpy(&frame.received_az, &data[20], sizeof(short));
-    memcpy(&frame.euler_yaw, &data[22], sizeof(float));
-    memcpy(&frame.euler_pitch, &data[26], sizeof(float));
-    memcpy(&frame.euler_roll, &data[30], sizeof(float));
-    memcpy(&frame.crc32, &data[34], sizeof(uint32_t));
+    memcpy(&frame.gx, &data[4], sizeof(float));
+    memcpy(&frame.gy, &data[8], sizeof(float));
+    memcpy(&frame.gz, &data[12], sizeof(float));
+    memcpy(&frame.ax, &data[16], sizeof(float));
+    memcpy(&frame.ay, &data[20], sizeof(float));
+    memcpy(&frame.az, &data[24], sizeof(float));
+    memcpy(&frame.euler_yaw, &data[28], sizeof(double));
+    memcpy(&frame.euler_pitch, &data[36], sizeof(double));
+    memcpy(&frame.euler_roll, &data[44], sizeof(double));
+    memcpy(&frame.dt_one_tenth_ms, &data[52], sizeof(uint32_t));
+    memcpy(&frame.crc32, &data[56], sizeof(uint32_t));
 
     HeadIMUSerialData msg;
-    msg.rectified_avx_multiply_8 = frame.rectified_avx_multiply_8;
-    msg.rectified_avy_multiply_8 = frame.rectified_avy_multiply_8;
-    msg.rectified_avz_multiply_8 = frame.rectified_avz_multiply_8;
-    msg.received_ax = frame.received_ax;
-    msg.received_ay = frame.received_ay;
-    msg.received_az = frame.received_az;
+    msg.gx = frame.gx;
+    msg.gy = frame.gy;
+    msg.gz = frame.gz;
+    msg.ax = frame.ax;
+    msg.ay = frame.ay;
+    msg.az = frame.az;
     msg.euler_yaw = frame.euler_yaw;
     msg.euler_pitch = frame.euler_pitch;
     msg.euler_roll = frame.euler_roll;
+    msg.dt_one_tenth_ms = frame.dt_one_tenth_ms;
     
     serialDataCallback(msg);
 

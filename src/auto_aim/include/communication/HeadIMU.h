@@ -40,15 +40,16 @@
 #include <thread>
 
 struct HeadIMUSerialData {
-    int32_t rectified_avx_multiply_8;
-    int32_t rectified_avy_multiply_8;
-    int32_t rectified_avz_multiply_8;
-    short received_ax;
-    short received_ay;
-    short received_az;
-    float euler_yaw;
-    float euler_pitch;
-    float euler_roll;
+    float gx;
+    float gy;
+    float gz;
+    float ax;
+    float ay;
+    float az;
+    double euler_yaw;
+    double euler_pitch;
+    double euler_roll;
+    uint32_t dt_one_tenth_ms;
 };
 
 class HeadIMUSerialCommunicationClass {
@@ -64,15 +65,16 @@ private:
         uint8_t header2;
         uint8_t header3;
         uint8_t data_len;
-        int32_t rectified_avx_multiply_8;
-        int32_t rectified_avy_multiply_8;
-        int32_t rectified_avz_multiply_8;
-        short received_ax;
-        short received_ay;
-        short received_az;
-        float euler_yaw;
-        float euler_pitch;
-        float euler_roll;
+        float gx;
+        float gy;
+        float gz;
+        float ax;
+        float ay;
+        float az;
+        double euler_yaw;
+        double euler_pitch;
+        double euler_roll;
+        uint32_t dt_one_tenth_ms;
         uint32_t crc32;
     };
     static constexpr size_t BUFFER_SIZE = 1024;

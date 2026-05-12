@@ -328,3 +328,77 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
     
     return result;
 }
+
+double ArmorSolver::getMaxFOVAngle(int width, int height) const {
+    if (camera_matrix.empty() || dist_coeffs.empty()) {
+        RCLCPP_ERROR(logger_p, "Camera parameters not initialized!");
+        return -1.0;
+    }
+
+    // 检查缓存
+    std::string cache_key = makeCacheKey(width, height);
+    auto it = fov_cache_.find(cache_key);
+    if (it != fov_cache_.end()) {
+        return it->second;
+    }
+
+    // 准备四个角点（可进一步在边上增加采样点，这里以角点为例）
+    std::vector<cv::Point2f> corners;
+    corners.emplace_back(0.0f, 0.0f);                      // 左上
+    corners.emplace_back(static_cast<float>(width - 1), 0.0f); // 右上
+    corners.emplace_back(0.0f, static_cast<float>(height - 1)); // 左下
+    corners.emplace_back(static_cast<float>(width - 1), static_cast<float>(height - 1)); // 右下
+
+    // 可选：增加四条边中点，防止切向畸变导致最大夹角不在角点
+    // 为提高精度（尤其畸变严重时），可取消注释以下代码
+    // /*
+    corners.emplace_back(static_cast<float>(width/2), 0.0f);
+    corners.emplace_back(static_cast<float>(width/2), static_cast<float>(height-1));
+    corners.emplace_back(0.0f, static_cast<float>(height/2));
+    corners.emplace_back(static_cast<float>(width-1), static_cast<float>(height/2));
+    // */
+
+    // 去畸变，得到归一化平面上的理想坐标（射线方向向量，z=1）
+    std::vector<cv::Point2f> normalized_points;
+    // 关键：不传入新的相机矩阵 P，输出即为归一化坐标
+    cv::undistortPoints(corners, normalized_points, camera_matrix, dist_coeffs,
+                        cv::noArray(), cv::noArray()); // 注意：第四个参数为空，输出直接是归一化坐标
+
+    if (normalized_points.size() != corners.size()) {
+        RCLCPP_ERROR(logger_p, "undistortPoints failed, size mismatch");
+        return -1.0;
+    }
+
+    // 将归一化坐标转换为 3D 射线方向 (x, y, 1)
+    std::vector<cv::Point3f> rays;
+    rays.reserve(normalized_points.size());
+    for (const auto& p : normalized_points) {
+        rays.emplace_back(p.x, p.y, 1.0f);
+        std::cout << "Normalized point: (" << p.x << ", " << p.y << ") -> Ray: (" << p.x << ", " << p.y << ", 1)" << std::endl;
+    }
+
+    // 计算所有点对之间的最大夹角
+    double max_angle = 0.0;
+    const size_t n = rays.size();
+    for (size_t i = 0; i < n; ++i) {
+        const cv::Point3f& d1 = rays[i];
+        double norm1 = std::sqrt(d1.x*d1.x + d1.y*d1.y + 1.0); // 注意 z=1
+        for (size_t j = i+1; j < n; ++j) {
+            const cv::Point3f& d2 = rays[j];
+            double dot = d1.x*d2.x + d1.y*d2.y + 1.0; // d1.z=d2.z=1
+            double norm2 = std::sqrt(d2.x*d2.x + d2.y*d2.y + 1.0);
+            double cos_val = dot / (norm1 * norm2);
+            // 避免数值误差
+            if (cos_val > 1.0) cos_val = 1.0;
+            if (cos_val < -1.0) cos_val = -1.0;
+            double angle = std::acos(cos_val);
+            if (angle > max_angle) max_angle = angle;
+        }
+    }
+
+    // 缓存结果
+    fov_cache_[cache_key] = max_angle;
+    RCLCPP_INFO(logger_p, "Computed max FOV angle: %.3f deg (%.4f rad) for resolution %dx%d",
+                max_angle * 180.0 / M_PI, max_angle, width, height);
+    return max_angle;
+}

@@ -60,11 +60,14 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
             // 将pnp结果转换至静止坐标系以稳定预测
             cv::Point3f rest_frame_pos = rest_frame_ -> pnpToWorldP3f(solve_armor_result.position);
-            std::vector<float> rest_frame_euler_angles = {
-                static_cast<float>(solve_armor_result.ba_global_ypr[0]),
-                static_cast<float>(solve_armor_result.ba_global_ypr[1]),
-                static_cast<float>(solve_armor_result.ba_global_ypr[2])
-            };
+            // std::vector<float> rest_frame_euler_angles = {
+            //     static_cast<float>(solve_armor_result.ba_global_ypr[0]),
+            //     static_cast<float>(solve_armor_result.ba_global_ypr[1]),
+            //     static_cast<float>(solve_armor_result.ba_global_ypr[2])
+            // };
+            std::vector<float> rest_frame_euler_angles = rest_frame_ -> getWorldEulerAnglesFromCam(
+                solve_armor_result.normal_euler_angles[0], solve_armor_result.normal_euler_angles[1], solve_armor_result.normal_euler_angles[2]);
+
             RCLCPP_DEBUG(node->get_logger(), "camera euler angles: yaw=%.2f, pitch=%.2f, roll=%.2f", solve_armor_result.normal_euler_angles[0], solve_armor_result.normal_euler_angles[1], solve_armor_result.normal_euler_angles[2]);
             RCLCPP_DEBUG(node->get_logger(), "Rest frame pos: x=%.2f, y=%.2f, z=%.2f, yaw=%.2f", rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0]);
 
@@ -135,11 +138,14 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             for (auto& chosen_armor : classifyResults) {
                 AimResult solve_armor_result = chosen_armor.solve_armor_result;
                 cv::Point3f rest_frame_pos = rest_frame_ -> pnpToWorldP3f(solve_armor_result.position);
-                std::vector<float> rest_frame_euler_angles = {
-                    static_cast<float>(solve_armor_result.ba_global_ypr[0]),
-                    static_cast<float>(solve_armor_result.ba_global_ypr[1]),
-                    static_cast<float>(solve_armor_result.ba_global_ypr[2])
-                };
+                // std::vector<float> rest_frame_euler_angles = {
+                //     static_cast<float>(solve_armor_result.ba_global_ypr[0]),
+                //     static_cast<float>(solve_armor_result.ba_global_ypr[1]),
+                //     static_cast<float>(solve_armor_result.ba_global_ypr[2])
+                // };
+                std::vector<float> rest_frame_euler_angles = rest_frame_ -> getWorldEulerAnglesFromCam(
+                    solve_armor_result.normal_euler_angles[0], solve_armor_result.normal_euler_angles[1], solve_armor_result.normal_euler_angles[2]);
+                
                 ObservedData RMM_update_data({
                     rest_frame_pos.x, rest_frame_pos.y, rest_frame_pos.z, rest_frame_euler_angles[0],
                     RMM_update_time
