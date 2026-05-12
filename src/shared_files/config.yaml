@@ -9,7 +9,7 @@ yolo_pose_model_relative_path : "src/shared_files/models/armor-oneclass-yolo11n-
 init_enemy_color : "BLUE" # 初始敌方颜色，连接至电控后会自动获取敌方颜色并覆盖此值
 use_yolo_pose : false     # 传统视觉无法识别装甲板时的备用方案，精度较（？）低
 max_armor_position_height : 800.0 # 最大装甲板高度，超过此值视为无效
-max_armor_position_distance : 8000.0
+max_armor_position_distance : 16000.0
 
 camera_ExposureTime : 5000.0  # 5000.0
 camera_Gain : 16.0            # 16.0
@@ -44,7 +44,7 @@ reset_max_pitch : 0.0            # 扫描目标时pitch轴最大值，单位为�
 reset_max_big_yaw_gap : 120.0     # 扫描目标时大yaw目标值和实际值的最大差距，防止目标与实际差距超过半圈导致反转，单位为度
 big_yaw_smooth_factor : 0.03      # 大yaw将根据这个系数，以按时间指数衰减的方式靠近瞄准中心，值越大速度越快
 small_yaw_to_big_boundary : 45.0  # 小yaw超出这个角度后，将重新设置大yaw对准目标，单位为度
-reset_ceasefire_ms : 1000.0       # 开始识别到目标的这段时间内不开火
+reset_ceasefire_ms : 300.0       # 开始识别到目标的这段时间内不开火
 
 
 # 控制PID参数
@@ -60,11 +60,11 @@ command_yaw_integration_speed: 0.001
 command_yaw_integration_max_speed_degree: 5.0
 
 # 火控设置
-after_target_change_ceasefire_ms : 200                      # 切换至下一块装甲板后，在这段时间内不开火
+after_target_change_ceasefire_ms : 0                      # 切换至下一块装甲板后，在这段时间内不开火
 before_target_change_ceasefire_ms : 0                     # 切换至下一块装甲板前，在这段时间内提前停火
 aim_center_vyaw_upper_threshold : 3.5                       # 敌方小陀螺超过此转速（rad/s）后，切换为瞄准整车中心，预测装甲板到达中心的时间开火
 aim_center_vyaw_lower_threshold : 3.0                       # 切换为上述瞄准中心开火模式后，小陀螺转速下降至此值后换回原模式
-aim_center_yaw_bias_expand : 0.0                            # 瞄准中心开火模式下，相对于只在装甲板覆盖的角度范围开火，增加此值对应的角度。此值单位为rad
+aim_center_yaw_bias_expand : 6.28                            # 瞄准中心开火模式下，相对于只在装甲板覆盖的角度范围开火，增加此值对应的角度。此值单位为rad
 low_vyaw_change_target_delta_yaw_threshold_degree : 30.0    # 角速度较低时，切换目标装甲板需要比当前目标装甲板更靠近的角度，防止在两块装甲板角度相近时目标来回跳变。此值单位为度
 low_vyaw_threshold : 0.3                                    # 上述防跳变启用的角速度阈值（rad/s）
 

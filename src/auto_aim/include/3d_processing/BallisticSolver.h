@@ -100,8 +100,8 @@ private:
         RefineInfo refine_info;
     };
 
-    float extra_delta_pitch = -1.0 * M_PI / 180.0f;
-    float extra_delta_yaw = -0.5 * M_PI / 180.0f;
+    float extra_delta_pitch = -3.5 * M_PI / 180.0f;
+    float extra_delta_yaw = 0.0 * M_PI / 180.0f;
 };
 
 #endif // BALLISTIC_SOLVER_H

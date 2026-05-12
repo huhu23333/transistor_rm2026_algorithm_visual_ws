@@ -3,8 +3,7 @@
 
 // 辅助函数：将角度限制在[-180, 180]范围内
 float BallisticSolver::normalizeRad(float rad) {
-    while (rad > M_PI) rad -= 2 * M_PI;
-    while (rad < -M_PI) rad += 2 * M_PI;
+    rad = std::atan2(std::sin(rad), std::cos(rad));
     return rad;
 }
 
