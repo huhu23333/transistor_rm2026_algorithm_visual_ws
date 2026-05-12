@@ -320,12 +320,7 @@ private:
         headIMUInfos.head_imu_roll = msg.euler_roll;
         headIMUInfos.to_mcu_delta_pitch = headIMUInfos.mcu_pitch - headIMUInfos.head_imu_pitch;
 
-        while (current_yaw_ < -M_PI) {
-            current_yaw_ += 2 * M_PI;
-        }
-        while (current_yaw_ > M_PI) {
-            current_yaw_ -= 2 * M_PI;
-        }
+        current_yaw_ = std::atan2(std::sin(current_yaw_), std::cos(current_yaw_));
         
         if (current_yaw_ < -M_PI/2 && last_yaw_rad_imu_ > M_PI/2) {
             current_yaw_circle_imu_ += 1;
@@ -424,12 +419,7 @@ private:
         headIMUInfos.to_mcu_delta_pitch = headIMUInfos.mcu_pitch - headIMUInfos.head_imu_pitch;
 
 
-        while (current_yaw_ < -M_PI) {
-            current_yaw_ += 2 * M_PI;
-        }
-        while (current_yaw_ > M_PI) {
-            current_yaw_ -= 2 * M_PI;
-        }
+        current_yaw_ = std::atan2(std::sin(current_yaw_), std::cos(current_yaw_));
         enemy_color_ = (processed_msg.color == 0) ? "RED" : "BLUE";
         if (enemy_color_ == "RED") {
             params_.enemy_color = Params::RED;
@@ -469,7 +459,7 @@ private:
             serial_infos_delay_.push(now_serial_infos);
         }
 
-        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(processed_msg.z_rotation_velocity) * (0.0) / 800.0 * M_PI / 180.0);
+        predictor_main_ -> set_extra_delta_yaw(static_cast<float>(processed_msg.z_rotation_velocity) * (2.0) / 1100.0 * M_PI / 180.0);
     }
 
     void drawResults(cv::Mat& image, 

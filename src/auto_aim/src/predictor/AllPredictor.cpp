@@ -124,15 +124,27 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
 
 
 
-
+    static int empty_update_step = 0;
     if (armor_class != ArmorType::Base) {
         // ========================== RotationMotionModel ===========================
         double RMM_update_time = (std::chrono::steady_clock::now() - node_start_time).count() / 1e9;
         bool RMM_updated_flag = false;
         cv::Mat RMM_visualize_frame = cv::Mat::zeros(800, 800, CV_8UC3);
         bool has_tracked_armor_flag = false;
+        float RMM_state_vyaw = 0.0f;
+        if (rotation_motion_model_) {
+            RotationMotionState RMM_state = rotation_motion_model_ -> getState();
+            RMM_state_vyaw = RMM_state.vyaw;
+        }
         if (!classifyResults.empty()) {
             for (auto& chosen_armor : classifyResults) {
+                if (abs(RMM_state_vyaw) > 0.5f) { // 0.5 2.5
+                    if (abs(chosen_armor.solve_armor_result.yaw) > 45.0f * M_PI / 180.0f && empty_update_step < 30) {
+                        continue;
+                    }
+                } else {
+                    empty_update_step = 0;
+                }
                 AimResult solve_armor_result = chosen_armor.solve_armor_result;
                 cv::Point3f rest_frame_pos = rest_frame_ -> pnpToWorldP3f(solve_armor_result.position);
                 std::vector<float> rest_frame_euler_angles = {
@@ -187,6 +199,7 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
             }
         } 
         if (!RMM_updated_flag) {
+            empty_update_step += 1;
             if (rotation_motion_model_) {
                 rotation_motion_model_ -> emptyUpdate(RMM_update_time);
             }
@@ -303,6 +316,17 @@ PredictorResult AllPredictor::step(std::vector<ArmorResult>& classifyResults, cv
                     predicted_aim_pos = predicted_armor_pos;
                 }
                 fire_flag = RMM_fire_result.fire;
+
+                PredictResult RMM_pred_aim_data_for_extra_center_move = rotation_motion_model_ -> predict(total_delay + 0.2);
+                cv::Point3f far_center(
+                    RMM_pred_aim_data_for_extra_center_move.center_x, 
+                    RMM_pred_aim_data_for_extra_center_move.center_y, 
+                    RMM_pred_aim_data_for_extra_center_move.center_z);
+                cv::Point3f near_center(
+                    RMM_pred_aim_data.center_x, 
+                    RMM_pred_aim_data.center_y, 
+                    RMM_pred_aim_data.center_z);
+                predicted_aim_pos += far_center - near_center;
                 
                 cv::circle(RMM_visualize_frame, 
                     cv::Point2f(400+chosen_armor.x/RMM_visualize_zoom_out_factor, 400-chosen_armor.y/RMM_visualize_zoom_out_factor), 8, 

@@ -40,12 +40,12 @@ RotationMotionModel::RotationMotionModel(ObservedData& initObservedData, std::sh
     jump_rad = M_PI * 2.0 / n_armors;
 
     // 遗忘因子，值越大遗忘越快
-    lambda_ = is_outpost ? -std::log(0.97) / 0.033 : -std::log(0.88) / 0.033;
+    lambda_ = is_outpost ? -std::log(0.97) / 0.033 : -std::log(0.90) / 0.033; // 0.88 // 0.95 // 0.70
 
     // 初始化指数衰减最小二乘
     resetExponentialLS();
 }
-
+\
 void RotationMotionModel::resetExponentialLS() {
     // 初始化7x7协方差矩阵
     P_center_ = Eigen::MatrixXd::Identity(STATE_DIM, STATE_DIM) * 1000.0;
