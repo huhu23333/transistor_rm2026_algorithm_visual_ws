@@ -47,11 +47,11 @@ command_yaw_integration_speed: 0.001
 command_yaw_integration_max_speed_degree: 5.0
 
 # 火控设置
-after_target_change_ceasefire_ms : 300                      # 切换至下一块装甲板后，在这段时间内不开火
-before_target_change_ceasefire_ms : 100                     # 切换至下一块装甲板前，在这段时间内提前停火
+after_target_change_ceasefire_ms : 200                      # 切换至下一块装甲板后，在这段时间内不开火
+before_target_change_ceasefire_ms : 0                     # 切换至下一块装甲板前，在这段时间内提前停火
 aim_center_vyaw_upper_threshold : 2.5                       # 敌方小陀螺超过此转速（rad/s）后，切换为瞄准整车中心，预测装甲板到达中心的时间开火
 aim_center_vyaw_lower_threshold : 2.0                       # 切换为上述瞄准中心开火模式后，小陀螺转速下降至此值后换回原模式
-aim_center_yaw_bias_expand : 0.0                            # 瞄准中心开火模式下，相对于只在装甲板覆盖的角度范围开火，增加此值对应的角度。此值单位为rad
+aim_center_yaw_bias_expand : 0.2                            # 瞄准中心开火模式下，相对于只在装甲板覆盖的角度范围开火，增加此值对应的角度。此值单位为rad
 low_vyaw_change_target_delta_yaw_threshold_degree : 30.0    # 角速度较低时，切换目标装甲板需要比当前目标装甲板更靠近的角度，防止在两块装甲板角度相近时目标来回跳变。此值单位为度
 low_vyaw_threshold : 0.3                                    # 上述防跳变启用的角速度阈值（rad/s）
 
