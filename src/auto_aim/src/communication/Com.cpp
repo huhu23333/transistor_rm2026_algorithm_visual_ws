@@ -158,8 +158,8 @@ std::vector<std::string> SerialCommunicationClass::findAvailableSerialPorts() {
 
 bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target, bool fire) {
     if (fd_ >= 0) {
-        //pitch_target = -0.01; // 约 0.01对应30°
-        //yaw_target = 0;
+        // pitch_target = -0.01; // 约 0.01对应30°
+        // yaw_target = 1;
         // 传入参数使用弧度制 [-M_PI, M_PI]
         // 总大小 = 帧头(2) + 命令码(1) + 长度(1) + pitch_target(4) + yaw_target(2) + fire(1) + CRC(1) = 12字节
         std::array<uint8_t, 12> tx_data{};
@@ -206,6 +206,7 @@ bool SerialCommunicationClass::sendData(float pitch_target, float yaw_target, bo
                         written);
         }
     }
+    
     return false;
 }
 
