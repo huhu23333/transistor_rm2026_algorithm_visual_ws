@@ -99,6 +99,7 @@ public:
 #endif
 
         use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
+        yolo_pose_blocking = (*config_file_ptr)["yolo_pose_blocking"].as<bool>();
 
         // 根据相机内参自动提取，不再需要手动输入
         // yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
@@ -660,16 +661,7 @@ private:
             std::vector<Armor> armors;
             std::vector<ArmorResult> classifyResults;
 
-            // 检测灯条
-            light_detector_->detectLights(frame);
-            light_detector_->processLights();
-            lights = light_detector_->getLights();
-            
-            // 检测装甲板
-            armors = armor_detector_->detectArmors(lights);
-
             if (use_yolo_pose) {
-                std::vector<Armor> yolo_armors;
                 now_history_frame_identifier += 1;
                 if (now_history_frame_identifier == history_frame_identifier_loop) {
                     now_history_frame_identifier = 0;
@@ -678,10 +670,10 @@ private:
                 if (history_frames.size() == max_history_frame) {
                     history_frames.pop_front();
                 }
-                yolo_armors = yolo_pose_armor_detector -> detectArmors(frame, false, now_history_frame_identifier);
+                armors = yolo_pose_armor_detector -> detectArmors(frame, yolo_pose_blocking, now_history_frame_identifier);
                 int history_frame_index = history_frames.size() - 1 - yolo_delay_frame;
-                if (yolo_armors.size() > 0) {
-                    Armor& yolo_armor = yolo_armors[0];
+                if (armors.size() > 0) {
+                    Armor& yolo_armor = armors[0];
                     for (int delay_frame = 0; delay_frame < history_frames.size(); delay_frame += 1) {
                         history_frame_index = history_frames.size() - 1 - delay_frame;
                         yolo_delay_frame = delay_frame;
@@ -691,7 +683,9 @@ private:
                     }
                 }
                 std::vector<Armor> true_yolo_armors;
-                for (Armor& yolo_armor : yolo_armors) {
+                for (Armor& yolo_armor : armors) {
+                    lights.emplace_back(yolo_armor.leftLight);
+                    lights.emplace_back(yolo_armor.rightLight);
                     if (yolo_armor.is_true_yolo_armor(history_frames[history_frame_index].frame))
                     {
                         true_yolo_armors.push_back(yolo_armor);
@@ -702,6 +696,14 @@ private:
                 classifyResults = classifier_->classify(history_frames[history_frame_index].frame, true_yolo_armors, ground_stable_point);
             } else {
                 extra_info_delay_time_ms = 0.0;
+
+                // 检测灯条
+                light_detector_->detectLights(frame);
+                light_detector_->processLights();
+                lights = light_detector_->getLights();
+                
+                // 检测装甲板
+                armors = armor_detector_->detectArmors(lights);
                 classifyResults = classifier_->classify(frame, armors, ground_stable_point);
             }
 
@@ -890,6 +892,7 @@ private:
 
     std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
     bool use_yolo_pose;
+    bool yolo_pose_blocking;
     int max_history_frame = 10;
     int history_frame_identifier_loop = 30;
     int now_history_frame_identifier = 0;
