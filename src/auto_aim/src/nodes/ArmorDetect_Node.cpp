@@ -180,6 +180,7 @@ public:
         init_serial_infos.last_pitch_rad_ = 0.0;
         init_serial_infos.last_yaw_rad_ = 0.0;
         init_serial_infos.total_yaw_rad_ = 0.0;
+        init_serial_infos.last_roll_rad_ = 0.0;
         init_serial_infos.push_time = node_start_time;
         serial_infos_delay_.push(init_serial_infos);
 
