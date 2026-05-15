@@ -657,12 +657,17 @@ private:
             std::vector<ArmorResult> classifyResults;
 
             if (use_RP24_YOLO) {
-                armors = rp24_yolo_wrapper -> detectArmors(frame, enemy_color_);
+                // armors = rp24_yolo_wrapper -> detectArmors(frame, enemy_color_);
+                // for (Armor& armor : armors) {
+                //     lights.emplace_back(armor.leftLight);
+                //     lights.emplace_back(armor.rightLight);
+                // }
+                // classifyResults = classifier_->classify(frame, armors, ground_stable_point);
+                classifyResults = rp24_yolo_wrapper -> detectArmorsWithClassifyAndTrack(frame, enemy_color_, ground_stable_point, &armors);
                 for (Armor& armor : armors) {
                     lights.emplace_back(armor.leftLight);
                     lights.emplace_back(armor.rightLight);
                 }
-                classifyResults = classifier_->classify(frame, armors, ground_stable_point);
             } else {
 
                 // 检测灯条

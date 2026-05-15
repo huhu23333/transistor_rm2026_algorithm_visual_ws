@@ -64,9 +64,11 @@ RP24YOLOWrapper::RP24YOLOWrapper(std::shared_ptr<YAML::Node> config_file_ptr, rc
     // （参考 OpenvinoInfer.cpp 中的实现：BGR输入 -> RGB -> 归一化 -> NCHW）
     infer = std::make_shared<OpenvinoInfer>(xml_path_str, bin_path_str, device);
     cout << "[INFO] Inference model loaded successfully!" << endl;
+
+    armor_tracker = std::make_shared<ArmorTracker>(config_file_ptr, node);
 }
 
-vector<Armor> RP24YOLOWrapper::detectArmors(cv::Mat& frame, string detect_color) {
+vector<Armor> RP24YOLOWrapper::detectArmors(cv::Mat& frame, string detect_color, vector<int>* classes) {
     // 1. 缩放到 640x640 进行推理（模型输入要求 640x640）
     cv::Mat infer_frame;
     cv::resize(frame, infer_frame, cv::Size(640, 640));
@@ -119,7 +121,31 @@ vector<Armor> RP24YOLOWrapper::detectArmors(cv::Mat& frame, string detect_color)
         cv::RotatedRect leftLightBar(leftLightBar_center, leftLightBar_size, leftLightBar_angle);
         cv::RotatedRect rightLightBar(rightLightBar_center, rightLightBar_size, rightLightBar_angle);
         armors.emplace_back(leftLightBar, rightLightBar, config_file_ptr, node);
+
+        if (classes != nullptr) {
+            classes->push_back(class_map[object.label]);
+        }
     }
 
     return armors;
+}
+
+vector<ArmorResult> RP24YOLOWrapper::detectArmorsWithClassifyAndTrack(cv::Mat& frame, string detect_color, 
+        const cv::Point2f& ground_stable_point, vector<Armor>* armors_out) {
+
+    vector<int> classes;
+    vector<Armor> armors = detectArmors(frame, detect_color, &classes);
+
+    armor_tracker -> preProcess(ground_stable_point);
+    for (size_t i = 0; i < armors.size(); i++) {
+        Armor& armor = armors[i];
+        int number = classes[i];
+        bool is_large = big_map[number];
+        bool not_slant = true;
+        float confidence = armor.confidence;
+
+        armor_tracker -> addArmor(armor, number, is_large, not_slant, confidence);
+    }
+
+    return armor_tracker -> afterProcess();
 }
