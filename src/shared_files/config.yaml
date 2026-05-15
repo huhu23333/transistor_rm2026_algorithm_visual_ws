@@ -2,13 +2,12 @@
 CLASSIFIER_SHM_KEY : 0x0250
 classifier_model_relative_path : "src/shared_files/models/model_rm2026_openvino/model.xml"
 
-YOLO_POSE_SHM_KEY : 0x0070
-yolo_pose_model_relative_path : "src/shared_files/models/armor-oneclass-yolo11n-pose-best_int8_openvino_model"
+use_RP24_YOLO : true
+RP24_YOLO_model_relative_path : "src/shared_files/models/RP24_YOLO/0526.onnx"
+RP24_YOLO_device : "GPU"
 
 # ArmorDetect_Node 参数
-init_enemy_color : "BLUE" # 初始敌方颜色，连接至电控后会自动获取敌方颜色并覆盖此值
-use_yolo_pose : false     # 传统视觉无法识别装甲板时的备用方案，精度较（？）低
-yolo_pose_blocking : true    # 是否在使用yolo_pose时阻塞等待结果，开启后会降低帧率
+init_enemy_color : "BOTH" # 初始敌方颜色，连接至电控后会自动获取敌方颜色并覆盖此值
 max_armor_position_height : 1500.0 # 最大装甲板高度，超过此值视为无效
 
 camera_ExposureTime : 5000.0  # 5000.0

@@ -24,6 +24,8 @@ find_package(g2o REQUIRED)
 find_package(Sophus REQUIRED)
 find_package(fmt REQUIRED)
 
+find_package(OpenVINO REQUIRED)
+
 #rosidl_generate_interfaces(${PROJECT_NAME}
 #  "msg/SerialData.msg"
 #  "msg/GimbalCommand.msg"
@@ -56,7 +58,7 @@ add_library(armor_detector SHARED
     src/2d_armor_detector/ArmorClassifier.cpp
     src/2d_armor_detector/ArmorTracker.cpp
     src/2d_armor_detector/UnwarpUtils.cpp
-    src/2d_armor_detector/YOLOPoseArmorDetector.cpp
+    # src/2d_armor_detector/YOLOPoseArmorDetector.cpp
     src/3d_processing/ArmorSolver.cpp
     src/3d_processing/BallisticSolver.cpp
     src/3d_processing/RestFrame.cpp
@@ -76,7 +78,7 @@ add_library(armor_detector SHARED
     src/visualizer/RestFrameDraw.cpp
     src/visualizer/YawVisualizer.cpp
     src/communication/SharedMemoryClassifier.cpp
-    src/communication/SharedMemoryYOLOPose.cpp
+    # src/communication/SharedMemoryYOLOPose.cpp
     src/communication/Com.cpp
     src/communication/CRC.cpp
     src/communication/WatchdogClient.cpp
@@ -93,6 +95,8 @@ add_library(armor_detector SHARED
     src/ba_solver/utils.cpp
     src/logger/TwoVideoLogger.cpp
     src/logger/MkvWriter.cpp
+    src/RP24_YOLO/OpenvinoInfer.cpp
+    src/RP24_YOLO/RP24_YOLO_Wrapper.cpp
 )
 #add_library(crc_lib SHARED
 #    src/nodes/CRC.cpp
@@ -139,6 +143,7 @@ target_link_libraries(armor_detect_node
 #    "${cpp_typesupport_target}"
     yaml-cpp
     TBB::tbb
+    openvino::runtime
 )
 
 # 为通信节点添加依赖

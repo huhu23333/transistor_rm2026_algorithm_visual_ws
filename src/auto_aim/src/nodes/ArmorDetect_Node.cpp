@@ -31,7 +31,7 @@
 #define _USE_MATH_DEFINES // 启用数学常量
 #include <cmath>
 #include "predictor/PredictorMain.h"
-#include "2d_armor_detector/YOLOPoseArmorDetector.h"
+// #include "2d_armor_detector/YOLOPoseArmorDetector.h"
 #include "predictor/PredictorSwitcher.h"
 #include "2d_armor_detector/Armor.h"
 #include "communication/WatchdogClient.h"
@@ -39,6 +39,7 @@
 #include "communication/HeadIMU.h"
 #include "visualizer/YawVisualizer.h"
 #include "logger/TwoVideoLogger.h"
+#include "RP24_YOLO/RP24_YOLO_Wrapper.h"
 
 namespace fs = std::filesystem;
 
@@ -98,8 +99,7 @@ public:
         bullet_velocity_ = (*config_file_ptr)["bullet_velocity_"].as<float>();
 #endif
 
-        use_yolo_pose = (*config_file_ptr)["use_yolo_pose"].as<bool>();
-        yolo_pose_blocking = (*config_file_ptr)["yolo_pose_blocking"].as<bool>();
+        use_RP24_YOLO = (*config_file_ptr)["use_RP24_YOLO"].as<bool>();
 
         // 根据相机内参自动提取，不再需要手动输入
         // yaw_rad_to_x_pixel_ratio = (*config_file_ptr)["yaw_rad_to_x_pixel_ratio"].as<float>(); 
@@ -167,11 +167,9 @@ public:
             config_file_ptr, this, node_start_time, armor_solver_,
             ballistic_solver_, rest_frame_, fps_counter);
 
-        yolo_pose_armor_detector = std::make_shared<YOLOPoseArmorDetector>(config_file_ptr, this);
-
-        if (yolo_pose_armor_detector) {
-            yolo_pose_armor_detector->setEnemyColor(enemy_color_ == "RED" ? Params::RED : Params::BLUE);
-        }
+        rp24_yolo_wrapper = std::make_shared<RP24YOLOWrapper>(config_file_ptr, this, 
+            ws_dir_path / (*config_file_ptr)["RP24_YOLO_model_relative_path"].as<std::string>(), 
+            (*config_file_ptr)["RP24_YOLO_device"].as<std::string>());
 
         yaw_visualizer_ = std::make_shared<YawVisualizer>();
 
@@ -437,9 +435,6 @@ private:
         if (light_detector_) {
             light_detector_->setEnemyColor(processed_msg.color == 0 ? Params::RED : Params::BLUE);
         }
-        if (yolo_pose_armor_detector) {
-            yolo_pose_armor_detector->setEnemyColor(processed_msg.color == 0 ? Params::RED : Params::BLUE);
-        }
 
         if (current_yaw_ < -M_PI/2 && last_yaw_rad_mcu_ > M_PI/2) {
             current_yaw_circle_mcu_ += 1;
@@ -604,7 +599,7 @@ private:
 
 
         while (serial_infos_delay_.size() > 1 && 
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - serial_infos_delay_.front().push_time).count() > serial_delay_time + extra_info_delay_time_ms) {
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - serial_infos_delay_.front().push_time).count() > serial_delay_time) {
             serial_infos_delay_.pop();
         }
         DelayInfos delayed_serial_infos = serial_infos_delay_.front();
@@ -661,41 +656,14 @@ private:
             std::vector<Armor> armors;
             std::vector<ArmorResult> classifyResults;
 
-            if (use_yolo_pose) {
-                now_history_frame_identifier += 1;
-                if (now_history_frame_identifier == history_frame_identifier_loop) {
-                    now_history_frame_identifier = 0;
+            if (use_RP24_YOLO) {
+                armors = rp24_yolo_wrapper -> detectArmors(frame, enemy_color_);
+                for (Armor& armor : armors) {
+                    lights.emplace_back(armor.leftLight);
+                    lights.emplace_back(armor.rightLight);
                 }
-                history_frames.push_back(HistoryFrame({now_history_frame_identifier, frame.clone()}));
-                if (history_frames.size() == max_history_frame) {
-                    history_frames.pop_front();
-                }
-                armors = yolo_pose_armor_detector -> detectArmors(frame, yolo_pose_blocking, now_history_frame_identifier);
-                int history_frame_index = history_frames.size() - 1 - yolo_delay_frame;
-                if (armors.size() > 0) {
-                    Armor& yolo_armor = armors[0];
-                    for (int delay_frame = 0; delay_frame < history_frames.size(); delay_frame += 1) {
-                        history_frame_index = history_frames.size() - 1 - delay_frame;
-                        yolo_delay_frame = delay_frame;
-                        if (yolo_armor.delayed_result.history_frame_identifier == history_frames[history_frame_index].identifier) {
-                            break;
-                        }
-                    }
-                }
-                std::vector<Armor> true_yolo_armors;
-                for (Armor& yolo_armor : armors) {
-                    lights.emplace_back(yolo_armor.leftLight);
-                    lights.emplace_back(yolo_armor.rightLight);
-                    if (yolo_armor.is_true_yolo_armor(history_frames[history_frame_index].frame))
-                    {
-                        true_yolo_armors.push_back(yolo_armor);
-                    }
-                }
-                RCLCPP_INFO(this->get_logger(), "yolo_delay_frame: %d", yolo_delay_frame);
-                extra_info_delay_time_ms = fps_counter -> avg_frame_time() * yolo_delay_frame * 1000.0;
-                classifyResults = classifier_->classify(history_frames[history_frame_index].frame, true_yolo_armors, ground_stable_point);
+                classifyResults = classifier_->classify(frame, armors, ground_stable_point);
             } else {
-                extra_info_delay_time_ms = 0.0;
 
                 // 检测灯条
                 light_detector_->detectLights(frame);
@@ -890,19 +858,8 @@ private:
 
     std::shared_ptr<PredictorMain> predictor_main_;
 
-    std::shared_ptr<YOLOPoseArmorDetector> yolo_pose_armor_detector;
-    bool use_yolo_pose;
-    bool yolo_pose_blocking;
-    int max_history_frame = 10;
-    int history_frame_identifier_loop = 30;
-    int now_history_frame_identifier = 0;
-    struct HistoryFrame {
-        int identifier;
-        cv::Mat frame;
-    };
-    std::deque<HistoryFrame> history_frames;
-    int yolo_delay_frame = 0;
-    float extra_info_delay_time_ms = 0.0;
+    std::shared_ptr<RP24YOLOWrapper> rp24_yolo_wrapper;
+    bool use_RP24_YOLO;
 
     float max_armor_position_height;
 

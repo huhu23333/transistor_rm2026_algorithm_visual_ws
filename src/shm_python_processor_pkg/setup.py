@@ -21,7 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'shm_classifier_node = shm_python_processor_pkg.shm_classifier_node:main',
-            'shm_yolo_pose_node = shm_python_processor_pkg.shm_yolo_pose_node:main'
+            # 'shm_yolo_pose_node = shm_python_processor_pkg.shm_yolo_pose_node:main'
         ],
     },
 )
