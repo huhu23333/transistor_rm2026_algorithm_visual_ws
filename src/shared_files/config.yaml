@@ -2,7 +2,7 @@
 CLASSIFIER_SHM_KEY : 0x0250
 classifier_model_relative_path : "src/shared_files/models/model_rm2026_openvino/model.xml"
 
-use_RP24_YOLO : true
+use_RP24_YOLO : false
 RP24_YOLO_model_relative_path : "src/shared_files/models/RP24_YOLO/0526.onnx"
 RP24_YOLO_device : "GPU"
 
@@ -95,10 +95,10 @@ min_armor_confidence : 0.3   # 最小置信度阈值 # 0.3
 #  - [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
 #dist_coeffs: [-0.08153923,  0.49331671,  0.0017929,  -0.00437156, -1.28439103] # 畸变系数
 camera_matrix: # 相机内参矩阵
-  - [2.14775406e+03, 0.00000000e+00, 7.15903827e+02]
-  - [0.00000000e+00, 2.14714834e+03, 5.56624979e+02]
+  - [1.31280460e+03, 0.00000000e+00, 6.38736364e+02]
+  - [0.00000000e+00, 1.31309593e+03, 5.34133502e+02]
   - [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
-dist_coeffs: [-0.41225341, 0.35561681, 0.00065232, -0.00031048, -0.64818016] # 畸变系数
+dist_coeffs: [-0.05392145, -0.02516686, -0.00222499, -0.00149047,  0.43693918] # 畸变系数
 max_expected_small_distance_mismatch_ratio : 0.35
 max_expected_large_distance_mismatch_ratio : 0.7
 
