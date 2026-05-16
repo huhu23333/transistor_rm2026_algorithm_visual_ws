@@ -62,11 +62,12 @@ else
     echo "$NEW_LINE" | sudo tee -a "$CONF_FILE" > /dev/null
     echo "已成功添加 '$NEW_LINE' 到 $CONF_FILE"
 
-    # 更新动态链接库缓存
-    echo "正在运行 ldconfig 更新缓存..."
-    sudo ldconfig
-    echo "ldconfig 执行完成。"
 fi
+
+# 更新动态链接库缓存
+echo "正在运行 ldconfig 更新缓存..."
+sudo ldconfig
+echo "ldconfig 执行完成。"
 
 # 视频日志查看查看工具
 sudo apt install vlc
