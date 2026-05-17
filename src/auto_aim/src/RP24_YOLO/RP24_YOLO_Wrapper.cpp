@@ -123,11 +123,7 @@ vector<Armor> RP24YOLOWrapper::detectArmors(cv::Mat& frame, string detect_color,
         armors.emplace_back(leftLightBar, rightLightBar, config_file_ptr, node);
 
         if (classes != nullptr) {
-#ifdef FIX_ARMOR_CLASS
-            classes->push_back(FIX_ARMOR_CLASS);
-#else
             classes->push_back(class_map[object.label]);
-#endif
         }
     }
 
@@ -145,6 +141,9 @@ vector<ArmorResult> RP24YOLOWrapper::detectArmorsWithClassifyAndTrack(cv::Mat& f
         Armor& armor = armors[i];
         int number = classes[i];
         bool is_large = big_map[number];
+#ifdef FIX_ARMOR_CLASS
+        number = FIX_ARMOR_CLASS;
+#endif
         bool not_slant = true;
         float confidence = armor.confidence;
 
