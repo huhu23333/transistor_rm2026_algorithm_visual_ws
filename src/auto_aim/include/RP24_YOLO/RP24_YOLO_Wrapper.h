@@ -3,6 +3,7 @@
 #include "2d_armor_detector/Armor.h"
 #include "2d_armor_detector/ArmorTracker.h"
 #include <opencv2/opencv.hpp>
+#include "macro/AutoAimMacro.h"
 
 class RP24YOLOWrapper {
 public:
