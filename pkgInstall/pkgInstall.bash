@@ -8,10 +8,10 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 
 sudo apt update
-sudo apt install pip3
-sudo apt install libeigen3-dev
-sudo apt install libceres-dev
-sudo apt install libfmt-dev
+sudo apt install -y python3-pip
+sudo apt install -y libeigen3-dev
+sudo apt install -y libceres-dev
+sudo apt install -y libfmt-dev
 
 pip3 install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
 pip3 install numpy==2.2.6 sysv-ipc==1.1.0 opencv-python==4.12.0.88 pyyaml==5.4.1
