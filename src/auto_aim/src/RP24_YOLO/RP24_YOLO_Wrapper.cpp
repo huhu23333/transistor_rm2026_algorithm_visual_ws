@@ -141,6 +141,9 @@ vector<ArmorResult> RP24YOLOWrapper::detectArmorsWithClassifyAndTrack(cv::Mat& f
         Armor& armor = armors[i];
         int number = classes[i];
         bool is_large = big_map[number];
+#ifdef FIX_ARMOR_CLASS
+        number = FIX_ARMOR_CLASS;
+#endif
         bool not_slant = true;
         float confidence = armor.confidence;
 
