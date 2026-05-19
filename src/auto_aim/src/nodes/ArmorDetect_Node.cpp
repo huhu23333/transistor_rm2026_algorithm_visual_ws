@@ -699,7 +699,7 @@ private:
             }
             headIMUInfos.last_auto_aim_switch = auto_aim_switch;
             PredictorResult predictor_result = predictor_main_ -> step(classifyResults_withSolveArmorResult, frame, 
-                                                                       PredictorType::AutoSwitch, ArmorType::Middle, 
+                                                                       PredictorType::AutoSwitch, ArmorType::Nearest, 
                                                                        auto_aim_switch, headIMUInfos.mcu_yaw_online); // Todo
             float mcu_command_pitch = predictor_result.command_pitch;
             float mcu_command_yaw = predictor_result.command_yaw;

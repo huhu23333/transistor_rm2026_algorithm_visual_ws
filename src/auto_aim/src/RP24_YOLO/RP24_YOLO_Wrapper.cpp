@@ -68,7 +68,7 @@ RP24YOLOWrapper::RP24YOLOWrapper(std::shared_ptr<YAML::Node> config_file_ptr, rc
     armor_tracker = std::make_shared<ArmorTracker>(config_file_ptr, node);
 }
 
-vector<Armor> RP24YOLOWrapper::detectArmors(cv::Mat& frame, string detect_color, vector<int>* classes) {
+vector<Armor> RP24YOLOWrapper::detectArmors(cv::Mat& frame, string detect_color, vector<int>* rp24_classes) {
     // 1. 缩放到 640x640 进行推理（模型输入要求 640x640）
     cv::Mat infer_frame;
     cv::resize(frame, infer_frame, cv::Size(640, 640));
@@ -122,8 +122,8 @@ vector<Armor> RP24YOLOWrapper::detectArmors(cv::Mat& frame, string detect_color,
         cv::RotatedRect rightLightBar(rightLightBar_center, rightLightBar_size, rightLightBar_angle);
         armors.emplace_back(leftLightBar, rightLightBar, config_file_ptr, node);
 
-        if (classes != nullptr) {
-            classes->push_back(class_map[object.label]);
+        if (rp24_classes != nullptr) {
+            rp24_classes->push_back(object.label);
         }
     }
 
@@ -133,14 +133,14 @@ vector<Armor> RP24YOLOWrapper::detectArmors(cv::Mat& frame, string detect_color,
 vector<ArmorResult> RP24YOLOWrapper::detectArmorsWithClassifyAndTrack(cv::Mat& frame, string detect_color, 
         const cv::Point2f& ground_stable_point, vector<Armor>* armors_out) {
 
-    vector<int> classes;
-    vector<Armor> armors = detectArmors(frame, detect_color, &classes);
+    vector<int> rp24_classes;
+    vector<Armor> armors = detectArmors(frame, detect_color, &rp24_classes);
 
     armor_tracker -> preProcess(ground_stable_point);
     for (size_t i = 0; i < armors.size(); i++) {
         Armor& armor = armors[i];
-        int number = classes[i];
-        bool is_large = big_map[number];
+        int number = class_map[rp24_classes[i]];
+        bool is_large = big_map[rp24_classes[i]];
 #ifdef FIX_ARMOR_CLASS
         number = FIX_ARMOR_CLASS;
 #endif
