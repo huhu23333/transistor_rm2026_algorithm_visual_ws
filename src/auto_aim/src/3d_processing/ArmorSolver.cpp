@@ -290,8 +290,8 @@ AimResult ArmorSolver::solveArmor(const ArmorResult& armor_result, const double 
             // 打印优化之后的参数
             RCLCPP_DEBUG(logger_p, "\nRPY BA : (%.2f, %.2f, %.2f)" , rpy[0], rpy[1],rpy[2]);
 
-            append_ypr(result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2],
-            rpy[0],  rpy[1],  rpy[2]);
+            // append_ypr(result.normal_euler_angles[0], result.normal_euler_angles[1], result.normal_euler_angles[2],
+            // rpy[0],  rpy[1],  rpy[2]);
             
             // 填充所有的result
             result.valid = true;
