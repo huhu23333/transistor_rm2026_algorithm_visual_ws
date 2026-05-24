@@ -7,6 +7,9 @@
 // #define FIX_ENEMY_COLOR 1 // 定义后将覆盖config.yaml及电控传来的敌方颜色，0为红色，1为蓝色
 // #define FIX_BULLET_VELOCITY 12.0 // 定义后将覆盖config.yaml及电控传来的发弹初速度
 
+// #define LOG_RESULT_VIDEO // 定义后将以视频形式记录处理结果
+// #define LOG_ORIGIN_VIDEO // 定义后将记录处理的原始画面视频
+
 // -!-!-!- 下面的宏定义在上场前都要注释掉再编译一遍；上面的视情况而定 -!-!-!-
 
 #define USE_VIDEO // 定义后使用视频而不是摄像头作为输入

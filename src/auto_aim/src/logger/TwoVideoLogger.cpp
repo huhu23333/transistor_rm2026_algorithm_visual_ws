@@ -33,10 +33,14 @@ TwoVideoLogger::TwoVideoLogger(const std::string& log_folder_str) {
     origin_video_path = this_log_folder_path / "origin.mkv";
     info_video_path = this_log_folder_path / "info.mkv";
 
+#ifdef LOG_ORIGIN_VIDEO
     origin_video_writer = std::make_shared<MkvAllIntraWriter>();
-    info_video_writer = std::make_shared<MkvAllIntraWriter>();
     origin_video_writer -> open(origin_video_path.string(), 1280, 1024, 30.0, (int)50e6);
+#endif
+#ifdef LOG_RESULT_VIDEO
+    info_video_writer = std::make_shared<MkvAllIntraWriter>();
     info_video_writer -> open(info_video_path.string(), 1280+800, 800*2, 30.0, (int)20e6);
+#endif
 }
 
 void TwoVideoLogger::updateOriginFrame(const cv::Mat& frame) {
@@ -96,7 +100,11 @@ void TwoVideoLogger::writeTwoFrame() {
     long long max_left_size = 16ll * 1024ll*1024ll*1024ll; // 最少留下16G，防止系统无法启动
     if (get_available_space(this_log_folder_path.string()) > max_left_size)
     {
+#ifdef LOG_ORIGIN_VIDEO
         origin_video_writer -> writeFrame(frames.origin_frame);
+#endif
+#ifdef LOG_RESULT_VIDEO
         info_video_writer -> writeFrame(info_frame);
+#endif
     }
 }

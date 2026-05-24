@@ -174,7 +174,9 @@ public:
         yaw_visualizer_ = std::make_shared<YawVisualizer>();
 
         com_data_visualize_frame = cv::Mat::zeros(480, 640, CV_8UC3);
+#if (defined LOG_RESULT_VIDEO) or (defined LOG_ORIGIN_VIDEO)
         two_video_logger = std::make_shared<TwoVideoLogger>(ws_dir_path / "VideoLog");
+#endif
 
         DelayInfos init_serial_infos;
         init_serial_infos.last_pitch_rad_ = 0.0;
@@ -647,7 +649,9 @@ private:
             }
 #endif
 
+#if (defined LOG_RESULT_VIDEO) or (defined LOG_ORIGIN_VIDEO)
             two_video_logger -> updateOriginFrame(frame);
+#endif
 
             //cv::resize(frame, frame, cv::Size(768, 512), 0, 0, cv::INTER_LINEAR);
 
@@ -766,6 +770,7 @@ private:
                 cv::FONT_HERSHEY_COMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 1, 8, false);
 
+#if (defined LOG_RESULT_VIDEO) or (defined LOG_ORIGIN_VIDEO)
             two_video_logger -> updateDrewFrame(frame);
             two_video_logger -> updateRMMFrame(predictor_result.info_images.RMM_visualize_frame);
             two_video_logger -> updateCDOFrame(predictor_result.info_images.common_debug_oscilloscope_frame);
@@ -773,6 +778,7 @@ private:
             two_video_logger -> updateComFrame(com_data_visualize_frame);
             com_data_visualize_frame_used = true;
             two_video_logger -> writeTwoFrame();
+#endif
                 
 #ifdef SHOW_WINDOWS
             if (!predictor_result.info_images.RMM_visualize_frame.empty()) {

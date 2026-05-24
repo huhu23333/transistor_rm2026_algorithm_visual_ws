@@ -1,5 +1,6 @@
 #include "logger/MkvWriter.h"
 #include "memory"
+#include "macro/AutoAimMacro.h"
 #include <filesystem>
 #include <chrono>
 
